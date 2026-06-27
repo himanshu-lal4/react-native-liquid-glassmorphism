@@ -246,9 +246,11 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       shader.setFloatUniform("iResolution", w.toFloat(), h.toFloat())
       shader.setFloatUniform("iCorner", cornerRadiusPx)
       shader.setFloatUniform("iRefract", if (refractionEnabled) (if (variantClear) 0.7f else 1f) else 0f)
-      shader.setFloatUniform("iSat", if (variantClear) 1.2f else 1.25f)
+      shader.setFloatUniform("iSat", if (variantClear) 1.18f else 1.12f)
       shader.setFloatUniform("iLift", GlassParams.frostFloorAlpha(variantClear))
       shader.setFloatUniform("iSpecular", GlassParams.specularAlpha(variantClear))
+      // Broad glassy face reflection — stronger on clear (more mirror-like).
+      shader.setFloatUniform("iSheen", if (variantClear) 0.20f else 0.10f)
       shader.setFloatUniform("iTilt", tiltX, tiltY)
       setTintUniform(shader)
       val material = RenderEffect.createRuntimeShaderEffect(shader, "content")
@@ -339,6 +341,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       uniform float iSat;
       uniform float iLift;
       uniform float iSpecular;
+      uniform float iSheen;
       uniform float2 iTilt;
       uniform half4 iTint;
 
@@ -382,8 +385,16 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         half3 col = half3(luma) + (src - half3(luma)) * iSat;
         col = mix(col, half3(1.0), iLift);
 
-        // Tint.
-        col = mix(col, iTint.rgb, iTint.a);
+        // Tint — "vibrant adaptive": lift the tint toward white so glass stays
+        // light/translucent (iOS pastel tints), and apply at reduced strength.
+        half3 tcol = mix(iTint.rgb, half3(1.0), 0.22);
+        col = mix(col, tcol, iTint.a * 0.7);
+
+        // Broad glassy face reflection: a soft diagonal sheen band (tilt-driven).
+        float2 uv = coord / iResolution;
+        float diag = (uv.x + uv.y) * 0.5;
+        float sheen = exp(-pow((diag - 0.34 - iTilt.x * 0.15) * 3.0, 2.0)) * iSheen;
+        col = col + half3(sheen);
 
         // Fresnel rim (bright all-around edge) + directional specular (tilt).
         float fres = pow(1.0 - N.z, 3.0);
