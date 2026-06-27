@@ -48,7 +48,7 @@ object GlassParams {
    * none so media reads through. Drawn *under* the tint.
    */
   fun frostFloorAlpha(isClear: Boolean): Float =
-    if (isClear) 0.07f else 0.42f
+    if (isClear) 0.07f else 0.36f
 
   /** Opacity of the moving specular sheen, 0–1. Subtler on `clear` glass. */
   fun specularAlpha(isClear: Boolean): Float =

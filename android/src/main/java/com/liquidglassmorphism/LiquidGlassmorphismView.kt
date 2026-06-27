@@ -389,7 +389,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         float fres = pow(1.0 - N.z, 3.0);
         float3 L = normalize(float3(-0.4 + iTilt.x, -0.7 + iTilt.y, 0.8));
         float spec = pow(clamp(dot(N, L), 0.0, 1.0), 6.0);
-        col = col + half3(fres * 0.5 + spec) * iSpecular;
+        col = col + half3(fres * 0.38 + spec) * iSpecular;
 
         col = clamp(col, 0.0, 1.0);
         return half4(col, 1.0);
