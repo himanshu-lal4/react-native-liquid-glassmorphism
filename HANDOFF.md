@@ -140,14 +140,26 @@ node node_modules/expo/bin/cli run:ios
   `UIBlurEffect` material bucketed by `intensity`.
 - `glassCornerRadius` → layer cornerRadius (continuous curve) on container + effect view.
 
+## Commits so far
+- `905e2f1` iOS native + JS API + example gallery
+- `11906d9` Android physically-based glass (RenderEffect + AGSL optics)
+- `3bccfe8` Android coefficient tuning to match iOS
+
+The Android glass is now a **physically-based optical shader** (not a screenshot match):
+beveled-slab surface normal from the rounded-rect SDF → Snell refraction → chromatic
+dispersion → saturation+luminance lift → tint → Fresnel rim + tilt-driven specular,
+chained after a GPU blur of the captured backdrop. Renders close to iOS on emulator (API 34).
+⚠️ Do NOT record `root.draw()` into a hardware RenderNode (infinite libhwui recursion →
+stack overflow); capture into a software Bitmap, then draw THAT bitmap into the effect node.
+
 ## Next action when resuming
-iOS done + signed off; Android first pass done + rendering on emulator. Options:
-1. **Polish Android glass to match iOS** (recommended): brighter "frost floor" for `regular`
-   (lighten the blurred backdrop, not just white-wash), more vibrant/less-opaque tints,
-   stronger specular. Iterate via `assembleDebug` → adb install → screencap on emulator-5554.
-2. **Commit the Android milestone** (nothing past the iOS commit `905e2f1` is committed yet).
-3. **Phase 4 — Expo config plugin** (`app.plugin.js` + `plugin/`).
-4. **Phase 5 — README / llms.txt / final validation.**
+Options:
+1. **Android perf pass** (recommended before shipping): the backdrop capture re-runs per
+   glass view per frame (O(views·tree) software draw). Add a dirty-flag / throttle, or a
+   shared single-capture manager, so it's production-smooth not just demo-smooth.
+2. **Phase 4 — Expo config plugin** (`app.plugin.js` + `plugin/`).
+3. **Phase 5 — README / llms.txt / final validation.**
+4. Optional: further coefficient tuning vs iOS (per-shape lift, dispersion strength).
 
 ### How to rebuild + redeploy Android quickly
 ```
