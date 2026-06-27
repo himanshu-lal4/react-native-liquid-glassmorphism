@@ -59,13 +59,29 @@ Internal codegen component name stays `LiquidGlassmorphismView`.
       example then superseded by the image — unused now; remove from `example/package.json` +
       re-`pod install` if you want it gone. NOTE: nothing is committed yet — whole tree is
       still untracked; consider an initial commit before starting Android.
-- [ ] **Phase 3 — Android native (NEXT, the big one).** `android/.../LiquidGlassmorphismView.kt`
-      is still the scaffold stub. Implement:
-      - RenderEffect blur (API 31+)
-      - **AGSL `RuntimeShader` edge-refraction** (API 33+) — the signature look
-      - specular edge highlight + gyroscope (`SensorManager`) motion reactivity
-      - translucent tint/border fallback (< API 31)
-      Wire props: variant, tintColor, intensity, interactive, glassCornerRadius, refraction.
+- [x] **Phase 3 — Android native. ✅ FIRST PASS COMPLETE — builds + renders on emulator
+      (API 34, tourdemo AVD) with real backdrop blur.** Android has no native in-app backdrop
+      blur, so `LiquidGlassmorphismView.kt` (now a `ReactViewGroup`) reproduces it:
+      - **Backdrop capture** — an `OnPreDrawListener` snapshots the view hierarchy *behind*
+        this view each frame into a downscaled bitmap (excludes self via an `isCapturing`
+        guard in `draw()`), so children stay crisp on top.
+      - **RenderEffect blur** (API 31+) on a `RenderNode`, radius bucketed by `intensity`
+        (lighter for `clear`) — see pure `GlassParams` (JVM-unit-tested, 9 tests).
+      - **AGSL `RuntimeShader` edge-refraction** (API 33+, gated by `refraction` prop),
+        chained behind the blur; wrapped in try/catch → falls back to blur-only on shader fail.
+      - **Canvas tint wash + specular sheen + 1px rim**; specular slides with the gyroscope
+        (`SensorManager`, GAME_ROTATION_VECTOR→ACCELEROMETER fallback) when `interactive`.
+      - **< API 31 fallback:** translucent tint + rim, no blur.
+      - Manager is now a `ViewGroupManager` implementing the generated
+        `LiquidGlassmorphismViewManagerInterface` (setVariant/TintColor/Intensity/Interactive/
+        GlassCornerRadius/Refraction). All props wired.
+      Verified: `:react-native-liquid-glassmorphism:testDebugUnitTest` green, `assembleDebug`
+      BUILD SUCCESSFUL, installed on emulator-5554, gallery renders (screenshots compared to iOS).
+      **Refinements still open (polish, not blockers):** (1) `regular` tint reads darker/flatter
+      than iOS — add a brighter "frost floor" so the material lightens like UIGlassEffect;
+      (2) tinted chips read more opaque than iOS's vibrant-adaptive tint; (3) specular subtler
+      than iOS. Capture-blur recaptures every frame (fine for demo; consider throttling/dirty-flag
+      for production perf).
 - [ ] **Phase 4 — Expo config plugin.** Create `app.plugin.js` + `plugin/` source.
       (`files` and `exports` in package.json already reference them.)
 - [ ] **Phase 5 — Example screens, README, llms.txt, jest tests, final validation.**
@@ -125,17 +141,22 @@ node node_modules/expo/bin/cli run:ios
 - `glassCornerRadius` → layer cornerRadius (continuous curve) on container + effect view.
 
 ## Next action when resuming
-iOS is finished and signed off. **Start Phase 3 (Android native).** Plan:
-1. Implement `android/src/main/java/com/liquidglassmorphism/LiquidGlassmorphismView.kt` +
-   its ViewManager (currently scaffold stubs). Follow TDD where the JS/codegen layer allows.
-2. Glass stack, gated by API level:
-   - **API 31+:** `RenderEffect.createBlurEffect(...)` on the view for the frosted blur,
-     bucketed by `intensity`; translucent tint overlay for `tintColor`.
-   - **API 33+:** **AGSL `RuntimeShader` edge-refraction** (`RenderEffect.createRuntimeShaderEffect`)
-     — the signature Liquid-Glass look; plus a specular edge highlight.
-   - **`interactive`:** gyroscope via `SensorManager` (TYPE_GAME_ROTATION_VECTOR) to drive
-     the specular/refraction offset; touch press state too.
-   - **< API 31 fallback:** translucent tint + border, no blur.
-3. Map all props: variant (regular/clear → blur radius + tint defaults), tintColor, intensity,
-   interactive, glassCornerRadius (rounded outline + clip), refraction (toggle the AGSL pass).
-4. Verify on an Android emulator (API 34+) with the same example gallery; screenshot.
+iOS done + signed off; Android first pass done + rendering on emulator. Options:
+1. **Polish Android glass to match iOS** (recommended): brighter "frost floor" for `regular`
+   (lighten the blurred backdrop, not just white-wash), more vibrant/less-opaque tints,
+   stronger specular. Iterate via `assembleDebug` → adb install → screencap on emulator-5554.
+2. **Commit the Android milestone** (nothing past the iOS commit `905e2f1` is committed yet).
+3. **Phase 4 — Expo config plugin** (`app.plugin.js` + `plugin/`).
+4. **Phase 5 — README / llms.txt / final validation.**
+
+### How to rebuild + redeploy Android quickly
+```
+cd example/android && ./gradlew :app:assembleDebug --console=plain
+adb -s emulator-5554 install -r -d app/build/outputs/apk/debug/app-debug.apk
+adb -s emulator-5554 reverse tcp:8081 tcp:8081   # if Metro restarted
+adb -s emulator-5554 shell am start -n liquidglassmorphism.example/.MainActivity
+adb -s emulator-5554 exec-out screencap -p > /tmp/and.png
+```
+Run library unit tests: `cd example/android && ./gradlew :react-native-liquid-glassmorphism:testDebugUnitTest`
+Emulator boot: `$ANDROID_HOME/emulator/emulator -avd tourdemo` (API 34, supports RenderEffect+AGSL).
+A physical API-36 device (`192.168.1.2:39583`) is also available as an alternate target.
