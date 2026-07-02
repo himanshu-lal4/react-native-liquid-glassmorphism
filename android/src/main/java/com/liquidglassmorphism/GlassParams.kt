@@ -48,11 +48,20 @@ object GlassParams {
    * none so media reads through. Drawn *under* the tint.
    */
   fun frostFloorAlpha(isClear: Boolean): Float =
-    if (isClear) 0.07f else 0.36f
+    if (isClear) 0.0f else 0.10f
+
+  /**
+   * Extra frost lift applied in proportion to how dark the backdrop is, 0–1.
+   * This is what makes iOS `regular` glass "adaptive" — it lightens dark
+   * content a lot while staying translucent over bright media. `clear` gets
+   * only a little so media still reads through.
+   */
+  fun adaptiveLift(isClear: Boolean): Float =
+    if (isClear) 0.03f else 0.30f
 
   /** Opacity of the moving specular sheen, 0–1. Subtler on `clear` glass. */
   fun specularAlpha(isClear: Boolean): Float =
-    if (isClear) 0.16f else 0.30f
+    if (isClear) 0.18f else 0.32f
 
   // --- ARGB helpers (so we needn't import android.graphics.Color in tests) ---
 
@@ -61,9 +70,29 @@ object GlassParams {
   fun argb(a: Int, r: Int, g: Int, b: Int): Int =
     ((a and 0xFF) shl 24) or ((r and 0xFF) shl 16) or ((g and 0xFF) shl 8) or (b and 0xFF)
 
-  private const val MIN_BLUR_DP = 2f
-  private const val MAX_BLUR_DP = 40f
-  private const val CLEAR_BLUR_SCALE = 0.55f
+  /**
+   * Edge refraction displacement in pixels — how far the backdrop is bent at
+   * the rim of the glass lozenge. This is the LENS strength; it's what makes
+   * the content visibly wrap the edges (Liquid Glass), rather than just sit
+   * blurred behind (glassmorphism). `clear` bends a little more (thinner, more
+   * lens-like); the `refraction` prop dials it up further.
+   */
+  fun lensStrengthPx(isClear: Boolean, refraction: Boolean, density: Float): Float {
+    // Gentle — iOS refracts content only subtly at the rim and stays readable
+    // through the centre. A large displacement stretches/smears content
+    // (especially on short shapes) and reads as a defect, not glass.
+    val baseDp = if (isClear) 11f else 9f
+    val k = if (refraction) 1.35f else 1.0f
+    return baseDp * k * density
+  }
+
+  // Liquid Glass is refraction-dominant, so the frost blur is deliberately
+  // LIGHT — heavy blur destroys the detail the lens needs to bend.
+  private const val MIN_BLUR_DP = 3f
+  private const val MAX_BLUR_DP = 12f
+  // `clear` glass is nearly un-frosted — iOS clear is basically transparent
+  // refractive glass, so it gets only a whisper of blur.
+  private const val CLEAR_BLUR_SCALE = 0.2f
   private const val DEFAULT_REGULAR_TINT_ALPHA = 0x1F // ~12%
   private const val DEFAULT_CLEAR_TINT_ALPHA = 0x0D // ~5%
 }

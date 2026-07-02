@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import NativeLiquidGlass from './LiquidGlassmorphismViewNativeComponent';
 import type { LiquidGlassViewProps } from './types';
 
@@ -12,6 +14,7 @@ export function LiquidGlassView({
   intensity = 60,
   interactive = false,
   refraction = true,
+  thickness = 1,
   borderRadius = 0,
   tintColor,
   style,
@@ -26,6 +29,9 @@ export function LiquidGlassView({
       refraction={refraction}
       glassCornerRadius={borderRadius}
       tintColor={tintColor}
+      // Android-only "liquid volume"; iOS glass optics are OS-fixed, so we don't
+      // send it there (keeps it off the iOS native prop surface entirely).
+      {...(Platform.OS === 'android' ? { thickness } : null)}
       style={[{ borderRadius }, style]}
       {...rest}
     >

@@ -50,6 +50,10 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
     view.setRefractionValue(value)
   }
 
+  override fun setThickness(view: LiquidGlassmorphismView, value: Float) {
+    view.setThicknessValue(value)
+  }
+
   companion object {
     const val NAME = "LiquidGlassmorphismView"
   }

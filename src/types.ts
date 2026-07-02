@@ -52,4 +52,17 @@ export interface LiquidGlassViewProps extends ViewProps {
    * @default true
    */
   refraction?: boolean;
+
+  /**
+   * "Liquid volume" — how thick / deep the liquid glass reads, by scaling the
+   * refraction and lensing depth.
+   *
+   * - `0` — a flat glass pane (blur + tint, no lensing)
+   * - `1` — the default liquid glass look
+   * - up to `~2` — a deep, heavily-refracting lens
+   *
+   * Android only. No-op on iOS, where the OS fixes the `UIGlassEffect` optics.
+   * @default 1
+   */
+  thickness?: number;
 }

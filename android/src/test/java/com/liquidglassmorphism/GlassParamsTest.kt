@@ -77,6 +77,18 @@ class GlassParamsTest {
   }
 
   @Test
+  fun lensStrength_isPositive_scalesWithDensity_andRefractionBoostsIt() {
+    val base = GlassParams.lensStrengthPx(isClear = false, refraction = false, density = 2f)
+    val boosted = GlassParams.lensStrengthPx(isClear = false, refraction = true, density = 2f)
+    assertTrue("lens should always displace", base > 0f)
+    assertTrue("refraction prop should increase lensing", boosted > base)
+    // Linear in density.
+    val oneX = GlassParams.lensStrengthPx(isClear = false, refraction = false, density = 1f)
+    val threeX = GlassParams.lensStrengthPx(isClear = false, refraction = false, density = 3f)
+    assertEquals(oneX * 3f, threeX, 0.001f)
+  }
+
+  @Test
   fun frostFloor_regularIsMilkierThanClear_bothInRange() {
     val regular = GlassParams.frostFloorAlpha(isClear = false)
     val clear = GlassParams.frostFloorAlpha(isClear = true)
