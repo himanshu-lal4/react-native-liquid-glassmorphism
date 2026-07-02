@@ -16,6 +16,7 @@ export function LiquidGlassView({
   intensity: _intensity,
   variant: _variant,
   refraction: _refraction,
+  thickness: _thickness,
   style,
   children,
   ...rest
