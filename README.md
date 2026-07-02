@@ -80,9 +80,21 @@ cd example
 npx expo run:ios      # or: npx expo run:android
 ```
 
+## Expo
+
+The native module is autolinked, so `expo prebuild` picks it up with no manual
+setup. Optionally add the config plugin to your app config:
+
+```json
+{ "expo": { "plugins": ["react-native-liquid-glassmorphism"] } }
+```
+
+(It's a pass-through today — the effect degrades by OS version at runtime, so no
+minimum-SDK, permission, or Info.plist changes are needed.)
+
 ## Roadmap
 
-- [ ] Expo config plugin (`app.plugin.js`) for zero-config prebuild
+- [x] Expo config plugin (`app.plugin.js`)
 - [ ] Android performance pass (shared/throttled backdrop capture)
 - [ ] Arbitrary / SVG custom shapes
 
