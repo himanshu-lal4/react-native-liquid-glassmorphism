@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import {
+  Dimensions,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,20 +10,33 @@ import {
   Text,
   View,
 } from 'react-native';
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import { verticalScale } from 'react-native-size-matters';
 import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
+
+// Full PHYSICAL screen size (includes the system status/navigation bars).
+// React Native applies the bottom system inset as padding on the root view, so
+// a plain `StyleSheet.absoluteFill` (bottom:0) stops at the padding edge and
+// leaves a strip of root background showing above the nav bar. Sizing the
+// backdrop to the whole screen makes it draw edge-to-edge under the bars.
+const SCREEN = Dimensions.get('screen');
 
 // Apple fanned-blades wallpaper: rich light/dark tonal variation so glass blur,
 // edge refraction and the regular/clear difference all read clearly. Stretched
-// to fill the whole viewport so the entire landscape image is always visible.
+// to fill the whole device so the entire landscape image is always visible.
 function Backdrop() {
   return (
     <Image
       source={require('../assets/wallpaper.png')}
-      style={StyleSheet.absoluteFill}
+      style={styles.backdrop}
       resizeMode="stretch"
     />
   );
 }
+
 
 /**
  * Liquid Glass gallery — exercises every facet of the public API:
@@ -29,8 +44,22 @@ function Backdrop() {
  * circle), an intensity ramp, glass buttons, and a floating glass tab bar.
  */
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <Gallery />
+    </SafeAreaProvider>
+  );
+}
+
+function Gallery() {
   const [interactive, setInteractive] = useState(true);
   const [refraction, setRefraction] = useState(true);
+  const insets = useSafeAreaInsets();
+
+  // Bottom tab bar sits above the system bar. Android's gesture/nav bar needs a
+  // touch more breathing room than iOS's home indicator.
+  const dockBottom =
+    Platform.OS === 'android' ? insets.bottom + verticalScale(4) : insets.bottom;
 
   return (
     <View style={styles.root}>
@@ -90,6 +119,30 @@ export default function App() {
           <Switch value={refraction} onValueChange={setRefraction} />
         </LiquidGlassView>
 
+        {/* Reference numbers — scroll this behind the glass (esp. the fixed
+            dock) to watch refraction / edge-reflection live. */}
+        <Text style={styles.screenNumbers}>1234567890</Text>
+
+        {/* Solid (non-glass) colour blocks — scroll them behind the glass to
+            see how it refracts / passes real coloured UI content. */}
+        <View style={styles.colorRow}>
+          {[
+            { c: '#FF3B30', t: 'Red' },
+            { c: '#34C759', t: 'Green' },
+            { c: '#007AFF', t: 'Blue' },
+            { c: '#FFCC00', t: 'Yellow' },
+            { c: '#AF52DE', t: 'Purple' },
+            { c: '#FF9500', t: 'Orange' },
+          ].map((b) => (
+            <View
+              key={b.t}
+              style={[styles.colorBlock, { backgroundColor: b.c }]}
+            >
+              <Text style={styles.colorBlockText}>{b.t}</Text>
+            </View>
+          ))}
+        </View>
+
         {/* 4. Shapes -------------------------------------------------------- */}
         <Text style={styles.section}>Shapes</Text>
         <View style={styles.rowWrap}>
@@ -146,8 +199,11 @@ export default function App() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* 7. macOS-dock-style clear glass tray (empty) -------------------- */}
-      <View style={styles.dockWrap} pointerEvents="box-none">
+      {/* 7. macOS-dock-style clear glass tray ----------------------------- */}
+      <View
+        style={[styles.dockWrap, { bottom: dockBottom }]}
+        pointerEvents="box-none"
+      >
         <LiquidGlassView
           variant="clear"
           interactive
@@ -161,6 +217,13 @@ export default function App() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#1b1f3a' },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: SCREEN.width,
+    height: SCREEN.height,
+  },
   content: { padding: 20, paddingTop: 72, gap: 8 },
   heading: { fontSize: 36, fontWeight: '800', color: '#fff' },
   subheading: { fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 8 },
@@ -221,7 +284,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 28,
     alignItems: 'center',
   },
   dock: {
@@ -229,4 +291,27 @@ const styles = StyleSheet.create({
     height: 64,
     overflow: 'hidden',
   },
+  screenNumbers: {
+    fontSize: 38,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.9)',
+    letterSpacing: 6,
+    textAlign: 'center',
+    marginVertical: 20,
+  },
+  colorRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
+    marginVertical: 12,
+  },
+  colorBlock: {
+    width: 104,
+    height: 72,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorBlockText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });
