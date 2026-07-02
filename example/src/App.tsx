@@ -119,30 +119,6 @@ function Gallery() {
           <Switch value={refraction} onValueChange={setRefraction} />
         </LiquidGlassView>
 
-        {/* Reference numbers — scroll this behind the glass (esp. the fixed
-            dock) to watch refraction / edge-reflection live. */}
-        <Text style={styles.screenNumbers}>1234567890</Text>
-
-        {/* Solid (non-glass) colour blocks — scroll them behind the glass to
-            see how it refracts / passes real coloured UI content. */}
-        <View style={styles.colorRow}>
-          {[
-            { c: '#FF3B30', t: 'Red' },
-            { c: '#34C759', t: 'Green' },
-            { c: '#007AFF', t: 'Blue' },
-            { c: '#FFCC00', t: 'Yellow' },
-            { c: '#AF52DE', t: 'Purple' },
-            { c: '#FF9500', t: 'Orange' },
-          ].map((b) => (
-            <View
-              key={b.t}
-              style={[styles.colorBlock, { backgroundColor: b.c }]}
-            >
-              <Text style={styles.colorBlockText}>{b.t}</Text>
-            </View>
-          ))}
-        </View>
-
         {/* 4. Shapes -------------------------------------------------------- */}
         <Text style={styles.section}>Shapes</Text>
         <View style={styles.rowWrap}>
@@ -291,27 +267,4 @@ const styles = StyleSheet.create({
     height: 64,
     overflow: 'hidden',
   },
-  screenNumbers: {
-    fontSize: 38,
-    fontWeight: '800',
-    color: 'rgba(255,255,255,0.9)',
-    letterSpacing: 6,
-    textAlign: 'center',
-    marginVertical: 20,
-  },
-  colorRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'center',
-    marginVertical: 12,
-  },
-  colorBlock: {
-    width: 104,
-    height: 72,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  colorBlockText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });
