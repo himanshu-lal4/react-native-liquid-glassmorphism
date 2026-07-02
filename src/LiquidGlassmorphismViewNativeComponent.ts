@@ -1,5 +1,5 @@
 import { codegenNativeComponent, type ColorValue, type ViewProps } from 'react-native';
-import type { Int32, WithDefault } from 'react-native/Libraries/Types/CodegenTypes';
+import type { Float, Int32, WithDefault } from 'react-native/Libraries/Types/CodegenTypes';
 
 /**
  * Codegen spec for the native Liquid Glass Fabric component.
@@ -32,6 +32,13 @@ export interface NativeProps extends ViewProps {
    * No-op on iOS, where the OS renders refraction natively.
    */
   refraction?: boolean;
+
+  /**
+   * Android only: "liquid volume" — scales the refraction/lens depth of the
+   * glass. 0 = flat pane (no lensing), 1 = default, up to ~2 = deep liquid lens.
+   * No-op on iOS, where the OS fixes the glass optics.
+   */
+  thickness?: WithDefault<Float, 1.0>;
 }
 
 export default codegenNativeComponent<NativeProps>('LiquidGlassmorphismView');

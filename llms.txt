@@ -1,0 +1,47 @@
+# react-native-liquid-glassmorphism
+
+> iOS 26 Liquid Glass for React Native, on both iOS and Android. iOS uses the native `UIGlassEffect`; Android reproduces the optics in a real-time AGSL refractive-lens shader (backdrop capture → blur → rounded-glass lozenge with edge refraction, chromatic dispersion, mirrored edge reflection, Fresnel rim, and tilt/touch specular). Fabric + old architecture. Requires RN 0.83+. Not supported in Expo Go — use a dev build / prebuild.
+
+## Install
+
+```sh
+npm install react-native-liquid-glassmorphism
+```
+
+## Component
+
+Import: `import { LiquidGlassView } from 'react-native-liquid-glassmorphism'`
+
+`<LiquidGlassView>` extends `ViewProps`. Children render crisply on top of the glass; only the backdrop is blurred/refracted.
+
+### Props (all optional)
+
+- `variant`: `'regular' | 'clear'` (default `'regular'`). `regular` = adaptive frosted glass; `clear` = lighter, transparent (for media).
+- `tintColor`: `ColorValue`. Tint over the backdrop; use `rgba()` / 8-digit hex for strength.
+- `intensity`: number 0–100 (default 60). Blur/material strength. iOS 26 is OS-managed (this only affects the pre-26 fallback); Android scales the blur radius.
+- `interactive`: boolean (default false). Reacts to touch (specular bloom + optical magnification under the finger) and to device tilt (moving specular). iOS 26 interactive glass natively.
+- `borderRadius`: number, dp (default 0). Corner radius of the glass surface.
+- `refraction`: boolean (default true). ANDROID ONLY — enables the AGSL edge-refraction lens (API 33+). No-op on iOS.
+- `thickness`: number 0–2 (default 1). ANDROID ONLY — "liquid volume", scales refraction/lens depth: 0 = flat pane, 1 = default, ~2 = deep lens. No-op on iOS.
+
+## Example
+
+```tsx
+import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
+
+<LiquidGlassView variant="regular" tintColor="rgba(10,132,255,0.5)" interactive borderRadius={24}>
+  <Text>Frosted glass content</Text>
+</LiquidGlassView>
+```
+
+## Platform behavior
+
+- iOS 26: native `UIGlassEffect` (`regular`/`clear`, interactive, tint, corner radius). Below iOS 26: `UIBlurEffect` fallback bucketed by `intensity`.
+- Android API 33+: per-frame backdrop capture → Gaussian blur → AGSL refractive-lens shader. API 31–32: blur + tint. Below API 31: translucent tint fallback.
+
+## Requirements
+
+- React Native 0.83+ (Fabric or old architecture).
+- iOS: full Liquid Glass needs iOS 26 SDK / Xcode 26; blur fallback works on iOS 15+.
+- Android: full shader needs API 33+; fallbacks below.
+- Expo: dev build / `expo prebuild` (not Expo Go).

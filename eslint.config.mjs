@@ -13,7 +13,7 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['node_modules/', 'lib/', 'example/'],
+    ignores: ['node_modules/', 'lib/', 'example/', '**/build/'],
   },
 
   {

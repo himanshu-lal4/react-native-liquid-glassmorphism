@@ -125,6 +125,7 @@
     "react-native": "0.83.6",
     "react-native-builder-bob": "^0.43.0",
     "release-it": "^19.0.4",
+    "turbo": "^2.10.2",
     "typescript": "^5.9.2"
   },
   "peerDependencies": {
