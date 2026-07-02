@@ -287,4 +287,14 @@ export default [
       'testing-library/render-result-naming-convention': 'warn',
     },
   },
+
+  {
+    // The Expo config plugin is loaded via CommonJS require() by Expo, so it
+    // needs CommonJS + Node globals (module/require). Placed last so it wins.
+    files: ['app.plugin.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: { ...globals.node },
+    },
+  },
 ];
