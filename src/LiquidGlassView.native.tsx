@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 
 import NativeLiquidGlass from './LiquidGlassmorphismViewNativeComponent';
+import { normalizeShape } from './shapes';
 import type { LiquidGlassViewProps } from './types';
 
 /**
@@ -16,11 +17,28 @@ export function LiquidGlassView({
   refraction = true,
   thickness = 1,
   borderRadius = 0,
+  shape,
   tintColor,
   style,
   children,
   ...rest
 }: LiquidGlassViewProps) {
+  // Normalise any custom shape to a single SVG path + view-box for native. The
+  // output string is deterministic, so native prop-diffing skips the work (and
+  // the Android SDF rebuild) whenever the shape is unchanged.
+  const normalized = shape ? normalizeShape(shape) : null;
+  const shapeProps = normalized
+    ? {
+        shapePath: normalized.path,
+        shapeViewBoxWidth: normalized.viewBoxWidth,
+        shapeViewBoxHeight: normalized.viewBoxHeight,
+      }
+    : { shapePath: '', shapeViewBoxWidth: 0, shapeViewBoxHeight: 0 };
+
+  // Android-only "liquid volume"; iOS glass optics are OS-fixed, so we keep it
+  // off the iOS native prop surface entirely.
+  const platformProps = Platform.OS === 'android' ? { thickness } : null;
+
   return (
     <NativeLiquidGlass
       variant={variant}
@@ -28,11 +46,12 @@ export function LiquidGlassView({
       interactive={interactive}
       refraction={refraction}
       glassCornerRadius={borderRadius}
+      {...shapeProps}
       tintColor={tintColor}
-      // Android-only "liquid volume"; iOS glass optics are OS-fixed, so we don't
-      // send it there (keeps it off the iOS native prop surface entirely).
-      {...(Platform.OS === 'android' ? { thickness } : null)}
-      style={[{ borderRadius }, style]}
+      {...platformProps}
+      // A custom shape defines its own silhouette, so don't also round the
+      // outer container — that would clip the shape's corners.
+      style={[normalized ? null : { borderRadius }, style]}
       {...rest}
     >
       {children}

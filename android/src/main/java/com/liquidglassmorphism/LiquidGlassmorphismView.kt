@@ -2,16 +2,20 @@ package com.liquidglassmorphism
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Outline
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RenderEffect
 import android.graphics.RenderNode
 import android.graphics.RuntimeShader
 import android.graphics.Shader
+import androidx.core.graphics.PathParser
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -23,6 +27,7 @@ import android.view.ViewOutlineProvider
 import android.view.ViewTreeObserver
 import com.facebook.react.views.view.ReactViewGroup
 import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Android Liquid Glass surface — a faithful reproduction of the iOS 26
@@ -57,7 +62,34 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private var thickness = 1f
   private var cornerRadiusPx = 0f
 
+  // --- Custom shape (arbitrary SVG silhouette) ---
+  private var shapePathData: String = ""
+  private var shapeVBWidth = 0f
+  private var shapeVBHeight = 0f
+  // The path scaled into this view's pixel space (null = plain rounded rect).
+  private var scaledShapePath: Path? = null
+  // SDF texture of the silhouette, bound to the shader as `uniform shader sdf`.
+  private var sdfInput: BitmapShader? = null
+  private var sdfBitmap: Bitmap? = null
+  // Full-res anti-aliased coverage — the shader's silhouette alpha (crisp edge).
+  private var maskInput: BitmapShader? = null
+  private var maskBitmap: Bitmap? = null
+  // CPU-computed surface normals of the field (see GlassSdf.Result.grad).
+  private var gradInput: BitmapShader? = null
+  private var gradBitmap: Bitmap? = null
+  private var sdfRange = 1f
+  // Rebuild the (moderately expensive) SDF only when the path or size changes.
+  private var sdfKey = ""
+
   private val density = resources.displayMetrics.density
+
+  // 1×1 stand-in so the shader's `sdf` input is always bound, even in the
+  // analytic rounded-rect path where the SDF branch is never taken.
+  private val dummyShader: BitmapShader by lazy {
+    val b = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+    b.eraseColor(Color.argb(255, 128, 128, 128))
+    BitmapShader(b, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+  }
 
   // --- Backdrop capture (software bitmap → GPU effect) ---
   private var captured: Bitmap? = null
@@ -151,6 +183,111 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     }
   }
 
+  fun setShapePathData(value: String?) {
+    val v = value ?: ""
+    if (shapePathData != v) { shapePathData = v; onShapeInputChanged() }
+  }
+
+  fun setShapeViewBoxWidth(value: Float) {
+    if (shapeVBWidth != value) { shapeVBWidth = value; onShapeInputChanged() }
+  }
+
+  fun setShapeViewBoxHeight(value: Float) {
+    if (shapeVBHeight != value) { shapeVBHeight = value; onShapeInputChanged() }
+  }
+
+  private fun onShapeInputChanged() {
+    // Force a rebuild on the next draw and flip outline clipping: the analytic
+    // path rounds via the outline, a custom shape is shaped by the SDF alpha
+    // (+ a path clip) instead, so hard outline-rounding must be off.
+    sdfKey = ""
+    val hasShape = shapePathData.isNotEmpty() && shapeVBWidth > 0f && shapeVBHeight > 0f
+    clipToOutline = !hasShape
+    if (!hasShape) {
+      scaledShapePath = null
+      sdfInput = null
+      sdfBitmap?.recycle()
+      sdfBitmap = null
+      maskInput = null
+      maskBitmap?.recycle()
+      maskBitmap = null
+      gradInput = null
+      gradBitmap?.recycle()
+      gradBitmap = null
+    }
+    invalidate()
+  }
+
+  /**
+   * Rebuild the scaled path + SDF texture when the silhouette or the view size
+   * changes. Cheap no-op on every other frame (keyed on path + size).
+   */
+  private fun ensureShape(w: Int, h: Int) {
+    val hasShape = shapePathData.isNotEmpty() && shapeVBWidth > 0f && shapeVBHeight > 0f
+    if (!hasShape || w <= 0 || h <= 0) return
+
+    val key = "$shapePathData@${w}x$h"
+    if (key == sdfKey && scaledShapePath != null) return
+
+    val path = try {
+      PathParser.createPathFromPathData(shapePathData)
+    } catch (_: Throwable) {
+      null
+    } ?: run { sdfKey = key; return }
+
+    // Stretch the authored view-box onto the actual bounds (aspect-agnostic).
+    val m = Matrix()
+    m.setScale(w / shapeVBWidth, h / shapeVBHeight)
+    path.transform(m)
+    scaledShapePath = path
+
+    if (glassShader != null) {
+      val result = GlassSdf.build(path, w, h)
+      if (result != null) {
+        sdfBitmap?.recycle()
+        sdfBitmap = result.bitmap
+        sdfRange = result.range
+        val shader = BitmapShader(result.bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        // Stretch the (possibly downscaled) SDF texture over the full view, so
+        // `sdf.eval(coord)` samples the right texel for a view-pixel coord. The
+        // local matrix maps bitmap space → drawing space, hence view/bitmap.
+        val lm = Matrix()
+        lm.setScale(
+          w.toFloat() / result.bitmap.width,
+          h.toFloat() / result.bitmap.height
+        )
+        shader.setLocalMatrix(lm)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+          shader.filterMode = BitmapShader.FILTER_MODE_LINEAR
+        }
+        sdfInput = shader
+
+        // Normal field: same stretch + linear filtering as the SDF.
+        gradBitmap?.recycle()
+        gradBitmap = result.grad
+        val gShader = BitmapShader(result.grad, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        gShader.setLocalMatrix(lm)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+          gShader.filterMode = BitmapShader.FILTER_MODE_LINEAR
+        }
+        gradInput = gShader
+
+        // Silhouette alpha from the full-res AA coverage.
+        maskBitmap?.recycle()
+        maskBitmap = result.mask
+        val mShader = BitmapShader(result.mask, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        val mm = Matrix()
+        mm.setScale(w.toFloat() / result.mask.width, h.toFloat() / result.mask.height)
+        mShader.setLocalMatrix(mm)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+          mShader.filterMode = BitmapShader.FILTER_MODE_LINEAR
+        }
+        maskInput = mShader
+      }
+    }
+    sdfKey = key
+  }
+
   // ---- Lifecycle ----
 
   override fun onAttachedToWindow() {
@@ -166,6 +303,16 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     captured?.recycle()
     captured = null
     captureCanvas = null
+    sdfBitmap?.recycle()
+    sdfBitmap = null
+    sdfInput = null
+    maskBitmap?.recycle()
+    maskBitmap = null
+    maskInput = null
+    gradBitmap?.recycle()
+    gradBitmap = null
+    gradInput = null
+    sdfKey = ""
   }
 
   // ---- Backdrop capture (once per frame, before drawing) ----
@@ -173,6 +320,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   override fun onPreDraw(): Boolean {
     if (isCapturing || width == 0 || height == 0) return true
     captureBackdrop()
+    // The fresh capture only reaches the screen through this view's draw pass
+    // (the RenderNode is re-recorded there), so schedule one. Without this a
+    // NON-interactive glass never redraws: it keeps the backdrop from its very
+    // first frame — black if it mounted off-screen in a ScrollView. Interactive
+    // views only worked because the tilt sensor happened to invalidate them.
+    invalidate()
     return true
   }
 
@@ -256,6 +409,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       postInvalidateOnAnimation()
     }
 
+    // Refresh the custom-shape SDF if the silhouette or size changed.
+    ensureShape(width, height)
+    val shapePath = scaledShapePath
+
     val bmp = captured
     val node = effectNode
     if (bmp != null && !bmp.isRecycled && node != null && canvas.isHardwareAccelerated) {
@@ -266,17 +423,53 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       rec.drawBitmap(bmp, srcRect, dstRect, null)
       node.endRecording()
       node.setRenderEffect(buildEffect(width, height))
-      canvas.drawRenderNode(node) // clipToOutline rounds it
+      // Analytic path: clipToOutline rounds it. Custom shape: the shader alpha
+      // shapes the glass; a path clip guards against any bleed (and shapes the
+      // blur-only fallback on API < 33).
+      if (shapePath != null) {
+        canvas.save()
+        canvas.clipPath(shapePath)
+        canvas.drawRenderNode(node)
+        canvas.restore()
+      } else {
+        canvas.drawRenderNode(node)
+      }
     }
 
     if (!shaderActive) {
-      canvas.drawRoundRect(0f, 0f, w, h, cornerRadiusPx, cornerRadiusPx, frostPaint)
-      canvas.drawRoundRect(0f, 0f, w, h, cornerRadiusPx, cornerRadiusPx, tintPaint)
-      drawCanvasSpecular(canvas, w, h)
+      if (shapePath != null) {
+        canvas.drawPath(shapePath, frostPaint)
+        canvas.drawPath(shapePath, tintPaint)
+      } else {
+        canvas.drawRoundRect(0f, 0f, w, h, cornerRadiusPx, cornerRadiusPx, frostPaint)
+        canvas.drawRoundRect(0f, 0f, w, h, cornerRadiusPx, cornerRadiusPx, tintPaint)
+        drawCanvasSpecular(canvas, w, h)
+      }
     }
 
-    val inset = rimPaint.strokeWidth / 2f
-    canvas.drawRoundRect(inset, inset, w - inset, h - inset, cornerRadiusPx, cornerRadiusPx, rimPaint)
+    // Crisp bright rim outline — ALWAYS drawn, exactly like the analytic path.
+    // The shader's rimLine alone is softer/dimmer; skipping this stroke is what
+    // made custom shapes read as missing the clean glass edge the pill has.
+    if (shapePath != null) {
+      canvas.drawPath(shapePath, rimPaint)
+    } else {
+      val inset = rimPaint.strokeWidth / 2f
+      canvas.drawRoundRect(inset, inset, w - inset, h - inset, cornerRadiusPx, cornerRadiusPx, rimPaint)
+    }
+  }
+
+  // Clip React children to the custom silhouette so icons/labels don't spill
+  // outside the shape. No-op for the analytic path (clipToOutline handles it).
+  override fun dispatchDraw(canvas: Canvas) {
+    val shapePath = scaledShapePath
+    if (shapePath != null) {
+      canvas.save()
+      canvas.clipPath(shapePath)
+      super.dispatchDraw(canvas)
+      canvas.restore()
+    } else {
+      super.dispatchDraw(canvas)
+    }
   }
 
   /** Blur → (optional) AGSL material chain. Mirrors the iOS compositing order. */
@@ -289,9 +482,23 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       shaderActive = false
       return blur
     }
+    // Custom silhouette: feed the SDF texture and switch the shader's shape
+    // sampler over to it. Otherwise bind the 1×1 dummy (the branch is unused).
+    val useSdf =
+      scaledShapePath != null && sdfInput != null && maskInput != null && gradInput != null
     return try {
+      shader.setInputShader("sdf", if (useSdf) sdfInput!! else dummyShader)
+      shader.setInputShader("mask", if (useSdf) maskInput!! else dummyShader)
+      shader.setInputShader("grad", if (useSdf) gradInput!! else dummyShader)
+      shader.setFloatUniform("iUseSdf", if (useSdf) 1f else 0f)
+      shader.setFloatUniform("iSdfRange", sdfRange)
       shader.setFloatUniform("iResolution", w.toFloat(), h.toFloat())
-      shader.setFloatUniform("iCorner", cornerRadiusPx)
+      // No corner radius for a custom shape — feed a nominal feature size so the
+      // rim/lens band widths (derived from iCorner) stay sensible. The tuned
+      // reference is the example's pill dock: 28dp radius on a 64dp height =
+      // 0.44·minDim, and that ratio is what makes its whole surface read as a
+      // deep liquid lens. 0.2 made custom shapes visibly flatter than the pill.
+      shader.setFloatUniform("iCorner", if (useSdf) min(w, h) * 0.4f else cornerRadiusPx)
       // Lensing is intrinsic to glass (always on); the `refraction` prop only
       // dials it up. This is what makes the backdrop bend around the edges.
       shader.setFloatUniform("iLens", GlassParams.lensStrengthPx(variantClear, refractionEnabled, density) * thickness)
@@ -391,6 +598,11 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     // `content` is a LIGHTLY-frosted backdrop (kept crisp enough to refract).
     private const val GLASS_AGSL = """
       uniform shader content;
+      uniform shader sdf;
+      uniform shader mask;
+      uniform shader grad;
+      uniform float iUseSdf;
+      uniform float iSdfRange;
       uniform float2 iResolution;
       uniform float iCorner;
       uniform float iLens;
@@ -409,32 +621,75 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
       }
 
+      // Surface normal + medial-axis confidence for the custom-shape path,
+      // from the CPU-precomputed normal texture (R/G = unit gradient around
+      // 0.5, B = |gradient|). Differentiating the distance TEXTURE in-shader
+      // leaves per-texel direction wobble that the ~100px mirror displacement
+      // magnifies into radial shatter — the CPU field is float-exact and
+      // pre-smoothed, and its channels vary slowly enough that hardware
+      // bilinear over the packed bytes is safe.
+      float3 sdfGrad(float2 q) {
+        half4 v = grad.eval(q);
+        return float3(float(v.r) * 2.0 - 1.0, float(v.g) * 2.0 - 1.0, float(v.b));
+      }
+
       half4 main(float2 coord) {
         float2 b = iResolution * 0.5;
         float2 p = coord - b;
-        float d = sdRoundRect(p, b, iCorner);           // <0 inside
 
-        // Outward surface gradient (points to the nearest edge) via finite diffs.
-        float e = 1.0;
-        float gx = sdRoundRect(p + float2(e, 0.0), b, iCorner) - sdRoundRect(p - float2(e, 0.0), b, iCorner);
-        float gy = sdRoundRect(p + float2(0.0, e), b, iCorner) - sdRoundRect(p - float2(0.0, e), b, iCorner);
-        float2 g = float2(gx, gy);
-        float gmag = length(g);
-        float2 n2 = g / (gmag + 1e-5);
+        // Distance + the two band ramps that drive every optic. The analytic
+        // rounded-rect computes them exactly; a custom shape reads them from
+        // the SDF texture (R = d, G = lens rim ramp, B = mirror band ramp) —
+        // the ramps are precomputed in FLOAT on the CPU because deriving them
+        // from the quantised 8-bit distance leaves ripple that the mirror
+        // fold, where sensitivity diverges, magnifies into visible rings.
+        float d;
+        float rim;
+        float edgeBand;
+        float lensW = max(28.0, iCorner * 1.4);
+        float reflW = max(14.0, min(b.x, b.y) * 0.7);
+        if (iUseSdf > 0.5) {
+          half4 s = sdf.eval(coord);
+          d = (float(s.r) - 0.5) * iSdfRange;
+          rim = float(s.g);
+          edgeBand = float(s.b);
+        } else {
+          d = sdRoundRect(p, b, iCorner);
+          rim = 1.0 - clamp(-d / lensW, 0.0, 1.0);
+          edgeBand = 1.0 - clamp(-d / reflW, 0.0, 1.0);
+        }
+
+        // Outward surface gradient (points to the nearest edge). Custom shapes
+        // read the CPU-precomputed normal field (in-shader finite differences
+        // of the packed texture wobble per texel — see sdfGrad); the analytic
+        // rounded-rect differentiates its exact SDF.
+        float2 g;
+        float conf;
+        if (iUseSdf > 0.5) {
+          float3 gv = sdfGrad(coord);
+          g = gv.xy;
+          conf = gv.z;
+        } else {
+          float e = 1.0;
+          float gx = sdRoundRect(p + float2(e, 0.0), b, iCorner) - sdRoundRect(p - float2(e, 0.0), b, iCorner);
+          float gy = sdRoundRect(p + float2(0.0, e), b, iCorner) - sdRoundRect(p - float2(0.0, e), b, iCorner);
+          g = float2(gx, gy);
+          conf = length(g) / (2.0 * e);
+        }
+        float2 n2 = g / (length(g) + 1e-5);
 
         // The SDF gradient collapses along the shape's medial axis (the ridge
         // equidistant from two edges). On a short/pill shape the top and bottom
         // lens rings meet there and the normal flips, producing a hard seam
-        // across the middle. Use the gradient magnitude as confidence and fade
-        // the lens to zero at that ridge → flat clear glass in the centre, no
-        // seam. In clear regions gmag ≈ 2e (=2 here); it drops toward the axis.
-        float axisFade = smoothstep(0.3, 1.6, gmag);
+        // across the middle. Use the gradient magnitude as confidence (≈1 on
+        // clean slopes, → 0 at the ridge and in the saturated interior
+        // plateau) and fade the lens to zero at that ridge → flat clear glass
+        // in the centre, no seam.
+        float axisFade = smoothstep(0.15, 0.8, conf);
 
-        // Lens profile. `rim` ramps 0 (interior) → 1 (at the very edge) across a
-        // ring `lensW` px wide. `bend` is a steep power of it, so almost all the
-        // refraction happens in the outer ring — the centre stays clear glass.
-        float lensW = max(28.0, iCorner * 1.4);
-        float rim = 1.0 - clamp(-d / lensW, 0.0, 1.0);
+        // Lens profile. `rim` ramps 0 (interior) → 1 (at the very edge) across
+        // a ring `lensW` px wide. `bend` is a steep power of it, so almost all
+        // the refraction happens in the outer ring — the centre stays clear.
         float bend = rim * rim * axisFade;
 
         // Refraction: pull the sample INWARD along the surface normal near the
@@ -451,18 +706,28 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         float tFall = exp(-dot(td, td) / (tmr * tmr));
         float2 magCoord = coord - td * (iTouchAmt * tFall * 0.30);
 
-        // Edge reflection: a thin, STEEP lens band at the very rim that folds
-        // the sample back on itself, so content near the edge appears mirrored —
-        // the faint inverted echo iOS shows at the top & bottom of a glass pill.
-        // Only the outer `reflW` px are affected, so the readable centre stays
-        // flat; `axisFade` keeps it off the medial-axis (no seam). Scales with
-        // iLens so a flat pane (thickness 0) has no reflection.
-        float reflW = max(14.0, min(b.x, b.y) * 0.4);
-        float edgeBand = 1.0 - clamp(-d / reflW, 0.0, 1.0);
-        float reflMask = edgeBand * edgeBand * edgeBand * axisFade;
-        float2 reflDisp = n2 * reflMask * (iLens * 3.0);
+        // Edge reflection: a lens band at the rim that folds the sample back on
+        // itself, so content near the edge appears mirrored — the inverted echo
+        // iOS shows at the top & bottom of a glass pill. Verified against iOS 26
+        // side-by-side: the OS band is BROAD and soft (roughly the outer third
+        // of the surface each side, with big smooth warps flowing well into the
+        // glass) — a thin cubed band reads as a hard streak, not liquid. So the
+        // band spans 0.35·minDim with a squared falloff. `axisFade` keeps it
+        // off the medial-axis (no seam); scales with iLens so a flat pane
+        // (thickness 0) has no reflection.
+        // Edge guard: taper ALL refraction to zero across the outermost few px.
+        // Displacement peaks AT the rim, where it most magnifies the residual
+        // sub-pixel normal noise into radial "cracked glass" hairlines. A thin
+        // calm bevel there erases the fringe; the lens band just inside (tens of
+        // px wide) is untouched, and the crisp bright rim line below still draws
+        // the edge. Analytic shapes have no noise, so this is a no-op for them
+        // beyond a marginally softer edge.
+        float edgeGuard = smoothstep(0.0, 12.0, -d);
 
-        float2 disp = n2 * bend * iLens;
+        float reflMask = edgeBand * edgeBand * axisFade;
+        float2 reflDisp = n2 * reflMask * (iLens * 3.0) * edgeGuard;
+
+        float2 disp = n2 * bend * iLens * edgeGuard;
         float2 uv = magCoord - disp - reflDisp;
 
         // Chromatic dispersion at the rim: split R/G/B along the normal. Kept
@@ -529,7 +794,16 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         col = col + hi * (touch * 0.2);
 
         col = clamp(col, 0.0, 1.0);
-        return half4(col, 1.0);
+
+        // Custom shape: silhouette alpha from the FULL-RES anti-aliased coverage
+        // mask (Skia's path rasterisation — crisp like a CAShapeLayer mask). An
+        // alpha edge derived from the coarse 8-bit SDF wobbles per-texel and
+        // reads as a serrated, broken-glass outline. The analytic rounded rect
+        // stays fully opaque — its outline clip defines the silhouette. AGSL
+        // blends with PREMULTIPLIED alpha, so scale the color too (straight
+        // alpha here reads as a bright fog halo around the silhouette).
+        float aa = iUseSdf > 0.5 ? mask.eval(coord).a : 1.0;
+        return half4(col * half(aa), half(aa));
       }
     """
   }

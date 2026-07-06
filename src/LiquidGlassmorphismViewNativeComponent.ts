@@ -28,6 +28,19 @@ export interface NativeProps extends ViewProps {
   glassCornerRadius?: WithDefault<Int32, 0>;
 
   /**
+   * Custom silhouette as an SVG path string, authored in the view-box given by
+   * `shapeViewBoxWidth`/`Height` and stretched to fill the view. Empty string
+   * (the default) means "use the rounded rectangle from `glassCornerRadius`".
+   */
+  shapePath?: WithDefault<string, ''>;
+
+  /** Width of the coordinate space `shapePath` is authored in. `0` = no shape. */
+  shapeViewBoxWidth?: WithDefault<Float, 0>;
+
+  /** Height of the coordinate space `shapePath` is authored in. `0` = no shape. */
+  shapeViewBoxHeight?: WithDefault<Float, 0>;
+
+  /**
    * Android only: enable the AGSL edge-refraction shader (API 33+).
    * No-op on iOS, where the OS renders refraction natively.
    */

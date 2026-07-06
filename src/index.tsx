@@ -1,2 +1,2 @@
 export { LiquidGlassView } from './LiquidGlassView';
-export type { LiquidGlassViewProps, GlassVariant } from './types';
+export type { LiquidGlassViewProps, GlassVariant, LiquidGlassShape } from './types';
