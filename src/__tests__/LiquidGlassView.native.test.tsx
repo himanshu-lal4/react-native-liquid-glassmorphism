@@ -72,4 +72,26 @@ describe('LiquidGlassView (native) prop mapping', () => {
     expect(props.testID).toBe('glass');
     expect(props.children).toBe(child);
   });
+
+  // Custom shapes: the wrapper normalises to a path + view-box and stops
+  // rounding the outer container (that would clip the shape's corners).
+  it('sends no shape by default', () => {
+    const { props } = render();
+    expect(props.shapePath).toBe('');
+    expect(props.shapeViewBoxWidth).toBe(0);
+    expect(props.shapeViewBoxHeight).toBe(0);
+  });
+
+  it('normalises a `shape` prop into path + view-box props', () => {
+    const { props } = render({ shape: { type: 'circle' } });
+    expect(props.shapePath).toContain('M');
+    expect(props.shapeViewBoxWidth).toBe(100);
+    expect(props.shapeViewBoxHeight).toBe(100);
+  });
+
+  it('omits the container borderRadius when a shape is set', () => {
+    const { props } = render({ shape: { type: 'circle' }, style: { padding: 8 } });
+    // First slot is null (no rounding) rather than a { borderRadius } object.
+    expect(props.style).toStrictEqual([null, { padding: 8 }]);
+  });
 });

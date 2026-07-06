@@ -54,6 +54,18 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
     view.setThicknessValue(value)
   }
 
+  override fun setShapePath(view: LiquidGlassmorphismView, value: String?) {
+    view.setShapePathData(value)
+  }
+
+  override fun setShapeViewBoxWidth(view: LiquidGlassmorphismView, value: Float) {
+    view.setShapeViewBoxWidth(value)
+  }
+
+  override fun setShapeViewBoxHeight(view: LiquidGlassmorphismView, value: Float) {
+    view.setShapeViewBoxHeight(value)
+  }
+
   companion object {
     const val NAME = "LiquidGlassmorphismView"
   }

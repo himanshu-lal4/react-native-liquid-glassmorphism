@@ -62,14 +62,34 @@ Extends `ViewProps`. All props are optional.
 | `tintColor` | `ColorValue` | — | Tint over the backdrop. Use `rgba()` / 8-digit hex to control strength. |
 | `intensity` | `number` (0–100) | `60` | Blur / material strength. On iOS 26 the OS manages the material (used only for the pre-26 fallback); on Android it scales the blur radius. |
 | `interactive` | `boolean` | `false` | Reacts to touch (a specular bloom + optical magnification under the finger) and to device tilt (moving specular). iOS 26 interactive glass natively. |
-| `borderRadius` | `number` (dp) | `0` | Corner radius of the glass surface. |
+| `borderRadius` | `number` (dp) | `0` | Corner radius of the glass surface. Ignored when `shape` is set. |
+| `shape` | `LiquidGlassShape` | — | Custom silhouette — `circle`, `squircle`, `polygon`, explicit `points`, or an arbitrary (even **concave**) SVG `path`. See [Custom shapes](#custom-shapes). |
 | `refraction` | `boolean` | `true` | **Android only** — enables the AGSL edge-refraction lens (API 33+). No-op on iOS (the OS renders refraction). |
 | `thickness` | `number` (0–2) | `1` | **Android only** — "liquid volume": scales the refraction/lens depth. `0` = flat pane, `1` = default, up to `~2` = deep liquid lens. No-op on iOS (glass optics are OS-fixed). |
 
+## Custom shapes
+
+Give the glass any silhouette with the `shape` prop. The glass **lenses the backdrop through the shape** — it's a real optical silhouette, not just a clip. Analytic shapes are generated for you; you can also pass an arbitrary SVG path (concave shapes like a tab-bar notch included).
+
+```tsx
+<LiquidGlassView shape={{ type: 'circle' }} style={{ width: 96, height: 96 }} />
+<LiquidGlassView shape={{ type: 'squircle', n: 4 }} />
+<LiquidGlassView shape={{ type: 'polygon', sides: 6 }} />
+<LiquidGlassView shape={{ type: 'points', points: [[0, 0], [1, 0], [0.5, 1]] }} />
+
+// Arbitrary SVG path — e.g. a curved tab-bar dock with a center notch:
+<LiquidGlassView
+  shape={{ type: 'path', d: notchPathString, width: SCREEN_W, height: 96 }}
+  style={{ width: SCREEN_W, height: 96 }}
+/>
+```
+
+The shape is **stretched to fill the view's bounds** (`preserveAspectRatio="none"`), so size the view to the shape's aspect ratio to keep it undistorted. SVG paths support `M/L/H/V/C/S/Q/T/Z` (absolute + relative); elliptic arcs (`A`) aren't supported — use béziers.
+
 ## How it works
 
-- **iOS** composites glass natively with `UIGlassEffect` (iOS 26); below 26 it falls back to `UIVisualEffectView` + `UIBlurEffect` bucketed by `intensity`.
-- **Android** has no system Liquid Glass, so each frame it: captures the view hierarchy behind the glass into a downscaled bitmap → GPU Gaussian blur → an **AGSL shader** that models a rounded-glass lozenge (SDF-derived surface normal → Snell-style edge refraction → chromatic dispersion → mirrored edge reflection → adaptive frost + vibrant tint → Fresnel rim + tilt/touch specular). Below API 33 it degrades to blur + tint; below API 31, to a translucent tint.
+- **iOS** composites glass natively with `UIGlassEffect` (iOS 26); below 26 it falls back to `UIVisualEffectView` + `UIBlurEffect` bucketed by `intensity`. A custom `shape` masks the glass to the silhouette with a `CAShapeLayer`.
+- **Android** has no system Liquid Glass, so each frame it: captures the view hierarchy behind the glass into a downscaled bitmap → GPU Gaussian blur → an **AGSL shader** that models a glass lozenge (SDF-derived surface normal → Snell-style edge refraction → chromatic dispersion → mirrored edge reflection → adaptive frost + vibrant tint → Fresnel rim + tilt/touch specular). Below API 33 it degrades to blur + tint; below API 31, to a translucent tint. A custom `shape` is rasterised into a **signed-distance-field texture** the shader samples, so lensing/rim/dispersion follow any silhouette.
 
 ## Example
 

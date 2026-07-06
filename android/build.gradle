@@ -52,6 +52,8 @@ android {
 
 dependencies {
   implementation "com.facebook.react:react-android"
+  // PathParser (SVG `d` → android.graphics.Path) for custom glass silhouettes.
+  implementation "androidx.core:core-ktx:1.13.1"
 
   testImplementation "junit:junit:4.13.2"
 }

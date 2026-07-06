@@ -17,6 +17,9 @@ export function LiquidGlassView({
   variant: _variant,
   refraction: _refraction,
   thickness: _thickness,
+  // Custom silhouettes need a real GPU pipeline; the web fallback just renders a
+  // rounded translucent surface, so the shape is intentionally ignored here.
+  shape: _shape,
   style,
   children,
   ...rest

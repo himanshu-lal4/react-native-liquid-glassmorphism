@@ -1,5 +1,9 @@
 #import "LiquidGlassmorphismView.h"
 
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
+
 #import <React/RCTConversions.h>
 
 #import <react/renderer/components/LiquidGlassmorphismViewSpec/ComponentDescriptors.h>
@@ -9,6 +13,148 @@
 #import "RCTFabricComponentsPlugins.h"
 
 using namespace facebook::react;
+
+#pragma mark - SVG path parsing
+
+// Minimal SVG-path (`d`) parser → UIBezierPath. Supports M/L/H/V/C/S/Q/T/Z in
+// both absolute (upper) and relative (lower) forms — the command set our JS
+// shape generator emits, plus hand-authored paths. Elliptic arcs (`A`) are
+// intentionally unsupported (express curves as béziers). Coordinates are in the
+// path's own view-box; the caller scales the result to the view bounds.
+static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
+{
+  if (d.length == 0) {
+    return nil;
+  }
+
+  UIBezierPath *path = [UIBezierPath bezierPath];
+  const char *s = d.UTF8String;
+  const char *end = s + strlen(s);
+
+  CGPoint cur = CGPointZero;    // current point
+  CGPoint start = CGPointZero;  // sub-path start (for Z)
+  CGPoint lastCtrl = CGPointZero; // last cubic/quad control (for S/T smoothing)
+  char lastCmd = 0;
+  BOOL hasStarted = NO;
+
+  auto skipSep = [&]() {
+    while (s < end && (*s == ' ' || *s == ',' || *s == '\n' || *s == '\r' || *s == '\t')) s++;
+  };
+  auto readNum = [&](CGFloat *out) -> BOOL {
+    skipSep();
+    if (s >= end) return NO;
+    char *next = nullptr;
+    double v = strtod(s, &next);
+    if (next == s) return NO;
+    s = next;
+    *out = (CGFloat)v;
+    return YES;
+  };
+
+  while (s < end) {
+    skipSep();
+    if (s >= end) break;
+
+    char cmd = *s;
+    if (isalpha(cmd)) {
+      s++;
+    } else {
+      // Implicit repeat of the previous command (SVG allows omitting it).
+      cmd = lastCmd;
+      if (cmd == 0) break;
+    }
+
+    BOOL rel = islower(cmd);
+    char c = toupper(cmd);
+
+    if (c == 'M') {
+      CGFloat x, y;
+      if (!readNum(&x) || !readNum(&y)) break;
+      cur = rel && hasStarted ? CGPointMake(cur.x + x, cur.y + y) : CGPointMake(x, y);
+      [path moveToPoint:cur];
+      start = cur;
+      hasStarted = YES;
+      // Subsequent coordinate pairs after an M are implicit L (per spec).
+      lastCmd = rel ? 'l' : 'L';
+      lastCtrl = cur;
+      continue;
+    } else if (c == 'L') {
+      CGFloat x, y;
+      if (!readNum(&x) || !readNum(&y)) break;
+      cur = rel ? CGPointMake(cur.x + x, cur.y + y) : CGPointMake(x, y);
+      [path addLineToPoint:cur];
+      lastCtrl = cur;
+    } else if (c == 'H') {
+      CGFloat x;
+      if (!readNum(&x)) break;
+      cur = CGPointMake(rel ? cur.x + x : x, cur.y);
+      [path addLineToPoint:cur];
+      lastCtrl = cur;
+    } else if (c == 'V') {
+      CGFloat y;
+      if (!readNum(&y)) break;
+      cur = CGPointMake(cur.x, rel ? cur.y + y : y);
+      [path addLineToPoint:cur];
+      lastCtrl = cur;
+    } else if (c == 'C') {
+      CGFloat x1, y1, x2, y2, x, y;
+      if (!readNum(&x1) || !readNum(&y1) || !readNum(&x2) || !readNum(&y2) ||
+          !readNum(&x) || !readNum(&y)) break;
+      CGPoint c1 = rel ? CGPointMake(cur.x + x1, cur.y + y1) : CGPointMake(x1, y1);
+      CGPoint c2 = rel ? CGPointMake(cur.x + x2, cur.y + y2) : CGPointMake(x2, y2);
+      cur = rel ? CGPointMake(cur.x + x, cur.y + y) : CGPointMake(x, y);
+      [path addCurveToPoint:cur controlPoint1:c1 controlPoint2:c2];
+      lastCtrl = c2;
+    } else if (c == 'S') {
+      CGFloat x2, y2, x, y;
+      if (!readNum(&x2) || !readNum(&y2) || !readNum(&x) || !readNum(&y)) break;
+      // Reflect the previous control point across the current point.
+      char pc = toupper(lastCmd);
+      CGPoint c1 = (pc == 'C' || pc == 'S')
+          ? CGPointMake(2 * cur.x - lastCtrl.x, 2 * cur.y - lastCtrl.y)
+          : cur;
+      CGPoint c2 = rel ? CGPointMake(cur.x + x2, cur.y + y2) : CGPointMake(x2, y2);
+      cur = rel ? CGPointMake(cur.x + x, cur.y + y) : CGPointMake(x, y);
+      [path addCurveToPoint:cur controlPoint1:c1 controlPoint2:c2];
+      lastCtrl = c2;
+    } else if (c == 'Q') {
+      CGFloat x1, y1, x, y;
+      if (!readNum(&x1) || !readNum(&y1) || !readNum(&x) || !readNum(&y)) break;
+      CGPoint cp = rel ? CGPointMake(cur.x + x1, cur.y + y1) : CGPointMake(x1, y1);
+      cur = rel ? CGPointMake(cur.x + x, cur.y + y) : CGPointMake(x, y);
+      [path addQuadCurveToPoint:cur controlPoint:cp];
+      lastCtrl = cp;
+    } else if (c == 'T') {
+      CGFloat x, y;
+      if (!readNum(&x) || !readNum(&y)) break;
+      char pc = toupper(lastCmd);
+      CGPoint cp = (pc == 'Q' || pc == 'T')
+          ? CGPointMake(2 * cur.x - lastCtrl.x, 2 * cur.y - lastCtrl.y)
+          : cur;
+      cur = rel ? CGPointMake(cur.x + x, cur.y + y) : CGPointMake(x, y);
+      [path addQuadCurveToPoint:cur controlPoint:cp];
+      lastCtrl = cp;
+    } else if (c == 'Z') {
+      [path closePath];
+      cur = start;
+      lastCtrl = cur;
+    } else {
+      // Unknown / unsupported command (e.g. 'A') — stop rather than misparse.
+      break;
+    }
+
+    lastCmd = cmd;
+  }
+
+  return path.empty ? nil : path;
+}
+
+@interface LiquidGlassmorphismView ()
+@property (nonatomic, strong, nullable) CAShapeLayer *shapeMaskLayer;
+@property (nonatomic, copy, nullable) NSString *shapePath;
+@property (nonatomic, assign) CGFloat shapeVBWidth;
+@property (nonatomic, assign) CGFloat shapeVBHeight;
+@end
 
 @implementation LiquidGlassmorphismView {
   // The live glass / blur. Its `contentView` is the canonical Liquid Glass
@@ -83,6 +229,46 @@ using namespace facebook::react;
   [super layoutSubviews];
   _effectView.frame = self.bounds;
   _tintOverlay.frame = _effectView.bounds;
+  // The mask is scaled to the current bounds, so re-derive it on every layout.
+  [self applyShapeMask];
+}
+
+#pragma mark - Custom shape mask
+
+// Mask the whole view (glass + children) to a custom silhouette. The path is
+// authored in a view-box and stretched to fill the bounds — matching the
+// Android SDF behaviour, and the plan's "CAShapeLayer from the path" approach.
+- (void)applyShapeMask
+{
+  BOOL hasShape = _shapePath.length > 0 && _shapeVBWidth > 0 && _shapeVBHeight > 0 &&
+      !CGRectIsEmpty(self.bounds);
+
+  if (!hasShape) {
+    if (_shapeMaskLayer) {
+      self.layer.mask = nil;
+      _shapeMaskLayer = nil;
+    }
+    return;
+  }
+
+  UIBezierPath *bezier = LGMBezierPathFromSVG(_shapePath);
+  if (!bezier) {
+    self.layer.mask = nil;
+    _shapeMaskLayer = nil;
+    return;
+  }
+
+  CGAffineTransform t = CGAffineTransformMakeScale(self.bounds.size.width / _shapeVBWidth,
+                                                   self.bounds.size.height / _shapeVBHeight);
+  [bezier applyTransform:t];
+
+  if (!_shapeMaskLayer) {
+    _shapeMaskLayer = [CAShapeLayer layer];
+    _shapeMaskLayer.fillColor = UIColor.blackColor.CGColor;
+  }
+  _shapeMaskLayer.frame = self.bounds;
+  _shapeMaskLayer.path = bezier.CGPath;
+  self.layer.mask = _shapeMaskLayer;
 }
 
 #pragma mark - Effect construction
@@ -165,7 +351,35 @@ using namespace facebook::react;
     _tintOverlay.backgroundColor = nativeGlass ? UIColor.clearColor : tint;
   }
 
+  // Custom silhouette (SVG path + view-box). When present it masks the whole
+  // view and the rounded-corner treatment below is skipped entirely.
+  NSString *newShapePath = newViewProps.shapePath.empty()
+      ? nil
+      : [NSString stringWithUTF8String:newViewProps.shapePath.c_str()];
+  CGFloat newVBWidth = newViewProps.shapeViewBoxWidth;
+  CGFloat newVBHeight = newViewProps.shapeViewBoxHeight;
+  BOOL shapeChanged = ![newShapePath isEqualToString:_shapePath] ||
+      newVBWidth != _shapeVBWidth || newVBHeight != _shapeVBHeight;
+  _shapePath = newShapePath;
+  _shapeVBWidth = newVBWidth;
+  _shapeVBHeight = newVBHeight;
+  BOOL hasShape = newShapePath.length > 0 && newVBWidth > 0 && newVBHeight > 0;
+
   CGFloat radius = newViewProps.glassCornerRadius;
+  if (hasShape) {
+    // A custom silhouette is defined entirely by the CAShapeLayer mask applied
+    // in -applyShapeMask, so we deliberately DON'T touch `cornerConfiguration`
+    // here: on iOS 26 mutating it on a `UIGlassEffect` view during the initial
+    // mount (before layout) segfaults inside UIKit. Just square off the plain
+    // corner radius and let the mask do the shaping.
+    self.layer.cornerRadius = 0;
+    _effectView.layer.cornerRadius = 0;
+    self.clipsToBounds = NO;
+    _effectView.clipsToBounds = NO;
+    if (shapeChanged) {
+      [self applyShapeMask];
+    }
+  } else
 #if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   if (@available(iOS 26.0, *)) {
     // Native corner configuration lets `UIGlassEffect` render its rounded shape
@@ -178,6 +392,7 @@ using namespace facebook::react;
     _effectView.cornerConfiguration = corners;
     self.clipsToBounds = YES; // clip children to the rounded shape
     _effectView.clipsToBounds = NO; // let the glass draw its full edge treatment
+    if (shapeChanged) [self applyShapeMask]; // clears a previously-set mask
   } else
 #endif
   {
@@ -187,6 +402,7 @@ using namespace facebook::react;
     _effectView.layer.cornerRadius = radius;
     _effectView.layer.cornerCurve = kCACornerCurveContinuous;
     _effectView.clipsToBounds = YES;
+    if (shapeChanged) [self applyShapeMask];
   }
 
   [super updateProps:props oldProps:oldProps];

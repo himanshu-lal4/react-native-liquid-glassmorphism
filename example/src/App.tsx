@@ -15,7 +15,12 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import { verticalScale } from 'react-native-size-matters';
-import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
+import {
+  LiquidGlassView,
+  type LiquidGlassShape,
+} from 'react-native-liquid-glassmorphism';
+import { CurvedDock, DOCK_H, createDockPath } from './CurvedDock';
+import DemoReel from './DemoReel';
 
 // Full PHYSICAL screen size (includes the system status/navigation bars).
 // React Native applies the bottom system inset as padding on the root view, so
@@ -23,10 +28,12 @@ import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
 // leaves a strip of root background showing above the nav bar. Sizing the
 // backdrop to the whole screen makes it draw edge-to-edge under the bars.
 const SCREEN = Dimensions.get('screen');
+const WINDOW_W = Dimensions.get('window').width;
 
-// Apple fanned-blades wallpaper: rich light/dark tonal variation so glass blur,
-// edge refraction and the regular/clear difference all read clearly. Stretched
-// to fill the whole device so the entire landscape image is always visible.
+// Warped neon-grid wallpaper: straight grid lines are the clearest possible
+// backdrop for showing refraction — the glass visibly bends them, so blur, edge
+// lensing and the regular/clear difference all read at a glance. Stretched to
+// fill the whole device so the full image is always visible.
 function Backdrop() {
   return (
     <Image
@@ -37,37 +44,106 @@ function Backdrop() {
   );
 }
 
+// A little star, to prove arbitrary concave points work too.
+const STAR_POINTS = starPoints(5, 50, 20);
+
+// Heart and blob as cubic-bézier SVG paths (the shape engine takes any path —
+// arcs excluded — so curves are expressed as C segments).
+const HEART_SHAPE: LiquidGlassShape = {
+  type: 'path',
+  d: 'M 50 88 C 20 64 4 46 4 28 C 4 12 16 4 28 4 C 38 4 46 10 50 18 C 54 10 62 4 72 4 C 84 4 96 12 96 28 C 96 46 80 64 50 88 Z',
+  width: 100,
+  height: 100,
+};
+const BLOB_SHAPE: LiquidGlassShape = {
+  type: 'path',
+  d: 'M 50 6 C 72 2 92 18 94 40 C 96 62 84 88 60 92 C 36 96 10 84 6 60 C 2 36 20 12 50 6 Z',
+  width: 100,
+  height: 100,
+};
+
+// Bare-glass comparison strip: every silhouette as IDENTICAL simple clear
+// glass — no tint, no children, no touch — so silhouettes compare directly.
+const BARE_SHAPES: Array<{ label: string; shape: LiquidGlassShape }> = [
+  { label: 'circle', shape: { type: 'circle' } },
+  { label: 'squircle', shape: { type: 'squircle', n: 4 } },
+  { label: 'hexagon', shape: { type: 'polygon', sides: 6 } },
+  { label: 'triangle', shape: { type: 'polygon', sides: 3 } },
+  { label: 'star', shape: { type: 'points', points: STAR_POINTS } },
+  { label: 'heart', shape: HEART_SHAPE },
+  { label: 'blob', shape: BLOB_SHAPE },
+];
+
+// Inline dock-path strip, sized to the scroll content width (screen − padding).
+const BARE_DOCK_W = WINDOW_W - 40;
+const BARE_DOCK_PATH = createDockPath(BARE_DOCK_W);
+
+// Bare swatches: one per row at max size — a square filling the full content
+// width (screen minus the 20px page padding each side).
+const BARE_SIZE = WINDOW_W - 40;
+function starPoints(
+  spikes: number,
+  outer: number,
+  inner: number
+): Array<[number, number]> {
+  const pts: Array<[number, number]> = [];
+  const cx = 50;
+  const cy = 50;
+  for (let i = 0; i < spikes * 2; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = -Math.PI / 2 + (i / (spikes * 2)) * Math.PI * 2;
+    pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
+  }
+  return pts;
+}
 
 /**
- * Liquid Glass gallery — exercises every facet of the public API:
- * variants (regular / clear), tint, interactivity, shapes (card / pill /
- * circle), an intensity ramp, glass buttons, and a floating glass tab bar.
+ * Boots into the self-playing demo reel (the README-GIF screen). Long-press
+ * anywhere in the reel to drop into the API gallery; the gallery's "Demo"
+ * chip goes back.
  */
 export default function App() {
+  const [mode, setMode] = useState<'reel' | 'gallery'>('reel');
   return (
     <SafeAreaProvider>
-      <Gallery />
+      <View style={styles.root}>
+        <Backdrop />
+        {mode === 'reel' ? (
+          <DemoReel onExit={() => setMode('gallery')} />
+        ) : (
+          <Gallery onShowReel={() => setMode('reel')} />
+        )}
+      </View>
     </SafeAreaProvider>
   );
 }
 
-function Gallery() {
+function Gallery({ onShowReel }: { onShowReel: () => void }) {
   const [interactive, setInteractive] = useState(true);
   const [refraction, setRefraction] = useState(true);
   const insets = useSafeAreaInsets();
 
-  // Bottom tab bar sits above the system bar. Android's gesture/nav bar needs a
+  // Bottom dock sits above the system bar. Android's gesture/nav bar needs a
   // touch more breathing room than iOS's home indicator.
   const dockBottom =
     Platform.OS === 'android' ? insets.bottom + verticalScale(4) : insets.bottom;
 
   return (
-    <View style={styles.root}>
-      <Backdrop />
-
+    <View style={styles.fill}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.heading}>Liquid Glass</Text>
-        <Text style={styles.subheading}>iOS 26 UIGlassEffect · React Native</Text>
+        <View style={styles.headingRow}>
+          <Text style={styles.heading}>Liquid Glass</Text>
+          <Pressable onPress={onShowReel}>
+            <LiquidGlassView
+              tintColor="rgba(10,132,255,0.45)"
+              borderRadius={16}
+              style={styles.demoChip}
+            >
+              <Text style={styles.demoChipText}>▶ Demo</Text>
+            </LiquidGlassView>
+          </Pressable>
+        </View>
+        <Text style={styles.subheading}>Liquid Glass · React Native</Text>
 
         {/* 1. Variants ------------------------------------------------------ */}
         <Text style={styles.section}>Variants</Text>
@@ -111,7 +187,7 @@ function Gallery() {
           borderRadius={22}
           style={styles.rowCard}
         >
-          <Text style={styles.tileBody}>Reacts to touch (iOS 26)</Text>
+          <Text style={styles.tileBody}>Reacts to touch</Text>
           <Switch value={interactive} onValueChange={setInteractive} />
         </LiquidGlassView>
         <LiquidGlassView borderRadius={22} style={styles.rowCard}>
@@ -119,14 +195,64 @@ function Gallery() {
           <Switch value={refraction} onValueChange={setRefraction} />
         </LiquidGlassView>
 
-        {/* 4. Shapes -------------------------------------------------------- */}
-        <Text style={styles.section}>Shapes</Text>
+        {/* 4. Custom shapes ------------------------------------------------- */}
+        <Text style={styles.section}>Custom shapes</Text>
+        <Text style={styles.note}>
+          Any silhouette — the glass lenses the wallpaper through the shape, not
+          just a clip.
+        </Text>
+        <View style={styles.rowWrap}>
+          <ShapeSwatch label="Circle" shape={{ type: 'circle' }} />
+          <ShapeSwatch label="Squircle" shape={{ type: 'squircle', n: 4 }} />
+          <ShapeSwatch
+            label="Hexagon"
+            variant="clear"
+            shape={{ type: 'polygon', sides: 6 }}
+          />
+          <ShapeSwatch
+            label="Triangle"
+            shape={{ type: 'polygon', sides: 3 }}
+          />
+          <ShapeSwatch
+            label="Star"
+            tintColor="rgba(255,214,10,0.45)"
+            shape={{ type: 'points', points: STAR_POINTS }}
+          />
+        </View>
+
+        {/* 4b. Bare clear glass — every silhouette as identical plain clear
+            glass (no tint / children / touch), plus the analytic rounded-rect
+            and the concave dock path, for direct side-by-side comparison. */}
+        <Text style={styles.section}>Bare clear glass</Text>
+        <Text style={styles.note}>
+          Same plain clear glass everywhere — only the silhouette differs.
+        </Text>
+        <View style={styles.bareWrap}>
+          {BARE_SHAPES.map((s) => (
+            <BareSwatch key={s.label} label={s.label} shape={s.shape} />
+          ))}
+          <BareSwatch
+            label="borderRadius"
+            borderRadius={Math.round(BARE_SIZE * 0.28)}
+          />
+        </View>
+        <LiquidGlassView
+          variant="clear"
+          shape={{
+            type: 'path',
+            d: BARE_DOCK_PATH,
+            width: BARE_DOCK_W,
+            height: DOCK_H,
+          }}
+          style={styles.bareDock}
+        />
+        <Text style={styles.swatchLabel}>dock path (concave)</Text>
+
+        {/* 5. Rounded-rect shapes ------------------------------------------- */}
+        <Text style={styles.section}>Rounded shapes</Text>
         <View style={styles.rowWrap}>
           <LiquidGlassView borderRadius={40} interactive style={styles.pill}>
             <Text style={styles.tileTitle}>Pill</Text>
-          </LiquidGlassView>
-          <LiquidGlassView borderRadius={44} interactive style={styles.circle}>
-            <Text style={styles.circleGlyph}>+</Text>
           </LiquidGlassView>
           <LiquidGlassView
             variant="clear"
@@ -137,7 +263,7 @@ function Gallery() {
           </LiquidGlassView>
         </View>
 
-        {/* 5. Intensity ramp (pre-26 fallback) ------------------------------ */}
+        {/* 6. Intensity ramp (pre-26 fallback) ------------------------------ */}
         <Text style={styles.section}>Intensity (fallback)</Text>
         <View style={styles.rowWrap}>
           {[20, 50, 80, 100].map((i) => (
@@ -152,7 +278,7 @@ function Gallery() {
           ))}
         </View>
 
-        {/* 6. Glass buttons ------------------------------------------------- */}
+        {/* 7. Glass buttons ------------------------------------------------- */}
         <Text style={styles.section}>Buttons</Text>
         <View style={styles.rowWrap}>
           <Pressable>
@@ -172,21 +298,84 @@ function Gallery() {
           </Pressable>
         </View>
 
-        <View style={{ height: 120 }} />
+        <View style={{ height: 240 }} />
       </ScrollView>
 
-      {/* 7. macOS-dock-style clear glass tray ----------------------------- */}
+      {/* 8. macOS-dock-style clear glass tray — floats just above the tab bar */}
       <View
-        style={[styles.dockWrap, { bottom: dockBottom }]}
+        style={[styles.macDockWrap, { bottom: dockBottom + DOCK_H + 44 }]}
         pointerEvents="box-none"
       >
         <LiquidGlassView
           variant="clear"
           interactive
           borderRadius={28}
-          style={styles.dock}
-        />
+          style={styles.macDock}
+        >
+          <View style={styles.macDockRow}>
+            {['◐', '✎', '✆', '⌾', '❖'].map((g, i) => (
+              <Text key={i} style={styles.macDockGlyph}>
+                {g}
+              </Text>
+            ))}
+          </View>
+        </LiquidGlassView>
       </View>
+
+      {/* 9. Curved-notch glass tab bar (concave custom SVG shape) ---------- */}
+      <CurvedDock bottom={dockBottom} />
+    </View>
+  );
+}
+
+// One big bare-glass swatch: plain clear glass, interactive (touch magnifier),
+// with a press-scale like the dock's FAB. `shape` OR `borderRadius`.
+function BareSwatch({
+  label,
+  shape,
+  borderRadius,
+}: {
+  label: string;
+  shape?: LiquidGlassShape;
+  borderRadius?: number;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.bareSwatch, pressed && styles.barePressed]}
+    >
+      <LiquidGlassView
+        variant="clear"
+        interactive
+        shape={shape}
+        borderRadius={borderRadius}
+        style={styles.bareGlass}
+      />
+      <Text style={styles.swatchLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function ShapeSwatch({
+  label,
+  shape,
+  variant = 'regular',
+  tintColor,
+}: {
+  label: string;
+  shape: LiquidGlassShape;
+  variant?: 'regular' | 'clear';
+  tintColor?: string;
+}) {
+  return (
+    <View style={styles.swatch}>
+      <LiquidGlassView
+        variant={variant}
+        interactive
+        tintColor={tintColor}
+        shape={shape}
+        style={styles.swatchGlass}
+      />
+      <Text style={styles.swatchLabel}>{label}</Text>
     </View>
   );
 }
@@ -200,8 +389,16 @@ const styles = StyleSheet.create({
     width: SCREEN.width,
     height: SCREEN.height,
   },
+  fill: { flex: 1 },
   content: { padding: 20, paddingTop: 72, gap: 8 },
+  headingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   heading: { fontSize: 36, fontWeight: '800', color: '#fff' },
+  demoChip: { paddingHorizontal: 14, paddingVertical: 9, overflow: 'hidden' },
+  demoChipText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   subheading: { fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 8 },
   section: {
     fontSize: 13,
@@ -212,6 +409,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     marginBottom: 4,
   },
+  note: { fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 6 },
 
   row2: { flexDirection: 'row', gap: 14 },
   tile: { flex: 1, padding: 18, overflow: 'hidden', minHeight: 96 },
@@ -231,15 +429,19 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
+  // Custom-shape swatches: a fixed square canvas so circle/polygon/star aren't
+  // stretched (the shape fills the view's bounds).
+  swatch: { alignItems: 'center', gap: 6, width: 84 },
+  swatchGlass: { width: 84, height: 84 },
+  swatchLabel: { fontSize: 12, color: 'rgba(255,255,255,0.85)' },
+
+  bareWrap: { gap: 20 },
+  bareSwatch: { alignItems: 'center', gap: 8, width: BARE_SIZE },
+  barePressed: { transform: [{ scale: 0.97 }] },
+  bareGlass: { width: BARE_SIZE, height: BARE_SIZE },
+  bareDock: { width: BARE_DOCK_W, height: DOCK_H, marginTop: 6 },
+
   pill: { paddingHorizontal: 28, paddingVertical: 18, overflow: 'hidden' },
-  circle: {
-    width: 88,
-    height: 88,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  circleGlyph: { fontSize: 34, color: '#fff' },
   square: {
     width: 88,
     height: 88,
@@ -255,16 +457,23 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  // macOS dock: centered, content-hugging clear-glass tray.
-  dockWrap: {
+  // macOS-dock-style clear-glass tray (kept alongside the curved tab bar).
+  macDockWrap: {
     position: 'absolute',
     left: 0,
     right: 0,
     alignItems: 'center',
   },
-  dock: {
+  macDock: {
     width: 320,
     height: 64,
+    justifyContent: 'center',
     overflow: 'hidden',
   },
+  macDockRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 18,
+  },
+  macDockGlyph: { fontSize: 24, color: 'rgba(255,255,255,0.9)' },
 });

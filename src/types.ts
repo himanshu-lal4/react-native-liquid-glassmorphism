@@ -1,5 +1,9 @@
 import type { ColorValue, ViewProps } from 'react-native';
 
+import type { LiquidGlassShape } from './shapes';
+
+export type { LiquidGlassShape } from './shapes';
+
 /**
  * Glass material style.
  *
@@ -42,9 +46,28 @@ export interface LiquidGlassViewProps extends ViewProps {
 
   /**
    * Corner radius of the glass surface, in dp/points.
+   *
+   * Ignored when {@link shape} is set (the shape defines the silhouette).
    * @default 0
    */
   borderRadius?: number;
+
+  /**
+   * Custom silhouette for the glass — a circle, squircle, polygon, an explicit
+   * set of points, or an arbitrary (even concave) SVG path. Omit for the default
+   * rounded rectangle, which keeps the crispest native glass edges.
+   *
+   * The shape is stretched to fill the view's bounds, so size the view to the
+   * shape's aspect ratio to avoid distortion. On Android the silhouette is
+   * rendered via a signed-distance field (API 33+); below that it degrades to a
+   * path-clipped frost. On iOS the glass is masked to the path.
+   *
+   * @example
+   * <LiquidGlassView shape={{ type: 'circle' }} style={{ width: 96, height: 96 }} />
+   * <LiquidGlassView shape={{ type: 'polygon', sides: 6 }} />
+   * <LiquidGlassView shape={{ type: 'path', d: notchPath, width: W, height: H }} />
+   */
+  shape?: LiquidGlassShape;
 
   /**
    * Android only: toggle the AGSL edge-refraction shader (Android 13 / API 33+).
