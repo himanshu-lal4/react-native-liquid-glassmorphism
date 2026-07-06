@@ -20,7 +20,8 @@ Import: `import { LiquidGlassView } from 'react-native-liquid-glassmorphism'`
 - `tintColor`: `ColorValue`. Tint over the backdrop; use `rgba()` / 8-digit hex for strength.
 - `intensity`: number 0–100 (default 60). Blur/material strength. iOS 26 is OS-managed (this only affects the pre-26 fallback); Android scales the blur radius.
 - `interactive`: boolean (default false). Reacts to touch (specular bloom + optical magnification under the finger) and to device tilt (moving specular). iOS 26 interactive glass natively.
-- `borderRadius`: number, dp (default 0). Corner radius of the glass surface.
+- `borderRadius`: number, dp (default 0). Corner radius of the glass surface. Ignored when `shape` is set.
+- `shape`: LiquidGlassShape (optional). Custom silhouette — the glass lenses the backdrop through the shape, not just a clip. Variants: `{ type: 'circle' }`, `{ type: 'squircle', n?: number }`, `{ type: 'polygon', sides: number, rotation?: number }`, `{ type: 'points', points: [number, number][] }`, `{ type: 'path', d: string, width: number, height: number }` (arbitrary SVG path, concave supported; M/L/H/V/C/S/Q/T/Z, no elliptic arc A). Stretched to fill the view's bounds. iOS masks the glass with a CAShapeLayer; Android rasterizes the path into a signed-distance-field texture the AGSL shader samples (API 33+).
 - `refraction`: boolean (default true). ANDROID ONLY — enables the AGSL edge-refraction lens (API 33+). No-op on iOS.
 - `thickness`: number 0–2 (default 1). ANDROID ONLY — "liquid volume", scales refraction/lens depth: 0 = flat pane, 1 = default, ~2 = deep lens. No-op on iOS.
 
