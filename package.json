@@ -1,7 +1,7 @@
 {
   "name": "react-native-liquid-glassmorphism",
-  "version": "0.1.1",
-  "description": "Authentic iOS 26 Liquid Glass for React Native — real UIGlassEffect on iOS, RenderEffect + AGSL refraction on Android. New Architecture ready, Expo config plugin, TypeScript.",
+  "version": "0.1.2",
+  "description": "Authentic Liquid Glass for React Native — real UIGlassEffect on iOS, RenderEffect + AGSL refraction on Android. New Architecture ready, Expo config plugin, TypeScript.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
