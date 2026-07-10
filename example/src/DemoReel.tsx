@@ -208,6 +208,64 @@ function FloatingOrbs() {
   );
 }
 
+// "Normal" glass circles (borderRadius 100%) of different sizes, drifting across
+// EVERY scene. Rendered at the reel level, above each scene's content, so
+// whatever the scene shows is refracted live through the moving lenses.
+const LENS_BALLS = [
+  { size: 132, dur: 6400, delay: 0, tx: 0.34, ty: 0.30, sx: -1, sy: 1, square: false },
+  { size: 92, dur: 5200, delay: 500, tx: 0.30, ty: 0.34, sx: 1, sy: -1, square: false },
+  { size: 68, dur: 4400, delay: 900, tx: 0.38, ty: 0.22, sx: -1, sy: -1, square: false },
+  { size: 168, dur: 7600, delay: 1300, tx: 0.24, ty: 0.34, sx: 1, sy: 1, square: true },
+] as const;
+
+function LensBall({
+  size,
+  dur,
+  delay,
+  tx,
+  ty,
+  sx,
+  sy,
+  square,
+}: (typeof LENS_BALLS)[number]) {
+  const { width, height } = useWindowDimensions();
+  const x = useLoop(dur, delay);
+  const y = useLoop(dur, delay + 300);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.driftLens,
+        {
+          marginLeft: -size / 2,
+          marginTop: -size / 2,
+          transform: [
+            { translateX: x.interpolate({ inputRange: [0, 1], outputRange: [-width * tx * sx, width * tx * sx] }) },
+            { translateY: y.interpolate({ inputRange: [0, 1], outputRange: [-height * ty * sy, height * ty * sy] }) },
+          ],
+        },
+      ]}
+    >
+      <LiquidGlassView
+        variant="clear"
+        thickness={1.4}
+        borderRadius={square ? 22 : size / 2}
+        style={{ width: size, height: size }}
+      />
+    </Animated.View>
+  );
+}
+
+function DriftingLenses() {
+  return (
+    <>
+      {LENS_BALLS.map((b, i) => (
+        <LensBall key={i} {...b} />
+      ))}
+    </>
+  );
+}
+
 // Always-on, top-center: brands every scene as "Liquid Glass" and labels the
 // running platform so each recording self-identifies.
 function PlatformBadge({ top }: { top: number }) {
@@ -716,6 +774,7 @@ export default function DemoReel({ onExit }: { onExit: () => void }) {
           {SCENES[idx]!.render()}
         </View>
 
+        <DriftingLenses />
         <PlatformBadge top={insets.top + 10} />
       </Pressable>
     </PausedContext.Provider>
@@ -738,6 +797,9 @@ const styles = StyleSheet.create({
 
   orb: { position: 'absolute', width: 230, height: 230 },
   orbFill: { flex: 1, borderRadius: 999 },
+
+  // Drifting glass balls (borderRadius 100%), positioned from screen center.
+  driftLens: { position: 'absolute', top: '50%', left: '50%' },
 
   // Persistent platform badge, top-center.
   badgeWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 10 },

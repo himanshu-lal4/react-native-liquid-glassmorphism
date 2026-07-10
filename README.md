@@ -1,10 +1,22 @@
 # react-native-liquid-glassmorphism
 
+<p align="center">
+  <a href="https://www.npmjs.com/package/react-native-liquid-glassmorphism"><img src="https://img.shields.io/npm/v/react-native-liquid-glassmorphism?color=cb3837&logo=npm&logoColor=white" alt="npm version" /></a>
+  <img src="https://img.shields.io/badge/platforms-iOS%20%7C%20Android-3b82f6" alt="platforms: iOS | Android" />
+  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/react-native-liquid-glassmorphism?color=3b82f6" alt="MIT license" /></a>
+</p>
+
 Bring **iOS 26 Liquid Glass** to React Native — on **both iOS and Android** — with a single declarative component.
+
+<p align="center">
+  <img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-android.gif" alt="Liquid Glass running live on Android — the example app's demo reel" width="280" />
+  <br />
+  <em>Live on Android — real-time AGSL refraction, custom shapes &amp; drifting glass lenses (the <a href="./example"><code>example/</code></a> demo reel).</em>
+</p>
 
 On iOS 26 it renders Apple's native `UIGlassEffect`. On Android, where there is no system Liquid Glass, it reproduces the same optics in a real-time **AGSL refractive-lens shader**: it captures the backdrop, bends and magnifies it through a rounded-glass lozenge (edge refraction + chromatic dispersion + a mirrored edge reflection), and finishes with a Fresnel rim and tilt/touch-driven specular highlights.
 
-> Status: pre-`0.1.0`. iOS is complete; Android is a full physically-based implementation. The Expo config plugin and a production performance pass are still in progress — see [Roadmap](#roadmap).
+iOS and Android are both complete — a single declarative API, interactive touch/tilt response, **custom shapes** (including concave SVG silhouettes), and an Expo config plugin. See the [Roadmap](#roadmap).
 
 ## Features
 
@@ -115,8 +127,8 @@ minimum-SDK, permission, or Info.plist changes are needed.)
 ## Roadmap
 
 - [x] Expo config plugin (`app.plugin.js`)
-- [ ] Android performance pass (shared/throttled backdrop capture)
-- [ ] Arbitrary / SVG custom shapes
+- [x] Custom shapes — analytic (`circle`/`squircle`/`polygon`/`points`) **and** arbitrary/concave SVG `path`
+- [ ] Web support (currently mobile-only)
 
 ## License
 
