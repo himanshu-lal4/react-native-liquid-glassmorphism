@@ -9,9 +9,11 @@
 Bring **iOS 26 Liquid Glass** to React Native — on **both iOS and Android** — with a single declarative component.
 
 <p align="center">
-  <img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-android.gif" alt="Liquid Glass running live on Android — the example app's demo reel" width="280" />
+  <img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-ios.gif" alt="Liquid Glass on iOS 26 — native UIGlassEffect" width="250" />
+  &nbsp;&nbsp;
+  <img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-android.gif" alt="Liquid Glass on Android — real-time AGSL refraction" width="250" />
   <br />
-  <em>Live on Android — real-time AGSL refraction, custom shapes &amp; drifting glass lenses (the <a href="./example"><code>example/</code></a> demo reel).</em>
+  <em>The same <a href="./example"><code>example/</code></a> reel on <b>iOS 26</b> (native <code>UIGlassEffect</code>) and <b>Android</b> (real-time AGSL refraction) — one component, identical API, custom shapes &amp; drifting glass lenses.</em>
 </p>
 
 On iOS 26 it renders Apple's native `UIGlassEffect`. On Android, where there is no system Liquid Glass, it reproduces the same optics in a real-time **AGSL refractive-lens shader**: it captures the backdrop, bends and magnifies it through a rounded-glass lozenge (edge refraction + chromatic dispersion + a mirrored edge reflection), and finishes with a Fresnel rim and tilt/touch-driven specular highlights.
