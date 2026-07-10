@@ -1,6 +1,6 @@
 # react-native-liquid-glassmorphism
 
-> iOS 26 Liquid Glass for React Native, on both iOS and Android. iOS uses the native `UIGlassEffect`; Android reproduces the optics in a real-time AGSL refractive-lens shader (backdrop capture → blur → rounded-glass lozenge with edge refraction, chromatic dispersion, mirrored edge reflection, Fresnel rim, and tilt/touch specular). Fabric + old architecture. Requires RN 0.83+. Not supported in Expo Go — use a dev build / prebuild.
+> Liquid Glass for React Native, on both iOS and Android. iOS uses the native `UIGlassEffect`; Android reproduces the optics in a real-time AGSL refractive-lens shader (backdrop capture → blur → rounded-glass lozenge with edge refraction, chromatic dispersion, mirrored edge reflection, Fresnel rim, and tilt/touch specular). Fabric + old architecture. Requires RN 0.83+. Not supported in Expo Go — use a dev build / prebuild.
 
 ## Install
 

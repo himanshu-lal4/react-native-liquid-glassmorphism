@@ -6,15 +6,20 @@
   <a href="./LICENSE"><img src="https://img.shields.io/npm/l/react-native-liquid-glassmorphism?color=3b82f6" alt="MIT license" /></a>
 </p>
 
-Bring **iOS 26 Liquid Glass** to React Native — on **both iOS and Android** — with a single declarative component.
+Bring **Liquid Glass** to React Native — on **both iOS and Android** — with a single declarative component.
 
-<p align="center">
-  <img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-ios.gif" alt="Liquid Glass on iOS 26 — native UIGlassEffect" width="250" />
-  &nbsp;&nbsp;
-  <img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-android.gif" alt="Liquid Glass on Android — real-time AGSL refraction" width="250" />
-  <br />
-  <em>The same <a href="./example"><code>example/</code></a> reel on <b>iOS 26</b> (native <code>UIGlassEffect</code>) and <b>Android</b> (real-time AGSL refraction) — one component, identical API, custom shapes &amp; drifting glass lenses.</em>
-</p>
+<table align="center">
+  <tr>
+    <td align="center">🍏&nbsp; <b>iOS 26</b> — native <code>UIGlassEffect</code></td>
+    <td align="center">🤖&nbsp; <b>Android</b> — real-time AGSL refraction</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-ios.gif" alt="Liquid Glass demo reel running on iOS 26 (native UIGlassEffect)" width="250" /></td>
+    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-android.gif" alt="Liquid Glass demo reel running on Android (real-time AGSL refraction)" width="250" /></td>
+  </tr>
+</table>
+
+<p align="center"><em>The same <a href="./example"><code>example/</code></a> reel on both platforms — one component, identical API, custom shapes &amp; drifting glass lenses.</em></p>
 
 On iOS 26 it renders Apple's native `UIGlassEffect`. On Android, where there is no system Liquid Glass, it reproduces the same optics in a real-time **AGSL refractive-lens shader**: it captures the backdrop, bends and magnifies it through a rounded-glass lozenge (edge refraction + chromatic dispersion + a mirrored edge reflection), and finishes with a Fresnel rim and tilt/touch-driven specular highlights.
 
@@ -22,7 +27,7 @@ iOS and Android are both complete — a single declarative API, interactive touc
 
 ## Features
 
-- 🍏 **Native iOS 26 Liquid Glass** (`UIGlassEffect`), with a `UIBlurEffect` fallback below iOS 26
+- 🍏 **Native Liquid Glass on iOS** (`UIGlassEffect` on iOS 26), with a `UIBlurEffect` fallback below iOS 26
 - 🤖 **Android parity** via a per-frame AGSL refractive-lens shader (API 33+), graceful fallbacks below
 - 🎛️ Declarative API — `variant`, `tintColor`, `intensity`, `borderRadius`, `interactive`, `refraction`, `thickness`
 - ✨ **Interactive** glass — reacts to touch (bloom + optical magnification) and to device tilt (specular)
