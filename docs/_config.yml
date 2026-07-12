@@ -31,9 +31,8 @@ twitter:
 # Search-engine ownership verification (emitted as <meta> by jekyll-seo-tag).
 # Google Search Console powers Google AI Overviews + Gemini grounding.
 # Bing (add its token here if not importing from Google) powers ChatGPT Search + Copilot.
-# TODO: paste your Search Console verification token here once you claim the property.
-# webmaster_verifications:
-#   google: PASTE_GOOGLE_SEARCH_CONSOLE_TOKEN
+webmaster_verifications:
+  google: 4dJ-yl_lAXmI27TlOseUbiBvmPjTlE7wWhdGVnvTZss
 
 # Repo/npm links used across pages
 repo_url: https://github.com/himanshu-lal4/react-native-liquid-glassmorphism
