@@ -15,6 +15,59 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Detects whether any non-docs files changed. The native build jobs below are
+  # required status checks, so we can't skip them with `on.paths` (that would
+  # leave the required check pending forever and block the PR). Instead we gate
+  # them with a job-level `if:` — a skipped required job counts as passed, so
+  # docs-only PRs stay mergeable without spending native-build minutes.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Detect code changes
+        id: filter
+        run: |
+          BASE=""
+          HEAD=""
+          case "${{ github.event_name }}" in
+            pull_request) BASE="${{ github.event.pull_request.base.sha }}"; HEAD="${{ github.event.pull_request.head.sha }}" ;;
+            push)         BASE="${{ github.event.before }}";               HEAD="${{ github.sha }}" ;;
+            merge_group)  BASE="${{ github.event.merge_group.base_sha }}"; HEAD="${{ github.event.merge_group.head_sha }}" ;;
+          esac
+
+          # If we can't resolve a diff range, build to be safe.
+          if [ -z "$BASE" ] || [ -z "$HEAD" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "No base ref — running builds."
+            exit 0
+          fi
+
+          git cat-file -e "$BASE" 2>/dev/null || git fetch --no-tags --depth=100 origin "$BASE" 2>/dev/null || true
+
+          if ! CHANGED=$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null); then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "Diff failed — running builds."
+            exit 0
+          fi
+
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          # "code" = anything that isn't docs, the growth kit, markdown, or LICENSE.
+          if printf '%s\n' "$CHANGED" | grep -vE '^(docs/|growth/|LICENSE$|.*\.md$)' | grep -q .; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "Code changed — running builds."
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "Docs-only change — skipping native builds."
+          fi
+
   lint:
     runs-on: ubuntu-latest
 
@@ -33,6 +86,8 @@ jobs:
 
 
   build-library:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -46,6 +101,8 @@ jobs:
         run: yarn prepare
 
   build-android:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
 
     env:
@@ -109,6 +166,8 @@ jobs:
           yarn turbo run build:android --cache-dir="${{ env.TURBO_CACHE_DIR }}"
 
   build-ios:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: macos-latest
 
     env:
@@ -154,20 +213,3 @@ jobs:
       - name: Build example for iOS
         run: |
           yarn turbo run build:ios --cache-dir="${{ env.TURBO_CACHE_DIR }}"
-
-  build-web:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-
-      - name: Setup
-        uses: ./.github/actions/setup
-
-      - name: Build package
-        run: yarn prepare
-
-      - name: Build example for Web
-        run: |
-          yarn example build:web
