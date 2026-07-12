@@ -29,7 +29,7 @@ On iOS 26 it renders Apple's native `UIGlassEffect`. On Android, where there is 
 
 iOS and Android are both complete — a single declarative API, interactive touch/tilt response, **custom shapes** (including concave SVG silhouettes), and an Expo config plugin. See the [Roadmap](#roadmap).
 
-📖 **Docs site:** https://himanshu-lal4.github.io/react-native-liquid-glassmorphism *(enable via repo Settings → Pages → `main` / `/docs`)*
+📖 **Docs site:** https://himanshu-lal4.github.io/react-native-liquid-glassmorphism
 
 ---
 
