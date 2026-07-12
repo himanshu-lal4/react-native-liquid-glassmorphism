@@ -7,6 +7,7 @@
   <img src="https://img.shields.io/badge/New%20Architecture-ready-16a34a" alt="New Architecture ready" />
   <a href="./LICENSE"><img src="https://img.shields.io/npm/l/react-native-liquid-glassmorphism?color=3b82f6" alt="MIT license" /></a>
   <a href="./CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome" /></a>
+  <a href="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22"><img src="https://img.shields.io/github/issues/himanshu-lal4/react-native-liquid-glassmorphism/good%20first%20issue?label=good%20first%20issues&color=7057ff" alt="good first issues" /></a>
 </p>
 
 Bring **Liquid Glass** to React Native — on **both iOS and Android** — with a single declarative component. Native `UIGlassEffect` on iOS 26, a real-time AGSL refraction shader on Android. Also known as *glassmorphism*, *frosted glass*, or the *iOS 26 glass effect*.
@@ -218,8 +219,11 @@ Not yet — mobile-only (iOS + Android) for now. Web is on the [Roadmap](#roadma
 
 Issues, ideas, and pull requests of every size are welcome — bug reports and docs improvements help just as much as features.
 
+**New to the project?** Start with a [**good first issue**](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) — each one is scoped and has a starting point. See [CONTRIBUTING.md](./CONTRIBUTING.md) for local setup and the dev workflow.
+
 - 🐛 [Report a bug](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues/new)
 - 💡 [Request a feature](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues/new)
+- 🌱 [Pick up a good first issue](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 - 💬 [Ask a question / share an idea](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/discussions)
 - ⭐ Star the repo to help others discover it
 
