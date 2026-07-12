@@ -44,7 +44,7 @@ The long-standing bare-workflow blur view. Same story as expo-blur: solid blur, 
 
 ## 3. expo-glass-effect / @callstack/liquid-glass
 
-These wrap Apple's **native** Liquid Glass (`UIGlassEffect`) and look fantastic — because it's the real OS material. The limitation is fundamental: **iOS 26 only**. On Android you get nothing (or a manual fallback you build yourself). Perfect if your app is iOS-only.
+These wrap Apple's **native** iOS 26 Liquid Glass material and look fantastic — because it's the real OS effect. The limitation is fundamental: **iOS 26 only**. On Android (and older iOS) both simply **fall back to a plain, opaque `View`** — there's no glass. Perfect if your app is iOS-only.
 
 ## 4. react-native-liquid-glassmorphism
 
