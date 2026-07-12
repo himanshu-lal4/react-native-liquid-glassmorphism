@@ -2,11 +2,14 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/react-native-liquid-glassmorphism"><img src="https://img.shields.io/npm/v/react-native-liquid-glassmorphism?color=cb3837&logo=npm&logoColor=white" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/react-native-liquid-glassmorphism"><img src="https://img.shields.io/npm/dm/react-native-liquid-glassmorphism?color=cb3837&logo=npm&logoColor=white" alt="npm downloads" /></a>
   <img src="https://img.shields.io/badge/platforms-iOS%20%7C%20Android-3b82f6" alt="platforms: iOS | Android" />
+  <img src="https://img.shields.io/badge/New%20Architecture-ready-16a34a" alt="New Architecture ready" />
   <a href="./LICENSE"><img src="https://img.shields.io/npm/l/react-native-liquid-glassmorphism?color=3b82f6" alt="MIT license" /></a>
+  <a href="./CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome" /></a>
 </p>
 
-Bring **Liquid Glass** to React Native — on **both iOS and Android** — with a single declarative component.
+Bring **Liquid Glass** to React Native — on **both iOS and Android** — with a single declarative component. Native `UIGlassEffect` on iOS 26, a real-time AGSL refraction shader on Android. Also known as *glassmorphism*, *frosted glass*, or the *iOS 26 glass effect*.
 
 <table align="center">
   <tr>
@@ -14,8 +17,8 @@ Bring **Liquid Glass** to React Native — on **both iOS and Android** — with 
     <td align="center">🤖&nbsp; <b>Android</b> — real-time AGSL refraction</td>
   </tr>
   <tr>
-    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-ios.gif" alt="Liquid Glass demo reel running on iOS 26 (native UIGlassEffect)" width="250" /></td>
-    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-android.gif" alt="Liquid Glass demo reel running on Android (real-time AGSL refraction)" width="250" /></td>
+    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-ios.gif" alt="React Native Liquid Glass demo reel running on iOS 26 with native UIGlassEffect" width="250" /></td>
+    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-android.gif" alt="React Native Liquid Glass demo reel running on Android with real-time AGSL refraction" width="250" /></td>
   </tr>
 </table>
 
@@ -25,15 +28,41 @@ On iOS 26 it renders Apple's native `UIGlassEffect`. On Android, where there is 
 
 iOS and Android are both complete — a single declarative API, interactive touch/tilt response, **custom shapes** (including concave SVG silhouettes), and an Expo config plugin. See the [Roadmap](#roadmap).
 
+📖 **Docs site:** https://himanshu-lal4.github.io/react-native-liquid-glassmorphism *(enable via repo Settings → Pages → `main` / `/docs`)*
+
+---
+
+## What does this library do?
+
+It renders a translucent **glass surface** whose backdrop is blurred, tinted, and **refracted** — the modern iOS 26 "Liquid Glass" look. You wrap your content in `<LiquidGlassView>`; the children render crisply on top while only the content *behind* the view is treated. On iOS 26 that's Apple's real glass material; on Android it's a physically-modelled refraction shader that runs every frame.
+
+## How is it different from a blur view?
+
+Most React Native "glass" is just a blur. This library actually **refracts** the backdrop and works on Android too:
+
+| Capability | react-native-liquid-glassmorphism | expo-blur / react-native-blur | expo-glass-effect / @callstack/liquid-glass |
+|---|---|---|---|
+| Native iOS 26 Liquid Glass (`UIGlassEffect`) | ✅ | ❌ blur only | ✅ |
+| Liquid Glass optics on **Android** | ✅ AGSL refraction shader | ❌ blur only | ❌ iOS-only |
+| Real refraction / edge lensing (not just blur) | ✅ | ❌ | ✅ (iOS, OS-rendered) |
+| Chromatic dispersion + Fresnel rim | ✅ (Android shader) | ❌ | OS-managed |
+| Interactive (touch bloom + tilt specular) | ✅ | ❌ | Partial |
+| Custom shapes (concave SVG silhouette) | ✅ | ❌ | ❌ |
+| Graceful fallback on older OS | ✅ blur / tint | ✅ | ⚠️ iOS 26 only |
+| Expo config plugin · New Architecture · TypeScript | ✅ | ✅ | ✅ |
+
+See the [full comparison](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/react-native-blur-alternative/). *(Other libraries evolve quickly — check their current docs before deciding.)*
+
 ## Features
 
 - 🍏 **Native Liquid Glass on iOS** (`UIGlassEffect` on iOS 26), with a `UIBlurEffect` fallback below iOS 26
 - 🤖 **Android parity** via a per-frame AGSL refractive-lens shader (API 33+), graceful fallbacks below
 - 🎛️ Declarative API — `variant`, `tintColor`, `intensity`, `borderRadius`, `interactive`, `refraction`, `thickness`
 - ✨ **Interactive** glass — reacts to touch (bloom + optical magnification) and to device tilt (specular)
+- 🔷 **Custom shapes** — circle, squircle, polygon, points, or arbitrary/concave SVG paths
 - 🧊 `regular` (frosted) and `clear` (transparent) materials
 - ⚡ New Architecture (Fabric) **and** old architecture
-- 🟦 First-class TypeScript types
+- 🟦 First-class TypeScript types · 📦 Expo config plugin
 
 ## Installation
 
@@ -41,6 +70,8 @@ iOS and Android are both complete — a single declarative API, interactive touc
 npm install react-native-liquid-glassmorphism
 # or
 yarn add react-native-liquid-glassmorphism
+# Expo (dev build / prebuild — not Expo Go):
+npx expo install react-native-liquid-glassmorphism
 ```
 
 This is a native module, so it needs a native build — it does **not** run in Expo Go. For Expo, use a [development build](https://docs.expo.dev/develop/development-builds/introduction/) / `expo prebuild`.
@@ -131,11 +162,66 @@ setup. Optionally add the config plugin to your app config:
 (It's a pass-through today — the effect degrades by OS version at runtime, so no
 minimum-SDK, permission, or Info.plist changes are needed.)
 
+## Troubleshooting
+
+**I don't see any glass effect.** Put the glass over something visually interesting — a photo, gradient, or scrolling content. Over a flat solid color there's nothing to blur or refract.
+
+**On iOS it looks like a plain blur.** The native `UIGlassEffect` needs the **iOS 26 SDK / Xcode 26**. Below that, the library falls back to a `UIBlurEffect` frosted look by design.
+
+**On Android there's no refraction.** The AGSL shader needs **Android 13 / API 33+**. On API 31–32 you get `RenderEffect` blur + tint; below 31, a translucent tint. Also confirm `refraction` isn't set to `false`.
+
+**It crashes / the component is blank in Expo Go.** This is a native module — it can't run in Expo Go. Use a [development build](https://docs.expo.dev/develop/development-builds/introduction/) or `expo prebuild`, then rebuild the app.
+
+**My custom shape looks stretched.** The shape fills the view's bounds (`preserveAspectRatio="none"`). Size the view to the shape's aspect ratio.
+
+## FAQ
+
+### How do I add Liquid Glass to a React Native app?
+
+Install `react-native-liquid-glassmorphism`, rebuild the native app (dev build / `expo prebuild`, not Expo Go), and wrap content in `<LiquidGlassView>`. See [Usage](#usage).
+
+### Does it work on Android, or is Liquid Glass iOS-only?
+
+Both. Apple's Liquid Glass is iOS-only at the system level, but this library reproduces the optics on Android with a per-frame AGSL refraction shader (API 33+), with blur/tint fallbacks below that.
+
+### Does it need iOS 26?
+
+For Apple's native `UIGlassEffect`, yes (iOS 26 SDK / Xcode 26). On iOS 15–25 it falls back to a `UIBlurEffect` frosted look automatically.
+
+### Does it work with Expo?
+
+Yes — with a development build or `expo prebuild`. It does **not** run in Expo Go (it's a native module).
+
+### Does it support the New Architecture (Fabric)?
+
+Yes. It's a native Fabric component (codegen), and the same delegate covers the old architecture too.
+
+### How is it different from expo-blur / react-native-blur?
+
+Those only **blur** the backdrop. This one blurs **and refracts** it (edge lensing, chromatic dispersion, Fresnel rim, interactive specular), plus native `UIGlassEffect` on iOS 26. See the [comparison](#how-is-it-different-from-a-blur-view).
+
+### Can the glass be any shape?
+
+Yes — `circle`, `squircle`, `polygon`, explicit `points`, or an arbitrary concave SVG `path`. See [Custom shapes](#custom-shapes).
+
+### Does it support web?
+
+Not yet — mobile-only (iOS + Android) for now. Web is on the [Roadmap](#roadmap).
+
 ## Roadmap
 
 - [x] Expo config plugin (`app.plugin.js`)
 - [x] Custom shapes — analytic (`circle`/`squircle`/`polygon`/`points`) **and** arbitrary/concave SVG `path`
 - [ ] Web support (currently mobile-only)
+
+## Contributing & community
+
+Issues, ideas, and pull requests of every size are welcome — bug reports and docs improvements help just as much as features.
+
+- 🐛 [Report a bug](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues/new)
+- 💡 [Request a feature](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues/new)
+- 💬 [Ask a question / share an idea](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/discussions)
+- ⭐ Star the repo to help others discover it
 
 ## License
 
