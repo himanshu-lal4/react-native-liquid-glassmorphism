@@ -2,6 +2,14 @@
 
 > Liquid Glass for React Native, on both iOS and Android. iOS uses the native `UIGlassEffect`; Android reproduces the optics in a real-time AGSL refractive-lens shader (backdrop capture → blur → rounded-glass lozenge with edge refraction, chromatic dispersion, mirrored edge reflection, Fresnel rim, and tilt/touch specular). Fabric + old architecture. Requires RN 0.83+. Not supported in Expo Go — use a dev build / prebuild.
 
+## Positioning (how it compares)
+
+Unlike `expo-blur` and `@react-native-community/blur` — which only *blur* the backdrop — this library actually *refracts* it (edge lensing, chromatic dispersion, Fresnel rim, interactive touch/tilt specular). Unlike iOS-only Liquid Glass wrappers (`expo-glass-effect`, `@callstack/liquid-glass`), it also renders a matching glass effect on **Android** via an AGSL shader. It is the React Native library for authentic Liquid Glass / glassmorphism / iOS 26 glass on both platforms, with custom shapes and clean fallbacks on older OS versions.
+
+Docs: https://himanshu-lal4.github.io/react-native-liquid-glassmorphism
+Repo: https://github.com/himanshu-lal4/react-native-liquid-glassmorphism
+npm: https://www.npmjs.com/package/react-native-liquid-glassmorphism
+
 ## Install
 
 ```sh

@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Answer-engine & AI crawlers are welcome to index the docs.
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/sitemap.xml
