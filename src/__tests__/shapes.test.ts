@@ -42,6 +42,23 @@ describe('normalizeShape', () => {
     expect(tri.path.match(/L/g) ?? []).toHaveLength(2); // 3 vertices
   });
 
+  it('generates a default 5-point star with alternating radii', () => {
+    const star = nn(normalizeShape({ type: 'star' }));
+    expect(star.viewBoxWidth).toBe(100);
+    expect(star.viewBoxHeight).toBe(100);
+    // 5 spikes → 10 vertices → 1 M + 9 L, closed with Z.
+    expect(star.path.match(/L/g) ?? []).toHaveLength(9);
+    expect(star.path.trim().endsWith('Z')).toBe(true);
+    // First point is the top spike at the outer radius: (50, 0).
+    expect(star.path.startsWith('M 50 0')).toBe(true);
+  });
+
+  it('respects a custom point count and inner ratio for a star', () => {
+    const star = nn(normalizeShape({ type: 'star', points: 6, innerRatio: 0.4 }));
+    // 6 spikes → 12 vertices → 11 L commands.
+    expect(star.path.match(/L/g) ?? []).toHaveLength(11);
+  });
+
   it('derives the view-box from an explicit points bounding box', () => {
     const s = nn(
       normalizeShape({
