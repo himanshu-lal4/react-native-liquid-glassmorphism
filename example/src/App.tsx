@@ -21,6 +21,7 @@ import {
 } from 'react-native-liquid-glassmorphism';
 import { CurvedDock, DOCK_H, createDockPath } from './CurvedDock';
 import DemoReel from './DemoReel';
+import CardGallery from './CardGallery';
 
 // Full PHYSICAL screen size (includes the system status/navigation bars).
 // React Native applies the bottom system inset as padding on the root view, so
@@ -103,22 +104,33 @@ function starPoints(
  * chip goes back.
  */
 export default function App() {
-  const [mode, setMode] = useState<'reel' | 'gallery'>('reel');
+  const [mode, setMode] = useState<'reel' | 'gallery' | 'cards'>('reel');
   return (
     <SafeAreaProvider>
       <View style={styles.root}>
         <Backdrop />
         {mode === 'reel' ? (
           <DemoReel onExit={() => setMode('gallery')} />
+        ) : mode === 'cards' ? (
+          <CardGallery onBack={() => setMode('gallery')} />
         ) : (
-          <Gallery onShowReel={() => setMode('reel')} />
+          <Gallery
+            onShowReel={() => setMode('reel')}
+            onShowCards={() => setMode('cards')}
+          />
         )}
       </View>
     </SafeAreaProvider>
   );
 }
 
-function Gallery({ onShowReel }: { onShowReel: () => void }) {
+function Gallery({
+  onShowReel,
+  onShowCards,
+}: {
+  onShowReel: () => void;
+  onShowCards: () => void;
+}) {
   const [interactive, setInteractive] = useState(true);
   const [refraction, setRefraction] = useState(true);
   const insets = useSafeAreaInsets();
@@ -133,15 +145,26 @@ function Gallery({ onShowReel }: { onShowReel: () => void }) {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headingRow}>
           <Text style={styles.heading}>Liquid Glass</Text>
-          <Pressable onPress={onShowReel}>
-            <LiquidGlassView
-              tintColor="rgba(10,132,255,0.45)"
-              borderRadius={16}
-              style={styles.demoChip}
-            >
-              <Text style={styles.demoChipText}>▶ Demo</Text>
-            </LiquidGlassView>
-          </Pressable>
+          <View style={styles.headingChips}>
+            <Pressable onPress={onShowCards}>
+              <LiquidGlassView
+                tintColor="rgba(255,255,255,0.18)"
+                borderRadius={16}
+                style={styles.demoChip}
+              >
+                <Text style={styles.demoChipText}>▦ Cards</Text>
+              </LiquidGlassView>
+            </Pressable>
+            <Pressable onPress={onShowReel}>
+              <LiquidGlassView
+                tintColor="rgba(10,132,255,0.45)"
+                borderRadius={16}
+                style={styles.demoChip}
+              >
+                <Text style={styles.demoChipText}>▶ Demo</Text>
+              </LiquidGlassView>
+            </Pressable>
+          </View>
         </View>
         <Text style={styles.subheading}>Liquid Glass · React Native</Text>
 
@@ -397,6 +420,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   heading: { fontSize: 36, fontWeight: '800', color: '#fff' },
+  headingChips: { flexDirection: 'row', gap: 8 },
   demoChip: { paddingHorizontal: 14, paddingVertical: 9, overflow: 'hidden' },
   demoChipText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   subheading: { fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 8 },
