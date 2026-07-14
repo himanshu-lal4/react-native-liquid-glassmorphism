@@ -40,6 +40,7 @@ npm_url: https://www.npmjs.com/package/react-native-liquid-glassmorphism
 
 header_pages:
   - getting-started.md
+  - recipes.md
   - react-native-liquid-glass.md
   - react-native-blur-alternative.md
   - faq.md

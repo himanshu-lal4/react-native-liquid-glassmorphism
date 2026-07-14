@@ -34,6 +34,7 @@ import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
 ## Quick links
 
 - [Getting started]({{ '/getting-started/' | relative_url }})
+- [Recipes — copy-paste snippets]({{ '/recipes/' | relative_url }})
 - [How to add Liquid Glass in React Native]({{ '/react-native-liquid-glass/' | relative_url }})
 - [A react-native-blur / expo-blur alternative]({{ '/react-native-blur-alternative/' | relative_url }})
 - [FAQ]({{ '/faq/' | relative_url }})
