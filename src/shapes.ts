@@ -46,6 +46,16 @@ export type LiquidGlassShape =
     }
   | {
       /**
+       * A star / spiked polygon inscribed in the bounds, first point straight up.
+       */
+      type: 'star';
+      /** Number of points (spikes), >= 2. @default 5 */
+      points?: number;
+      /** Inner/outer radius ratio, 0–1 — smaller is spikier. @default 0.5 */
+      innerRatio?: number;
+    }
+  | {
+      /**
        * An arbitrary polygon from explicit points. Coordinates may be in any
        * space — the bounding box becomes the view-box, so `[0..1]` normalised or
        * raw pixel points both work.
@@ -136,6 +146,22 @@ function polygonShape(sides: number, rotationDeg: number): NormalizedShape {
   return { path: polylinePath(verts), ...UNIT_BOX };
 }
 
+/**
+ * Star inscribed in the 100×100 box, first spike up. `points` outer vertices
+ * alternate with `points` inner vertices at `innerRatio` of the radius.
+ */
+function starShape(points: number, innerRatio: number): NormalizedShape {
+  const spikes = Math.max(2, Math.round(points));
+  const inner = Math.min(1, Math.max(0, innerRatio)) * 50;
+  const verts: Array<readonly [number, number]> = [];
+  for (let i = 0; i < spikes * 2; i++) {
+    const r = i % 2 === 0 ? 50 : inner;
+    const a = -Math.PI / 2 + (i / (spikes * 2)) * Math.PI * 2;
+    verts.push([50 + Math.cos(a) * r, 50 + Math.sin(a) * r]);
+  }
+  return { path: polylinePath(verts), ...UNIT_BOX };
+}
+
 /** Arbitrary polygon; the points' bounding box (from 0,0) becomes the view-box. */
 function pointsShape(points: Array<readonly [number, number]>): NormalizedShape | null {
   if (!points || points.length < 3) return null;
@@ -160,6 +186,8 @@ export function normalizeShape(shape: LiquidGlassShape): NormalizedShape | null 
       return squircleShape(shape.n ?? 4);
     case 'polygon':
       return polygonShape(shape.sides, shape.rotation ?? 0);
+    case 'star':
+      return starShape(shape.points ?? 5, shape.innerRatio ?? 0.5);
     case 'points':
       return pointsShape(shape.points);
     case 'path':
