@@ -60,7 +60,7 @@ See the [full comparison](https://himanshu-lal4.github.io/react-native-liquid-gl
 - 🤖 **Android parity** via a per-frame AGSL refractive-lens shader (API 33+), graceful fallbacks below
 - 🎛️ Declarative API — `variant`, `tintColor`, `intensity`, `borderRadius`, `interactive`, `refraction`, `thickness`
 - ✨ **Interactive** glass — reacts to touch (bloom + optical magnification) and to device tilt (specular)
-- 🔷 **Custom shapes** — circle, squircle, polygon, points, or arbitrary/concave SVG paths
+- 🔷 **Custom shapes** — circle, squircle, polygon, star, points, or arbitrary/concave SVG paths
 - 🧊 `regular` (frosted) and `clear` (transparent) materials
 - ⚡ New Architecture (Fabric) **and** old architecture
 - 🟦 First-class TypeScript types · 📦 Expo config plugin
@@ -114,7 +114,7 @@ Extends `ViewProps`. All props are optional.
 | `intensity` | `number` (0–100) | `60` | Blur / material strength. On iOS 26 the OS manages the material (used only for the pre-26 fallback); on Android it scales the blur radius. |
 | `interactive` | `boolean` | `false` | Reacts to touch (a specular bloom + optical magnification under the finger) and to device tilt (moving specular). iOS 26 interactive glass natively. |
 | `borderRadius` | `number` (dp) | `0` | Corner radius of the glass surface. Ignored when `shape` is set. |
-| `shape` | `LiquidGlassShape` | — | Custom silhouette — `circle`, `squircle`, `polygon`, explicit `points`, or an arbitrary (even **concave**) SVG `path`. See [Custom shapes](#custom-shapes). |
+| `shape` | `LiquidGlassShape` | — | Custom silhouette — `circle`, `squircle`, `polygon`, `star`, explicit `points`, or an arbitrary (even **concave**) SVG `path`. See [Custom shapes](#custom-shapes). |
 | `refraction` | `boolean` | `true` | **Android only** — enables the AGSL edge-refraction lens (API 33+). No-op on iOS (the OS renders refraction). |
 | `thickness` | `number` (0–2) | `1` | **Android only** — "liquid volume": scales the refraction/lens depth. `0` = flat pane, `1` = default, up to `~2` = deep liquid lens. No-op on iOS (glass optics are OS-fixed). |
 
@@ -126,6 +126,7 @@ Give the glass any silhouette with the `shape` prop. The glass **lenses the back
 <LiquidGlassView shape={{ type: 'circle' }} style={{ width: 96, height: 96 }} />
 <LiquidGlassView shape={{ type: 'squircle', n: 4 }} />
 <LiquidGlassView shape={{ type: 'polygon', sides: 6 }} />
+<LiquidGlassView shape={{ type: 'star', points: 5, innerRatio: 0.5 }} />
 <LiquidGlassView shape={{ type: 'points', points: [[0, 0], [1, 0], [0.5, 1]] }} />
 
 // Arbitrary SVG path — e.g. a curved tab-bar dock with a center notch:
@@ -203,7 +204,7 @@ Those only **blur** the backdrop. This one blurs **and refracts** it (edge lensi
 
 ### Can the glass be any shape?
 
-Yes — `circle`, `squircle`, `polygon`, explicit `points`, or an arbitrary concave SVG `path`. See [Custom shapes](#custom-shapes).
+Yes — `circle`, `squircle`, `polygon`, `star`, explicit `points`, or an arbitrary concave SVG `path`. See [Custom shapes](#custom-shapes).
 
 ### Does it support web?
 
@@ -212,7 +213,7 @@ Not yet — mobile-only (iOS + Android) for now. Web is on the [Roadmap](#roadma
 ## Roadmap
 
 - [x] Expo config plugin (`app.plugin.js`)
-- [x] Custom shapes — analytic (`circle`/`squircle`/`polygon`/`points`) **and** arbitrary/concave SVG `path`
+- [x] Custom shapes — analytic (`circle`/`squircle`/`polygon`/`star`/`points`) **and** arbitrary/concave SVG `path`
 - [ ] Web support (currently mobile-only)
 
 ## Contributing & community
