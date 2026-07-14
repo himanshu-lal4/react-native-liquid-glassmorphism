@@ -162,9 +162,22 @@ function starShape(points: number, innerRatio: number): NormalizedShape {
   return { path: polylinePath(verts), ...UNIT_BOX };
 }
 
+/** Twice the signed area of a polygon (shoelace); 0 means degenerate/collinear. */
+function shoelaceArea2(points: Array<readonly [number, number]>): number {
+  let a = 0;
+  points.forEach((p, i) => {
+    const q = points[(i + 1) % points.length];
+    if (q) a += p[0] * q[1] - q[0] * p[1];
+  });
+  return a;
+}
+
 /** Arbitrary polygon; the points' bounding box (from 0,0) becomes the view-box. */
 function pointsShape(points: Array<readonly [number, number]>): NormalizedShape | null {
+  // Need at least a triangle, and a non-zero enclosed area — collinear or
+  // coincident points would otherwise emit a broken zero-width silhouette.
   if (!points || points.length < 3) return null;
+  if (Math.abs(shoelaceArea2(points)) < 1e-9) return null;
   const xs = points.map((p) => p[0]);
   const ys = points.map((p) => p[1]);
   return {
