@@ -42,6 +42,10 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
     view.setInteractiveValue(value)
   }
 
+  override fun setTilt(view: LiquidGlassmorphismView, value: Boolean) {
+    view.setTiltValue(value)
+  }
+
   override fun setGlassCornerRadius(view: LiquidGlassmorphismView, value: Int) {
     view.setCornerRadiusDp(value)
   }
@@ -52,6 +56,14 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
 
   override fun setThickness(view: LiquidGlassmorphismView, value: Float) {
     view.setThicknessValue(value)
+  }
+
+  override fun setEdgeReflectionStrength(view: LiquidGlassmorphismView, value: Float) {
+    view.setEdgeReflectionStrengthValue(value)
+  }
+
+  override fun setLegibilityFloor(view: LiquidGlassmorphismView, value: Float) {
+    view.setLegibilityFloorValue(value)
   }
 
   override fun setShapePath(view: LiquidGlassmorphismView, value: String?) {

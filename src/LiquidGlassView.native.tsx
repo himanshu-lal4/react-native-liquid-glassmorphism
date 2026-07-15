@@ -14,8 +14,11 @@ export function LiquidGlassView({
   variant = 'regular',
   intensity = 60,
   interactive = false,
+  tilt = false,
   refraction = true,
   thickness = 1,
+  edgeReflectionStrength = 1,
+  legibilityFloor = 0,
   borderRadius = 0,
   shape,
   tintColor,
@@ -35,15 +38,19 @@ export function LiquidGlassView({
       }
     : { shapePath: '', shapeViewBoxWidth: 0, shapeViewBoxHeight: 0 };
 
-  // Android-only "liquid volume"; iOS glass optics are OS-fixed, so we keep it
-  // off the iOS native prop surface entirely.
-  const platformProps = Platform.OS === 'android' ? { thickness } : null;
+  // Android-only optics (liquid volume, edge-reflection, legibility veil); iOS
+  // glass is OS-fixed, so we keep these off the iOS native prop surface.
+  const platformProps =
+    Platform.OS === 'android'
+      ? { thickness, edgeReflectionStrength, legibilityFloor }
+      : null;
 
   return (
     <NativeLiquidGlass
       variant={variant}
       intensity={intensity}
       interactive={interactive}
+      tilt={tilt}
       refraction={refraction}
       glassCornerRadius={borderRadius}
       {...shapeProps}

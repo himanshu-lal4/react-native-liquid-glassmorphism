@@ -58,9 +58,19 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private var intensity = 60
   private var tintColor: Int? = null
   private var interactive = false
+  // Gyro/accelerometer specular is now its own toggle (fix #3), decoupled from
+  // `interactive` (touch). Off by default: no always-on motion sensor unless the
+  // integrator explicitly opts in.
+  private var tilt = false
   private var refractionEnabled = false
   private var thickness = 1f
   private var cornerRadiusPx = 0f
+  // Edge-reflection band strength (#5), 0 (off) → 1 (default). Independent of
+  // `thickness` so the upside-down rim echo can be calmed over text.
+  private var edgeReflectionStrength = 1f
+  // Legibility floor (#2), 0 → 1: an adaptive surface drawn UNDER the foreground
+  // children so chrome (icons/labels) stays readable over clear glass.
+  private var legibilityFloor = 0f
 
   // --- Custom shape (arbitrary SVG silhouette) ---
   private var shapePathData: String = ""
@@ -96,6 +106,18 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private var captureCanvas: Canvas? = null
   private var isCapturing = false
   private var shaderActive = false
+  // Dirty-tracking (fix #1): a cheap sampled hash of the last captured backdrop
+  // plus a "have we ever drawn a good frame" flag. We only re-draw the glass
+  // when the backdrop actually changed, instead of self-invalidating every
+  // frame. This also self-heals a stale/black first capture (taken mid-layout):
+  // the next real change re-captures and repaints, so it can't stick as a ghost
+  // overlay the way the old unconditional path did.
+  private var lastBackdropHash = 0
+  private var haveGoodCapture = false
+  // #6 (observability): report the rendered tier once, so QA can confirm from
+  // logcat which path actually ran on a given device (agsl / blur / tint) —
+  // "flat because fallback" vs "flat because misconfigured".
+  private var reportedTier = false
   private val locThis = IntArray(2)
   private val locRoot = IntArray(2)
   private val effectNode = if (supportsBlur()) RenderNode("liquidGlass") else null
@@ -119,6 +141,8 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private val tintPaint = Paint(Paint.ANTI_ALIAS_FLAG)
   private val specularPaint = Paint(Paint.ANTI_ALIAS_FLAG)
   private val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+  // Legibility floor (#2) — a neutral veil under the foreground children.
+  private val legibilityPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
   // --- Gyroscope tilt ---
   private var sensorManager: SensorManager? = null
@@ -157,10 +181,24 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   }
 
   fun setInteractiveValue(value: Boolean) {
+    // Touch-magnify only now — the motion sensor is governed by `tilt` (#3).
     if (interactive == value) return
     interactive = value
+    invalidate()
+  }
+
+  /** Gyro/accelerometer specular (#3). Registers the sensor only while on. */
+  fun setTiltValue(value: Boolean) {
+    if (tilt == value) return
+    tilt = value
     if (isAttachedToWindow) {
-      if (interactive) registerSensor() else unregisterSensor()
+      if (tilt) registerSensor() else unregisterSensor()
+    }
+    if (!tilt) {
+      // Recenter the specular when tilt is switched off.
+      tiltX = 0f
+      tiltY = 0f
+      invalidate()
     }
   }
 
@@ -172,6 +210,18 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   fun setThicknessValue(value: Float) {
     val v = value.coerceIn(0f, 2f)
     if (thickness != v) { thickness = v; invalidate() }
+  }
+
+  /** Edge-reflection strength (#5), 0 (off) → 1 (default), clamped. */
+  fun setEdgeReflectionStrengthValue(value: Float) {
+    val v = value.coerceIn(0f, 1f)
+    if (edgeReflectionStrength != v) { edgeReflectionStrength = v; invalidate() }
+  }
+
+  /** Legibility floor (#2), 0 (off) → 1 (max), clamped. */
+  fun setLegibilityFloorValue(value: Float) {
+    val v = value.coerceIn(0f, 1f)
+    if (legibilityFloor != v) { legibilityFloor = v; invalidate() }
   }
 
   fun setCornerRadiusDp(dp: Int) {
@@ -293,7 +343,26 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
     viewTreeObserver.addOnPreDrawListener(this)
-    if (interactive) registerSensor()
+    if (tilt) registerSensor()
+    maybeWarnNoChildren()
+  }
+
+  // Dev warning (#8): touch/tilt effects are driven by this view's own
+  // dispatchTouchEvent, so they're a silent no-op unless foreground content is
+  // a CHILD of the glass (not a sibling overlay). Warn once so the footgun is
+  // visible instead of costing debugging time.
+  private var warnedNoChildren = false
+  private fun maybeWarnNoChildren() {
+    if (warnedNoChildren || childCount > 0) return
+    if (interactive || tilt) {
+      warnedNoChildren = true
+      android.util.Log.w(
+        "LiquidGlass",
+        "interactive/tilt is set but the glass has no children — touch & tilt " +
+          "effects are driven by the view's own touches, so they do nothing " +
+          "unless foreground content is rendered as a CHILD of <LiquidGlassView>."
+      )
+    }
   }
 
   override fun onDetachedFromWindow() {
@@ -303,6 +372,9 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     captured?.recycle()
     captured = null
     captureCanvas = null
+    // Force a fresh capture + repaint on the next attach (fix #1).
+    haveGoodCapture = false
+    lastBackdropHash = 0
     sdfBitmap?.recycle()
     sdfBitmap = null
     sdfInput = null
@@ -320,13 +392,42 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   override fun onPreDraw(): Boolean {
     if (isCapturing || width == 0 || height == 0) return true
     captureBackdrop()
-    // The fresh capture only reaches the screen through this view's draw pass
-    // (the RenderNode is re-recorded there), so schedule one. Without this a
-    // NON-interactive glass never redraws: it keeps the backdrop from its very
-    // first frame — black if it mounted off-screen in a ScrollView. Interactive
-    // views only worked because the tilt sensor happened to invalidate them.
-    invalidate()
+    // Only repaint when the backdrop actually changed (fix #1). Comparing a
+    // cheap sampled hash breaks the old self-sustaining 60fps capture→invalidate
+    // loop: on a static screen the hash settles and we stop; when content
+    // behind scrolls/animates, onPreDraw fires from THAT invalidation, the hash
+    // differs, and we repaint one fresh frame.
+    val hash = backdropHash()
+    if (!haveGoodCapture || hash != lastBackdropHash) {
+      lastBackdropHash = hash
+      haveGoodCapture = true
+      // Schedule the repaint OUTSIDE this draw pass. invalidate() issued from
+      // within onPreDraw is unreliably coalesced by HWUI — that dropped repaint
+      // is what let a stale/black first capture stick as a full-screen ghost.
+      // postInvalidateOnAnimation() reliably lands on the next frame.
+      postInvalidateOnAnimation()
+    }
     return true
+  }
+
+  // A sparse sampled hash of the captured backdrop — enough to notice a scroll
+  // or content change without the cost of comparing every pixel each frame.
+  private fun backdropHash(): Int {
+    val bmp = captured ?: return 0
+    val w = bmp.width
+    val h = bmp.height
+    if (w <= 0 || h <= 0) return 0
+    var hash = 1
+    val cols = 6
+    val rows = 5
+    for (r in 0 until rows) {
+      val y = if (rows == 1) 0 else (h - 1) * r / (rows - 1)
+      for (c in 0 until cols) {
+        val x = if (cols == 1) 0 else (w - 1) * c / (cols - 1)
+        hash = hash * 31 + bmp.getPixel(x, y)
+      }
+    }
+    return hash
   }
 
   private fun captureBackdrop() {
@@ -434,6 +535,21 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       } else {
         canvas.drawRenderNode(node)
       }
+      // Report which tier actually ran, once (#6) — logcat so QA can confirm
+      // from a device which path ran (agsl / blur / tint).
+      if (!reportedTier) {
+        reportedTier = true
+        val tier = when {
+          shaderActive -> "agsl"
+          supportsBlur() -> "blur"
+          else -> "tint"
+        }
+        val compiled = glassShader != null
+        android.util.Log.i(
+          "LiquidGlass",
+          "render tier=$tier shaderCompiled=$compiled sdk=${Build.VERSION.SDK_INT}"
+        )
+      }
     }
 
     if (!shaderActive) {
@@ -447,6 +563,21 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       }
     }
 
+    // Legibility floor (#2): a neutral veil laid over the glass but UNDER the
+    // React children (they draw later in dispatchDraw), so foreground chrome
+    // stays readable over `clear` glass without darkening the whole pane. We
+    // adapt the veil to the captured backdrop's average luminance — darker over
+    // bright backdrops, near-black stays subtle over dark ones — and let the
+    // tint colour hue it so it coheres with the glass.
+    if (legibilityFloor > 0f) {
+      legibilityPaint.color = legibilityVeilColor()
+      if (shapePath != null) {
+        canvas.drawPath(shapePath, legibilityPaint)
+      } else {
+        canvas.drawRoundRect(0f, 0f, w, h, cornerRadiusPx, cornerRadiusPx, legibilityPaint)
+      }
+    }
+
     // Crisp bright rim outline — ALWAYS drawn, exactly like the analytic path.
     // The shader's rimLine alone is softer/dimmer; skipping this stroke is what
     // made custom shapes read as missing the clean glass edge the pill has.
@@ -456,6 +587,47 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       val inset = rimPaint.strokeWidth / 2f
       canvas.drawRoundRect(inset, inset, w - inset, h - inset, cornerRadiusPx, cornerRadiusPx, rimPaint)
     }
+  }
+
+  // Colour of the legibility veil: a dark scrim whose opacity scales with
+  // `legibilityFloor` AND with the backdrop brightness (a bright backdrop needs
+  // more veil to keep light chrome readable). Hued toward the tint when one is
+  // set so it doesn't fight the glass colour.
+  private fun legibilityVeilColor(): Int {
+    val floor = legibilityFloor.coerceIn(0f, 1f)
+    val lum = backdropLuminance() // 0 (dark) → 1 (bright)
+    // Lift the veil up to ~1.4× over a fully bright backdrop, cap at 0.62 alpha.
+    val alpha = (floor * (0.7f + 0.7f * lum) * 255f).toInt().coerceIn(0, 158)
+    val tint = tintColor
+    return if (tint != null && Color.alpha(tint) > 0) {
+      // Darkened tint hue.
+      Color.argb(alpha, Color.red(tint) / 3, Color.green(tint) / 3, Color.blue(tint) / 3)
+    } else {
+      Color.argb(alpha, 0, 0, 0)
+    }
+  }
+
+  // Average luminance of the captured backdrop from the same sparse grid the
+  // dirty-hash uses — cheap, and only read when a legibility veil is active.
+  private fun backdropLuminance(): Float {
+    val bmp = captured ?: return 0.5f
+    val w = bmp.width
+    val h = bmp.height
+    if (w <= 0 || h <= 0) return 0.5f
+    var sum = 0f
+    var count = 0
+    val cols = 6
+    val rows = 5
+    for (r in 0 until rows) {
+      val y = if (rows == 1) 0 else (h - 1) * r / (rows - 1)
+      for (c in 0 until cols) {
+        val x = if (cols == 1) 0 else (w - 1) * c / (cols - 1)
+        val px = bmp.getPixel(x, y)
+        sum += (0.299f * Color.red(px) + 0.587f * Color.green(px) + 0.114f * Color.blue(px)) / 255f
+        count++
+      }
+    }
+    return if (count == 0) 0.5f else sum / count
   }
 
   // Clip React children to the custom silhouette so icons/labels don't spill
@@ -512,6 +684,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       shader.setFloatUniform("iTilt", tiltX, tiltY)
       shader.setFloatUniform("iTouch", touchX, touchY)
       shader.setFloatUniform("iTouchAmt", if (interactive) touchAmt else 0f)
+      shader.setFloatUniform("iRefl", edgeReflectionStrength)
       setTintUniform(shader)
       val material = RenderEffect.createRuntimeShaderEffect(shader, "content")
       shaderActive = true
@@ -615,6 +788,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       uniform half4 iTint;
       uniform float2 iTouch;
       uniform float iTouchAmt;
+      uniform float iRefl;
 
       float sdRoundRect(float2 p, float2 b, float r) {
         float2 q = abs(p) - b + r;
@@ -724,8 +898,11 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         // beyond a marginally softer edge.
         float edgeGuard = smoothstep(0.0, 12.0, -d);
 
+        // `iRefl` (edgeReflectionStrength, 0–1) scales ONLY this reflection band
+        // — independent of iLens/thickness — so the upside-down edge echo can be
+        // calmed over text-heavy backdrops without flattening the whole lens.
         float reflMask = edgeBand * edgeBand * axisFade;
-        float2 reflDisp = n2 * reflMask * (iLens * 3.0) * edgeGuard;
+        float2 reflDisp = n2 * reflMask * (iLens * 3.0 * iRefl) * edgeGuard;
 
         float2 disp = n2 * bend * iLens * edgeGuard;
         float2 uv = magCoord - disp - reflDisp;

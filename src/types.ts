@@ -45,6 +45,17 @@ export interface LiquidGlassViewProps extends ViewProps {
   interactive?: boolean;
 
   /**
+   * Android only: device-tilt specular driven by the gyro/accelerometer.
+   *
+   * Decoupled from {@link interactive} so you can have touch response *without*
+   * an always-on motion sensor. The sensor is registered only while this is
+   * `true`, so leaving it off saves battery on persistent chrome (tab/nav bars).
+   * No-op on iOS, where the OS renders the glass specular.
+   * @default false
+   */
+  tilt?: boolean;
+
+  /**
    * Corner radius of the glass surface, in dp/points.
    *
    * Ignored when {@link shape} is set (the shape defines the silhouette).
@@ -88,4 +99,25 @@ export interface LiquidGlassViewProps extends ViewProps {
    * @default 1
    */
   thickness?: number;
+
+  /**
+   * Android only: strength of the edge-reflection band — the upside-down "echo"
+   * mirrored back at the top/bottom rim — from `0` (off) to `1` (default).
+   *
+   * Independent of {@link thickness}, so you can keep a deep lens while calming
+   * the reflection over text-heavy backdrops, where the mirrored copy otherwise
+   * reads as noise. No-op on iOS.
+   * @default 1
+   */
+  edgeReflectionStrength?: number;
+
+  /**
+   * Android only: a `0`–`1` legibility veil drawn *under* the foreground
+   * children so chrome (icons, labels) stays readable over `clear` glass,
+   * without darkening the whole pane. The veil adapts to the backdrop
+   * brightness (more veil over bright content) and is hued by {@link tintColor}
+   * when set. `0` disables it. No-op on iOS.
+   * @default 0
+   */
+  legibilityFloor?: number;
 }

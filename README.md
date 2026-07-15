@@ -85,6 +85,22 @@ This is a native module, so it needs a native build — it does **not** run in E
 | Android | API 24 (translucent fallback) | **API 33+** (AGSL refractive shader) |
 | React Native | 0.83+ | New or old architecture |
 
+**Android build toolchain:** the AGSL `RuntimeShader` + `RenderNode` path needs a
+recent toolchain — build with **compileSdk 34+** and a current NDK (tested with
+**NDK `27.1.12297006`**). If a first build fails auto-installing the NDK, install
+it once via the SDK Manager and rebuild.
+
+**Android degradation matrix** (what actually renders per OS tier):
+
+| Android tier | Renders |
+| --- | --- |
+| API 33+ | Full AGSL lens: blur → vibrancy → **edge refraction** → tint → specular |
+| API 31–32 | Blur + Canvas tint/specular (**no refraction lensing**) |
+| < API 31 | Translucent tint + rim only |
+
+To confirm which tier ran on a given device, check logcat for
+`LiquidGlass: render tier=agsl|blur|tint shaderCompiled=…`.
+
 ## Usage
 
 ```tsx
@@ -103,6 +119,29 @@ import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
 
 Children render crisply **on top** of the glass — only the backdrop is blurred/refracted.
 
+> **`interactive` / `tilt` need children.** The touch & tilt effects are driven by
+> the glass view's own touches, so foreground content must be a **child** of
+> `<LiquidGlassView>` (not a sibling rendered over an `absoluteFill` glass). With
+> no children they are a silent no-op — in a dev build you'll get a logcat warning
+> explaining this.
+
+**Readable chrome over `clear` glass.** `clear` faithfully transmits whatever is
+behind it, which can make foreground icons/labels hard to read over busy content.
+Use `legibilityFloor` for an adaptive veil behind the children (and `tintColor`
+to hue it) instead of hand-rolling a scrim:
+
+```tsx
+<LiquidGlassView
+  variant="clear"
+  legibilityFloor={0.4}          // adaptive veil under the children
+  tintColor="rgba(10,9,8,0.5)"
+  edgeReflectionStrength={0.4}    // calm the rim echo over text
+  style={styles.tabBar}
+>
+  {/* icons + labels stay readable */}
+</LiquidGlassView>
+```
+
 ## API — `<LiquidGlassView>`
 
 Extends `ViewProps`. All props are optional.
@@ -112,11 +151,14 @@ Extends `ViewProps`. All props are optional.
 | `variant` | `'regular' \| 'clear'` | `'regular'` | `regular` = adaptive frosted glass. `clear` = lighter, transparent glass for media. |
 | `tintColor` | `ColorValue` | — | Tint over the backdrop. Use `rgba()` / 8-digit hex to control strength. |
 | `intensity` | `number` (0–100) | `60` | Blur / material strength. On iOS 26 the OS manages the material (used only for the pre-26 fallback); on Android it scales the blur radius. |
-| `interactive` | `boolean` | `false` | Reacts to touch (a specular bloom + optical magnification under the finger) and to device tilt (moving specular). iOS 26 interactive glass natively. |
+| `interactive` | `boolean` | `false` | Reacts to **touch** — a specular bloom + optical magnification under the finger. iOS 26 interactive glass natively. (Device-tilt specular is now the separate `tilt` prop.) |
+| `tilt` | `boolean` | `false` | **Android only** — device-tilt specular driven by the gyro/accelerometer. Decoupled from `interactive` so you can have touch response **without** an always-on motion sensor; the sensor registers only while `tilt` is on. No-op on iOS. |
 | `borderRadius` | `number` (dp) | `0` | Corner radius of the glass surface. Ignored when `shape` is set. |
 | `shape` | `LiquidGlassShape` | — | Custom silhouette — `circle`, `squircle`, `polygon`, `star`, explicit `points`, or an arbitrary (even **concave**) SVG `path`. See [Custom shapes](#custom-shapes). |
 | `refraction` | `boolean` | `true` | **Android only** — enables the AGSL edge-refraction lens (API 33+). No-op on iOS (the OS renders refraction). |
 | `thickness` | `number` (0–2) | `1` | **Android only** — "liquid volume": scales the refraction/lens depth. `0` = flat pane, `1` = default, up to `~2` = deep liquid lens. No-op on iOS (glass optics are OS-fixed). |
+| `edgeReflectionStrength` | `number` (0–1) | `1` | **Android only** — strength of the edge-reflection band (the upside-down rim echo), **independent of `thickness`**. Lower it over text-heavy backdrops where the mirrored copy reads as noise. No-op on iOS. |
+| `legibilityFloor` | `number` (0–1) | `0` | **Android only** — an adaptive veil drawn **under the foreground children** so chrome (icons/labels) stays readable over `clear` glass, without darkening the whole pane. Scales with the value and the backdrop brightness; hued by `tintColor`. `0` = off. No-op on iOS. |
 
 ## Custom shapes
 
