@@ -24,6 +24,13 @@ export interface NativeProps extends ViewProps {
   /** iOS 26 interactive glass + Android touch-reactive specular highlight. */
   interactive?: boolean;
 
+  /**
+   * Android only: device-tilt specular (gyro/accelerometer). Decoupled from
+   * `interactive` so touch response can run without an always-on motion sensor.
+   * The sensor is registered only while this is `true`.
+   */
+  tilt?: boolean;
+
   /** Corner radius of the glass surface, in dp/points. */
   glassCornerRadius?: WithDefault<Int32, 0>;
 
@@ -52,6 +59,20 @@ export interface NativeProps extends ViewProps {
    * No-op on iOS, where the OS fixes the glass optics.
    */
   thickness?: WithDefault<Float, 1.0>;
+
+  /**
+   * Android only: strength of the edge-reflection band (the upside-down rim
+   * echo), 0–1, independent of `thickness`. Lower it over text-heavy backdrops
+   * where the mirrored copy reads as noise. No-op on iOS.
+   */
+  edgeReflectionStrength?: WithDefault<Float, 1.0>;
+
+  /**
+   * Android only: 0–1 legibility veil drawn UNDER the foreground children so
+   * chrome (icons/labels) stays readable over `clear` glass. Adapts to the
+   * backdrop brightness. 0 = off. No-op on iOS.
+   */
+  legibilityFloor?: WithDefault<Float, 0>;
 }
 
 export default codegenNativeComponent<NativeProps>('LiquidGlassmorphismView');
