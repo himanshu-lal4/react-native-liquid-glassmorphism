@@ -1,0 +1,22 @@
+{%- comment -%}
+Custom footer: makes the author name link to the GitHub profile.
+{%- endcomment -%}
+<footer class="site-footer h-card">
+  <data class="u-url" href="{{ '/' | relative_url }}"></data>
+  <div class="wrapper">
+    <h2 class="footer-heading">{{ site.title }}</h2>
+    <div class="footer-col-wrapper">
+      <div class="footer-col site-footer-author">
+        Built by
+        <a href="{{ site.author_url | default: 'https://github.com/himanshu-lal4' }}" rel="noopener">{{ site.author }}</a>
+        &middot;
+        <a href="{{ site.repo_url }}" rel="noopener">GitHub</a>
+        &middot;
+        <a href="{{ site.npm_url }}" rel="noopener">npm</a>
+      </div>
+      <div class="footer-col">
+        <p>{{ site.description | escape }}</p>
+      </div>
+    </div>
+  </div>
+</footer>

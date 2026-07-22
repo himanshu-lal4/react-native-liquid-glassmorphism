@@ -2,6 +2,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
 
   {%- seo -%}
   <link rel="stylesheet" href="{{ "/assets/main.css" | relative_url }}">
@@ -11,107 +12,124 @@
   {%- endif -%}
 
   <style>
-    /* ---- npm call-to-action (install bar + footer CTA) ---- */
-    .npm-cta-bar {
-      background: #1a1a1a;
-      border-bottom: 3px solid #cb3837;
-      padding: 14px 0;
+    /* ===== Force light mode ===== */
+    :root {
+      --ink: #1f2328;
+      --ink-soft: #57606a;
+      --line: #e1e4e8;
+      --surface: #f6f8fa;
+      --npm: #cb3837;
+      --npm-dark: #b02f2e;
+      --code-green: #116329;
     }
-    .npm-cta-inner {
+    html { color-scheme: light; }
+    body { color: var(--ink); background: #fff; }
+
+    /* ---- Custom site header / nav ---- */
+    .site-header-custom {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    .site-header-inner {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px 20px;
+      padding: 14px 0;
     }
-    .npm-cta-left {
+    .site-brand {
+      font-weight: 800;
+      font-size: 1.15rem;
+      color: var(--ink) !important;
+      text-decoration: none !important;
+      white-space: nowrap;
+    }
+    .site-brand:hover { color: var(--npm) !important; }
+    .site-nav-custom {
       display: flex;
-      align-items: center;
       flex-wrap: wrap;
-      gap: 10px;
-      min-width: 0;
+      align-items: center;
+      gap: 4px 6px;
     }
-    .npm-cta-label {
-      color: #fff;
-      font-weight: 700;
-      font-size: 14px;
-      letter-spacing: .02em;
-      white-space: nowrap;
-    }
-    .npm-cta-cmd {
-      background: #000;
-      color: #7ee787;
-      border: 1px solid #333;
+    .site-nav-custom .nav-link {
+      color: var(--ink-soft) !important;
+      text-decoration: none !important;
+      font-size: 0.92rem;
+      font-weight: 500;
+      padding: 6px 10px;
       border-radius: 6px;
-      padding: 7px 11px;
-      font-size: 13px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      overflow-x: auto;
-      max-width: 100%;
       white-space: nowrap;
+      transition: background .12s ease, color .12s ease;
+    }
+    .site-nav-custom .nav-link:hover { color: var(--ink) !important; background: var(--surface); }
+    .site-nav-custom .nav-link.is-active { color: var(--npm) !important; background: #fdecec; }
+
+    /* ---- npm install bar ---- */
+    .npm-cta-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      padding: 12px 0;
+    }
+    .npm-cta-inner {
+      display: flex; flex-wrap: wrap; align-items: center;
+      justify-content: space-between; gap: 10px 14px;
+    }
+    .npm-cta-left { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; min-width: 0; }
+    .npm-cta-label { font-weight: 700; font-size: 0.9rem; color: var(--ink); white-space: nowrap; }
+    .npm-cta-cmd {
+      background: #fff; color: var(--code-green);
+      border: 1px solid var(--line); border-radius: 6px;
+      padding: 7px 11px; font-size: 0.82rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      overflow-x: auto; max-width: 100%; white-space: nowrap;
     }
     .npm-cta-copy {
-      background: #2d2d2d;
-      color: #ddd;
-      border: 1px solid #444;
-      border-radius: 6px;
-      padding: 7px 12px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background .15s ease, color .15s ease;
+      background: #fff; color: var(--ink); border: 1px solid var(--line);
+      border-radius: 6px; padding: 7px 12px; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: background .12s ease;
     }
-    .npm-cta-copy:hover { background: #3d3d3d; color: #fff; }
+    .npm-cta-copy:hover { background: var(--surface); }
     .npm-cta-right { display: flex; gap: 8px; flex-wrap: wrap; }
-    .npm-cta-btn {
-      display: inline-block;
-      padding: 8px 15px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 700;
-      text-decoration: none !important;
-      border: 1px solid #444;
-      color: #eee;
-      background: #2d2d2d;
-      white-space: nowrap;
-      transition: filter .15s ease;
-    }
-    .npm-cta-btn:hover { filter: brightness(1.25); color: #fff; }
-    .npm-cta-btn-primary {
-      background: #cb3837;
-      border-color: #cb3837;
-      color: #fff;
-    }
 
-    /* ---- footer CTA ---- */
-    .npm-foot-cta {
-      background: #f6f8fa;
-      border-top: 1px solid #e1e4e8;
-      padding: 44px 0 40px;
-      text-align: center;
+    /* ---- Buttons (bar + footer). !important beats minima's link color. ---- */
+    .npm-cta-btn {
+      display: inline-block; padding: 8px 15px; border-radius: 6px;
+      font-size: 0.88rem; font-weight: 700;
+      text-decoration: none !important;
+      border: 1px solid var(--line);
+      color: var(--ink) !important; background: #fff;
+      white-space: nowrap; transition: background .12s ease, border-color .12s ease;
     }
-    .npm-foot-cta h2 { margin: 0 0 8px; font-size: 26px; }
-    .npm-foot-cta p.npm-foot-tag { margin: 0 auto 20px; color: #57606a; max-width: 620px; }
+    .npm-cta-btn:hover { background: var(--surface); border-color: #d0d7de; color: var(--ink) !important; }
+    .npm-cta-btn-primary { background: var(--npm); border-color: var(--npm); color: #fff !important; }
+    .npm-cta-btn-primary:hover { background: var(--npm-dark); border-color: var(--npm-dark); color: #fff !important; }
+
+    /* ---- Footer CTA ---- */
+    .npm-foot-cta {
+      background: var(--surface); border-top: 1px solid var(--line);
+      padding: 44px 0 40px; text-align: center;
+    }
+    .npm-foot-cta h2 { margin: 0 0 8px; font-size: 1.6rem; color: var(--ink); }
+    .npm-foot-cta p.npm-foot-tag { margin: 0 auto 20px; color: var(--ink-soft); max-width: 620px; }
     .npm-foot-cta pre {
-      display: inline-block;
-      text-align: left;
-      background: #1a1a1a;
-      color: #7ee787;
-      border-radius: 8px;
-      padding: 14px 18px;
-      margin: 0 0 20px;
-      max-width: 100%;
-      overflow-x: auto;
-      font-size: 14px;
+      display: inline-block; text-align: left;
+      background: #fff; color: var(--code-green);
+      border: 1px solid var(--line); border-radius: 8px;
+      padding: 13px 18px; margin: 0 0 20px; max-width: 100%; overflow-x: auto; font-size: 0.9rem;
     }
     .npm-foot-links { margin: 0 0 18px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
     .npm-foot-badges img { margin: 0 4px; vertical-align: middle; }
+
+    /* ---- Site footer author link ---- */
+    .site-footer-author a { color: var(--npm) !important; font-weight: 600; text-decoration: none !important; }
+    .site-footer-author a:hover { text-decoration: underline !important; }
 
     @media (max-width: 700px) {
       .npm-cta-inner { flex-direction: column; align-items: stretch; }
       .npm-cta-right { justify-content: stretch; }
       .npm-cta-right .npm-cta-btn { flex: 1; text-align: center; }
-      .npm-cta-cmd { font-size: 12px; }
+      .site-header-inner { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>

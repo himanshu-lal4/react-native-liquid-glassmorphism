@@ -1,0 +1,17 @@
+{%- comment -%}
+Custom header: short curated nav labels from site.nav_links instead of minima's
+default (which prints each page's full SEO title and produces a wall of text).
+{%- endcomment -%}
+<header class="site-header-custom">
+  <div class="wrapper site-header-inner">
+    <a class="site-brand" href="{{ '/' | relative_url }}">{{ site.title }}</a>
+    {%- if site.nav_links -%}
+    <nav class="site-nav-custom" aria-label="Primary">
+      {%- for item in site.nav_links -%}
+        {%- assign target = item.url | relative_url -%}
+        <a class="nav-link{% if page.url == item.url %} is-active{% endif %}" href="{{ target }}">{{ item.label }}</a>
+      {%- endfor -%}
+    </nav>
+    {%- endif -%}
+  </div>
+</header>

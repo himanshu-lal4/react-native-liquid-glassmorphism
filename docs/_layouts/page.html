@@ -1,0 +1,13 @@
+---
+layout: default
+---
+{%- comment -%}
+Custom page layout: does NOT render page.title as an <h1>. Every content page
+already starts with its own `# heading` in the body, so minima's default page
+layout produced a duplicate H1. The SEO <title> still comes from jekyll-seo-tag.
+{%- endcomment -%}
+<article class="post">
+  <div class="post-content">
+    {{ content }}
+  </div>
+</article>
