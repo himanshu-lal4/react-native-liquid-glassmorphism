@@ -66,7 +66,13 @@ Not yet — the library is mobile-only (iOS + Android) for now. Web support is o
     { "@type": "Question", "name": "How is this different from expo-blur or react-native-blur?",
       "acceptedAnswer": { "@type": "Answer", "text": "Those libraries only blur the backdrop. This one blurs and refracts it — real edge lensing, chromatic dispersion, a Fresnel rim, and interactive touch/tilt specular — plus native UIGlassEffect on iOS 26. It is the difference between a flat frosted pane and physically-modelled glass." } },
     { "@type": "Question", "name": "Can the glass be any shape?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Yes. The shape prop accepts circle, squircle, polygon, explicit points, or an arbitrary concave SVG path such as a tab-bar notch. The glass lenses the backdrop through the silhouette: iOS masks it with a CAShapeLayer, Android rasterizes it into a signed-distance-field texture the shader samples." } }
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. The shape prop accepts circle, squircle, polygon, explicit points, or an arbitrary concave SVG path such as a tab-bar notch. The glass lenses the backdrop through the silhouette: iOS masks it with a CAShapeLayer, Android rasterizes it into a signed-distance-field texture the shader samples." } },
+    { "@type": "Question", "name": "Is the glass interactive?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Optionally. Set interactive and the glass reacts to touch (a specular bloom plus optical magnification under the finger) and to device tilt (a moving specular highlight). On iOS 26 this maps to Apple's native interactive glass." } },
+    { "@type": "Question", "name": "What are the requirements and bundle size?",
+      "acceptedAnswer": { "@type": "Answer", "text": "React Native 0.83+ (Fabric or old architecture), with no JS runtime dependencies beyond React Native itself. The full effect needs the iOS 26 SDK or Android 13 (API 33+); older OS versions get automatic blur/tint fallbacks. It ships first-class TypeScript types." } },
+    { "@type": "Question", "name": "Does it support web?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Not yet — the library is mobile-only (iOS and Android) for now. Web support is on the roadmap." } }
   ]
 }
 </script>

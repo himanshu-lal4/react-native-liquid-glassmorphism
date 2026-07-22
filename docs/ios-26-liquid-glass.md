@@ -9,19 +9,23 @@ permalink: /ios-26-liquid-glass/
 
 Apple introduced **Liquid Glass** in iOS 26 as a real system material, exposed to UIKit as `UIGlassEffect` — a `UIVisualEffect` you install on a `UIVisualEffectView`. `react-native-liquid-glassmorphism` wraps it in a declarative React Native component, so `<LiquidGlassView>` renders Apple's *actual* glass, not an imitation of it.
 
+{% raw %}
 ```bash
 npm install react-native-liquid-glassmorphism
 # yarn add react-native-liquid-glassmorphism
 # Expo (dev build / prebuild — not Expo Go):
 npx expo install react-native-liquid-glassmorphism
 ```
+{% endraw %}
 
 Then reinstall pods and rebuild:
 
+{% raw %}
 ```bash
 cd ios && pod install && cd ..
 npx react-native run-ios
 ```
+{% endraw %}
 
 ## What is UIGlassEffect?
 
@@ -45,6 +49,7 @@ The library maps its public props straight onto these:
 
 ## How do I render iOS 26 Liquid Glass?
 
+{% raw %}
 ```tsx
 import { Text, StyleSheet } from 'react-native';
 import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
@@ -70,6 +75,7 @@ const styles = StyleSheet.create({
   body: { color: 'rgba(255,255,255,0.9)', fontSize: 14, lineHeight: 20 },
 });
 ```
+{% endraw %}
 
 Children render crisply on top — only the backdrop behind the view is treated. Put the glass over a photo, gradient, or scrolling content; over a flat solid colour there is nothing for the material to work with.
 
@@ -107,12 +113,14 @@ On this path `tintColor` is applied as a flat overlay above the material (on rea
 
 No. The gating is entirely inside the native view. Write one component tree and it renders the best available material on every device:
 
+{% raw %}
 ```tsx
 // This is all you write. No Platform.Version checks, no conditional imports.
 <LiquidGlassView variant="clear" interactive borderRadius={28} style={styles.bar}>
   {children}
 </LiquidGlassView>
 ```
+{% endraw %}
 
 The one thing worth designing for is that the **fallback is a blur, not a lens** — content behind a pre-26 glass surface won't bend around the rim. If your layout depends on the refraction being visible, verify it on an iOS 15–25 device too.
 
@@ -132,6 +140,7 @@ iOS fixes the glass optics in the OS, so the Android-only tuning props do nothin
 
 Yes. On iOS a custom `shape` masks the effect view with a `CAShapeLayer` built from the normalised path, so any silhouette works — including concave ones:
 
+{% raw %}
 ```tsx
 <LiquidGlassView shape={{ type: 'circle' }} style={{ width: 96, height: 96 }} />
 <LiquidGlassView shape={{ type: 'squircle', n: 4 }} />
@@ -144,6 +153,7 @@ Yes. On iOS a custom `shape` masks the effect view with a `CAShapeLayer` built f
   style={{ width: DOCK_W, height: DOCK_H }}
 />
 ```
+{% endraw %}
 
 The shape is stretched to fill the view's bounds, so size the view to the shape's aspect ratio. SVG paths support `M/L/H/V/C/S/Q/T/Z` (absolute and relative); elliptic arcs (`A`) aren't supported — use béziers. When `shape` is set, `borderRadius` is ignored (the silhouette defines the outline).
 

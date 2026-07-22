@@ -9,12 +9,14 @@ permalink: /react-native-glassmorphism/
 
 **Glassmorphism** is the UI style where a panel looks like frosted glass: the content behind it is blurred, the surface is translucent and lightly tinted, and a thin bright border traces the edge. On the web it's three CSS declarations. In React Native there is no `backdrop-filter`, so it takes a native view — and once you're already going native, you can do considerably better than a blur.
 
+{% raw %}
 ```bash
 npm install react-native-liquid-glassmorphism
 # yarn add react-native-liquid-glassmorphism
 # Expo (dev build / prebuild — not Expo Go):
 npx expo install react-native-liquid-glassmorphism
 ```
+{% endraw %}
 
 ## What is glassmorphism, and how is Liquid Glass different?
 
@@ -43,6 +45,7 @@ Practically, this is also why Liquid Glass uses **less** blur, not more. Blur de
 
 `<LiquidGlassView>` is a drop-in view: wrap your content, and only the backdrop behind it is treated. Children render crisply on top.
 
+{% raw %}
 ```tsx
 import { View, Image, Text, StyleSheet } from 'react-native';
 import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
@@ -77,6 +80,7 @@ const styles = StyleSheet.create({
   body: { color: 'rgba(255,255,255,0.9)', fontSize: 14, lineHeight: 20 },
 });
 ```
+{% endraw %}
 
 There's nothing else to configure. On iOS 26 this is Apple's native `UIGlassEffect`; on Android 13+ it's a real-time AGSL refraction shader; on older OS versions it steps down to a blur or translucent tint automatically.
 
@@ -84,6 +88,7 @@ There's nothing else to configure. On iOS 26 this is Apple's native `UIGlassEffe
 
 Yes — if you want classic glassmorphism rather than a lens, turn the lensing off on Android with `thickness={0}`. That leaves blur + tint + rim, which is exactly the CSS-style look:
 
+{% raw %}
 ```tsx
 <LiquidGlassView
   variant="regular"
@@ -96,14 +101,17 @@ Yes — if you want classic glassmorphism rather than a lens, turn the lensing o
   {children}
 </LiquidGlassView>
 ```
+{% endraw %}
 
 `thickness` is Android-only (iOS glass optics are fixed by the OS), so it's safe to set unconditionally.
 
 For the opposite direction — a deeper, more obviously liquid lens — raise it toward `2`:
 
+{% raw %}
 ```tsx
 <LiquidGlassView thickness={1.6} style={styles.panel}>{children}</LiquidGlassView>
 ```
+{% endraw %}
 
 ## Which variant should I use?
 
@@ -112,6 +120,7 @@ For the opposite direction — a deeper, more obviously liquid lens — raise it
 
 `clear` faithfully transmits whatever is behind it, which can make icons and labels hard to read over busy content. On Android, `legibilityFloor` adds an adaptive veil **under the children only** — so chrome stays readable without darkening the whole pane:
 
+{% raw %}
 ```tsx
 <LiquidGlassView
   variant="clear"
@@ -123,11 +132,13 @@ For the opposite direction — a deeper, more obviously liquid lens — raise it
   {/* icons + labels stay readable */}
 </LiquidGlassView>
 ```
+{% endraw %}
 
 ## Can glassmorphism panels be non-rectangular?
 
 Yes, and this is where a real optical model pays off: the glass **lenses the backdrop through the silhouette**, rather than clipping a rectangle to a shape. Concave shapes work too.
 
+{% raw %}
 ```tsx
 <LiquidGlassView shape={{ type: 'circle' }} style={{ width: 96, height: 96 }} />
 <LiquidGlassView shape={{ type: 'squircle', n: 4 }} />
@@ -135,6 +146,7 @@ Yes, and this is where a real optical model pays off: the glass **lenses the bac
 <LiquidGlassView shape={{ type: 'star', points: 5, innerRatio: 0.5 }} />
 <LiquidGlassView shape={{ type: 'points', points: [[0, 0], [1, 0], [0.5, 1]] }} />
 ```
+{% endraw %}
 
 The shape fills the view's bounds, so size the view to the shape's aspect ratio to avoid distortion. When `shape` is set, `borderRadius` is ignored. See the [notched tab bar recipe]({{ '/recipes/' | relative_url }}) for an arbitrary SVG path.
 
