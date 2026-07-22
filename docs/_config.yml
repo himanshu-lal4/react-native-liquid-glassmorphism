@@ -43,13 +43,25 @@ npm_install: "npm install react-native-liquid-glassmorphism"
 npm_badge_slug: "react-native-liquid-glassmorphism"
 github_slug: "himanshu-lal4/react-native-liquid-glassmorphism"
 
-header_pages:
-  - getting-started.md
-  - recipes.md
-  - android-liquid-glass.md
-  - ios-26-liquid-glass.md
-  - expo-liquid-glass.md
-  - faq.md
+# GitHub profile the footer author name links to
+author_url: https://github.com/himanshu-lal4
+
+# Curated short nav labels (custom header.html reads these, not header_pages)
+nav_links:
+  - label: Get Started
+    url: /getting-started/
+  - label: Recipes
+    url: /recipes/
+  - label: Android
+    url: /android-liquid-glass/
+  - label: iOS 26
+    url: /ios-26-liquid-glass/
+  - label: Expo
+    url: /expo-liquid-glass/
+  - label: Glassmorphism
+    url: /react-native-glassmorphism/
+  - label: FAQ
+    url: /faq/
 
 exclude:
   - Gemfile
