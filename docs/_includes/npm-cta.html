@@ -1,0 +1,17 @@
+{%- comment -%}
+Persistent npm install bar. Rendered by _layouts/default.html on EVERY page,
+so new pages pick it up automatically with no per-page edits.
+{%- endcomment -%}
+<div class="npm-cta-bar">
+  <div class="wrapper npm-cta-inner">
+    <div class="npm-cta-left">
+      <span class="npm-cta-label">Install from npm</span>
+      <code class="npm-cta-cmd">{{ site.npm_install }}</code>
+      <button class="npm-cta-copy" type="button" data-copy="{{ site.npm_install }}" aria-label="Copy install command to clipboard">Copy</button>
+    </div>
+    <div class="npm-cta-right">
+      <a class="npm-cta-btn npm-cta-btn-primary" href="{{ site.npm_url }}" rel="noopener">View on npm &rarr;</a>
+      <a class="npm-cta-btn" href="{{ site.repo_url }}" rel="noopener">&#9733; Star on GitHub</a>
+    </div>
+  </div>
+</div>

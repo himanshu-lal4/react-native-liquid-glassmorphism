@@ -38,11 +38,17 @@ webmaster_verifications:
 repo_url: https://github.com/himanshu-lal4/react-native-liquid-glassmorphism
 npm_url: https://www.npmjs.com/package/react-native-liquid-glassmorphism
 
+# Drives the npm CTA bar + footer CTA rendered on every page by _layouts/default.html
+npm_install: "npm install react-native-liquid-glassmorphism"
+npm_badge_slug: "react-native-liquid-glassmorphism"
+github_slug: "himanshu-lal4/react-native-liquid-glassmorphism"
+
 header_pages:
   - getting-started.md
   - recipes.md
-  - react-native-liquid-glass.md
-  - react-native-blur-alternative.md
+  - android-liquid-glass.md
+  - ios-26-liquid-glass.md
+  - expo-liquid-glass.md
   - faq.md
 
 exclude:
