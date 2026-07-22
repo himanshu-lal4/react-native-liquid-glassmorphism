@@ -81,8 +81,10 @@ export interface LiquidGlassViewProps extends ViewProps {
   shape?: LiquidGlassShape;
 
   /**
-   * Android only: toggle the AGSL edge-refraction shader (Android 13 / API 33+).
-   * No effect on iOS, where refraction is rendered by the OS.
+   * Android only (API 33+). Dials the edge-refraction lens strength up (~1.35×).
+   * Lensing is intrinsic to the glass material and is never fully off — set
+   * `thickness={0}` for a genuinely flat pane. No effect on iOS, where
+   * refraction is rendered by the OS.
    * @default true
    */
   refraction?: boolean;
