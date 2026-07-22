@@ -8,6 +8,12 @@
   <a href="./LICENSE"><img src="https://img.shields.io/npm/l/react-native-liquid-glassmorphism?color=3b82f6" alt="MIT license" /></a>
   <a href="./CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome" /></a>
   <a href="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22"><img src="https://img.shields.io/github/issues/himanshu-lal4/react-native-liquid-glassmorphism/good%20first%20issue?label=good%20first%20issues&color=7057ff" alt="good first issues" /></a>
+  <a href="https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/"><img src="https://img.shields.io/badge/docs-read%20the%20guides-3b82f6" alt="documentation" /></a>
+</p>
+
+<p align="center">
+  📚 <b><a href="https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/">Documentation &amp; guides</a></b> ·
+  📦 <b><a href="https://www.npmjs.com/package/react-native-liquid-glassmorphism">Install from npm</a></b>
 </p>
 
 Bring **Liquid Glass** to React Native — on **both iOS and Android** — with a single declarative component. Native `UIGlassEffect` on iOS 26, a real-time AGSL refraction shader on Android. Also known as *glassmorphism*, *frosted glass*, or the *iOS 26 glass effect*.
@@ -269,6 +275,10 @@ Issues, ideas, and pull requests of every size are welcome — bug reports and d
 - 🌱 [Pick up a good first issue](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 - 💬 [Ask a question / share an idea](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/discussions)
 - ⭐ Star the repo to help others discover it
+
+## Also by the same author
+
+- **[@wrack/react-native-tour-guide](https://github.com/himanshu-lal4/react-native-tour-guide)** — spotlight app tours, walkthroughs, and coach marks for React Native. Auto shape-matching spotlight, smart auto-scroll, runs in Expo Go. [npm](https://www.npmjs.com/package/@wrack/react-native-tour-guide) · [docs](https://himanshu-lal4.github.io/react-native-tour-guide/)
 
 ## License
 

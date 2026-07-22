@@ -1,0 +1,22 @@
+{%- comment -%}
+Closing npm CTA. Rendered by _layouts/default.html on EVERY page.
+{%- endcomment -%}
+<div class="npm-foot-cta">
+  <div class="wrapper">
+    <h2>Get {{ site.title }}</h2>
+    <p class="npm-foot-tag">{{ site.tagline }}</p>
+
+    <pre><code>{{ site.npm_install }}</code></pre>
+
+    <p class="npm-foot-links">
+      <a class="npm-cta-btn npm-cta-btn-primary" href="{{ site.npm_url }}" rel="noopener">Install from npm</a>
+      <a class="npm-cta-btn" href="{{ site.repo_url }}" rel="noopener">&#9733; Star on GitHub</a>
+    </p>
+
+    <p class="npm-foot-badges">
+      <a href="{{ site.npm_url }}" rel="noopener"><img src="https://img.shields.io/npm/v/{{ site.npm_badge_slug }}?color=cb3837&label=npm&logo=npm" alt="Latest version on npm"></a>
+      <a href="{{ site.npm_url }}" rel="noopener"><img src="https://img.shields.io/npm/dm/{{ site.npm_badge_slug }}?color=cb3837&label=downloads" alt="Monthly downloads on npm"></a>
+      <a href="{{ site.repo_url }}" rel="noopener"><img src="https://img.shields.io/github/stars/{{ site.github_slug }}?style=flat&color=444&label=stars" alt="GitHub stars"></a>
+    </p>
+  </div>
+</div>

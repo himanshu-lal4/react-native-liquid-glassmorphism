@@ -36,9 +36,20 @@ import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
 - [Getting started]({{ '/getting-started/' | relative_url }})
 - [Recipes — copy-paste snippets]({{ '/recipes/' | relative_url }})
 - [How to add Liquid Glass in React Native]({{ '/react-native-liquid-glass/' | relative_url }})
-- [A react-native-blur / expo-blur alternative]({{ '/react-native-blur-alternative/' | relative_url }})
+- [**Liquid Glass on Android** — how the AGSL shader works]({{ '/android-liquid-glass/' | relative_url }})
+- [iOS 26 Liquid Glass & UIGlassEffect]({{ '/ios-26-liquid-glass/' | relative_url }})
+- [Expo setup (config plugin, dev build)]({{ '/expo-liquid-glass/' | relative_url }})
+- [React Native glassmorphism explained]({{ '/react-native-glassmorphism/' | relative_url }})
 - [FAQ]({{ '/faq/' | relative_url }})
-- [GitHub repo]({{ site.repo_url }}) · [npm]({{ site.npm_url }})
+
+**Comparisons**
+
+- [expo-blur alternative]({{ '/expo-blur-alternative/' | relative_url }})
+- [react-native-blur alternative]({{ '/react-native-blur-alternative/' | relative_url }})
+
+**Install & source**
+
+- 📦 [Install from npm]({{ site.npm_url }}) · ⭐ [Star on GitHub]({{ site.repo_url }})
 
 ---
 
