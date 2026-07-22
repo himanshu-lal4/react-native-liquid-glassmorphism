@@ -8,6 +8,12 @@
   <a href="./LICENSE"><img src="https://img.shields.io/npm/l/react-native-liquid-glassmorphism?color=3b82f6" alt="MIT license" /></a>
   <a href="./CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome" /></a>
   <a href="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22"><img src="https://img.shields.io/github/issues/himanshu-lal4/react-native-liquid-glassmorphism/good%20first%20issue?label=good%20first%20issues&color=7057ff" alt="good first issues" /></a>
+  <a href="https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/"><img src="https://img.shields.io/badge/docs-read%20the%20guides-3b82f6" alt="documentation" /></a>
+</p>
+
+<p align="center">
+  📚 <b><a href="https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/">Documentation &amp; guides</a></b> ·
+  📦 <b><a href="https://www.npmjs.com/package/react-native-liquid-glassmorphism">Install from npm</a></b>
 </p>
 
 Bring **Liquid Glass** to React Native — on **both iOS and Android** — with a single declarative component. Native `UIGlassEffect` on iOS 26, a real-time AGSL refraction shader on Android. Also known as *glassmorphism*, *frosted glass*, or the *iOS 26 glass effect*.
@@ -155,7 +161,7 @@ Extends `ViewProps`. All props are optional.
 | `tilt` | `boolean` | `false` | **Android only** — device-tilt specular driven by the gyro/accelerometer. Decoupled from `interactive` so you can have touch response **without** an always-on motion sensor; the sensor registers only while `tilt` is on. No-op on iOS. |
 | `borderRadius` | `number` (dp) | `0` | Corner radius of the glass surface. Ignored when `shape` is set. |
 | `shape` | `LiquidGlassShape` | — | Custom silhouette — `circle`, `squircle`, `polygon`, `star`, explicit `points`, or an arbitrary (even **concave**) SVG `path`. See [Custom shapes](#custom-shapes). |
-| `refraction` | `boolean` | `true` | **Android only** — enables the AGSL edge-refraction lens (API 33+). No-op on iOS (the OS renders refraction). |
+| `refraction` | `boolean` | `true` | **Android only** — dials the AGSL edge-refraction lens strength up (~1.35×, API 33+). Lensing is intrinsic to the glass and never fully off; use `thickness={0}` for a flat pane. No-op on iOS (the OS renders refraction). |
 | `thickness` | `number` (0–2) | `1` | **Android only** — "liquid volume": scales the refraction/lens depth. `0` = flat pane, `1` = default, up to `~2` = deep liquid lens. No-op on iOS (glass optics are OS-fixed). |
 | `edgeReflectionStrength` | `number` (0–1) | `1` | **Android only** — strength of the edge-reflection band (the upside-down rim echo), **independent of `thickness`**. Lower it over text-heavy backdrops where the mirrored copy reads as noise. No-op on iOS. |
 | `legibilityFloor` | `number` (0–1) | `0` | **Android only** — an adaptive veil drawn **under the foreground children** so chrome (icons/labels) stays readable over `clear` glass, without darkening the whole pane. Scales with the value and the backdrop brightness; hued by `tintColor`. `0` = off. No-op on iOS. |
@@ -269,6 +275,10 @@ Issues, ideas, and pull requests of every size are welcome — bug reports and d
 - 🌱 [Pick up a good first issue](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 - 💬 [Ask a question / share an idea](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/discussions)
 - ⭐ Star the repo to help others discover it
+
+## Also by the same author
+
+- **[@wrack/react-native-tour-guide](https://github.com/himanshu-lal4/react-native-tour-guide)** — spotlight app tours, walkthroughs, and coach marks for React Native. Auto shape-matching spotlight, smart auto-scroll, runs in Expo Go. [npm](https://www.npmjs.com/package/@wrack/react-native-tour-guide) · [docs](https://himanshu-lal4.github.io/react-native-tour-guide/)
 
 ## License
 

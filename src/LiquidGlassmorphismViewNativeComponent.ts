@@ -48,8 +48,9 @@ export interface NativeProps extends ViewProps {
   shapeViewBoxHeight?: WithDefault<Float, 0>;
 
   /**
-   * Android only: enable the AGSL edge-refraction shader (API 33+).
-   * No-op on iOS, where the OS renders refraction natively.
+   * Android only (API 33+): dials the edge-refraction lens strength up (~1.35×).
+   * Lensing is intrinsic to the glass and never fully off — use `thickness={0}`
+   * for a flat pane. No-op on iOS, where the OS renders refraction natively.
    */
   refraction?: boolean;
 

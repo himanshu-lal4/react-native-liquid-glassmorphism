@@ -125,7 +125,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private val dstRect = Rect()
 
   // Downscale for the captured backdrop: cheaper to draw and pre-softens the
-  // blur. 3 keeps enough detail for vibrancy to read (6 looked muddy).
+  // blur. 2 keeps enough detail for vibrancy to read (larger factors looked muddy).
   private val captureScale = 2
 
   // Compiled once and reused; recompiling per frame would stutter. Null on
