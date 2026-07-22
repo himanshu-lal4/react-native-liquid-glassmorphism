@@ -18,9 +18,9 @@ Two React Native libraries by Himanshu Lal (https://github.com/himanshu-lal4). E
 
 ## LinkedIn — Liquid Glass
 
-Apple shipped Liquid Glass as a system material in iOS 26. Android shipped nothing like it. So I built a React Native library that gives you both from one component.
+React Native Liquid Glass, on Android too: iOS 26 shipped Apple's Liquid Glass as a system material — Android shipped nothing like it, so I built one component that does both.
 
-react-native-liquid-glassmorphism (v1.0.0) renders Apple's native `UIGlassEffect` on iOS 26, and on Android — where there's no system glass — it reproduces the optics in a real-time AGSL shader: it captures the backdrop, blurs it, then refracts it through a modelled glass lozenge with edge lensing, chromatic dispersion, a Fresnel rim, and touch/tilt specular highlights. Same declarative API on both platforms.
+react-native-liquid-glassmorphism (v1.0.0) is a React Native library that renders Apple's native `UIGlassEffect` on iOS 26, and on Android — where there's no system glass — reproduces the optics in a real-time AGSL shader: it captures the backdrop, blurs it, then refracts it through a modelled glass lozenge with edge lensing, chromatic dispersion, a Fresnel rim, and touch/tilt specular highlights. Same declarative API on both platforms.
 
 What's in it:
 - One `<LiquidGlassView>` component, identical props on iOS + Android
@@ -36,17 +36,17 @@ npm: https://www.npmjs.com/package/react-native-liquid-glassmorphism
 
 I also built @wrack/react-native-tour-guide — spotlight app tours/coach marks that run in Expo Go with zero native deps: https://himanshu-lal4.github.io/react-native-tour-guide/
 
-#reactnative #androiddev #iosdev #mobiledev #ui #opensource
+#reactnative #androiddev #iosdev #ui #opensource
 
 ---
 
 ## Hacker News — Show HN (Liquid Glass, primary)
 
-**Title:** Show HN: Liquid Glass for React Native, with a real AGSL refraction shader on Android
+**Title:** Show HN: React Native Liquid Glass, with a real AGSL refraction shader on Android
 
 **First self-comment:**
 
-I'm the author. This is a React Native library that renders iOS 26's Liquid Glass look on both platforms from a single `<LiquidGlassView>` component.
+I'm the author. react-native-liquid-glassmorphism is a React Native library that renders iOS 26's Liquid Glass on both platforms from a single `<LiquidGlassView>` component.
 
 On iOS 26 it composites Apple's native `UIGlassEffect` (falling back to `UIBlurEffect` below 26). Android has no system Liquid Glass, so I rebuilt the optics: each frame it captures the backdrop, GPU-blurs it, then runs a hand-written AGSL shader that refracts the result through a modelled glass lozenge — SDF-derived surface normal, Snell-style edge refraction, chromatic dispersion, a mirrored rim echo, a Fresnel highlight, and touch/tilt specular. It's a lens, not just a blur.
 
@@ -68,7 +68,7 @@ Happy to answer questions about the shader or the backdrop-capture path.
 
 ## Reactiflux / Expo Discord — Liquid Glass (short, non-spammy)
 
-Sharing something I just open-sourced in case it's useful: `react-native-liquid-glassmorphism` (v1.0.0) does iOS 26 Liquid Glass on both platforms — native `UIGlassEffect` on iOS, and a real-time AGSL refraction shader on Android (not just a blur). One `<LiquidGlassView>` component, custom shapes, TS types. Note it's a native module so it needs a dev build, not Expo Go. Docs: https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/ — happy to hear feedback.
+React Native Liquid Glass on iOS *and* Android — just open-sourced in case it's useful: `react-native-liquid-glassmorphism` (v1.0.0) does iOS 26 Liquid Glass on both platforms — native `UIGlassEffect` on iOS, and a real-time AGSL refraction shader on Android (not just a blur). One `<LiquidGlassView>` component, custom shapes, TS types. Note it's a native module so it needs a dev build, not Expo Go. Docs: https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/ — happy to hear feedback.
 
 ---
 ---
@@ -79,9 +79,9 @@ Sharing something I just open-sourced in case it's useful: `react-native-liquid-
 
 ## LinkedIn — Tour Guide
 
-Onboarding tours in React Native usually mean fighting with spotlight shapes and off-screen targets. So I built a library that handles both automatically.
+React Native onboarding tours usually mean fighting with spotlight shapes and off-screen targets — so I built a coach-marks library that handles both automatically, and it runs in Expo Go.
 
-@wrack/react-native-tour-guide (v1.0.1) is a lightweight library for app tours, walkthroughs, and coach marks. Its spotlight automatically matches each target's border radius — circles stay circular, pills stay pill-shaped, per-corner radii are preserved — with no manual shape config. It also auto-scrolls so the target *and* its tooltip both stay on screen, and auto-positions the tooltip so it never renders off-screen.
+@wrack/react-native-tour-guide (v1.0.1) is a lightweight React Native library for app tours, walkthroughs, and coach marks. Its spotlight automatically matches each target's border radius — circles stay circular, pills stay pill-shaped, per-corner radii are preserved — with no manual shape config. It also auto-scrolls so the target *and* its tooltip both stay on screen, and auto-positions the tooltip so it never renders off-screen.
 
 What's in it:
 - Auto shape-matching spotlight + smart auto-scroll + smart tooltip positioning
@@ -95,17 +95,17 @@ npm: https://www.npmjs.com/package/@wrack/react-native-tour-guide
 
 I also built react-native-liquid-glassmorphism — authentic iOS 26 Liquid Glass on iOS *and* Android: https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/
 
-#reactnative #expo #mobiledev #ux #onboarding #opensource
+#reactnative #expo #onboarding #ux #opensource
 
 ---
 
 ## Hacker News — Show HN (Tour Guide variant)
 
-**Title:** Show HN: A React Native tour library whose spotlight auto-matches each target's shape
+**Title:** Show HN: A React Native onboarding-tour library whose spotlight auto-matches each target's shape
 
 **First self-comment:**
 
-I'm the author. `@wrack/react-native-tour-guide` is a library for onboarding tours, walkthroughs, and coach marks in React Native.
+I'm the author. `@wrack/react-native-tour-guide` is a React Native library for onboarding tours, walkthroughs, and coach marks that runs in Expo Go with zero native dependencies.
 
 The reason it exists: every tour library I tried made me manually choose a spotlight shape per step, and none handled targets scrolled off screen. This one reads the border radius off the target's own style (`targetStyle`) and matches the spotlight automatically — uniform, partial, or per-corner (asymmetric bubbles included) — and auto-scrolls so the target and its tooltip both stay on screen. Tooltips auto-position so they never render off-screen.
 
@@ -124,7 +124,7 @@ Happy to answer questions.
 
 ## Reactiflux / Expo Discord — Tour Guide (short, non-spammy)
 
-In case anyone's building onboarding: I open-sourced `@wrack/react-native-tour-guide` (v1.0.1) — spotlight tours/coach marks where the spotlight auto-matches each target's border radius and auto-scrolls to off-screen steps. Zero native deps (only `react-native-svg`), <50KB, so it runs in Expo Go. Docs: https://himanshu-lal4.github.io/react-native-tour-guide/ — feedback welcome.
+React Native onboarding tours that run in Expo Go — in case anyone's building onboarding: I open-sourced `@wrack/react-native-tour-guide` (v1.0.1), spotlight tours/coach marks where the spotlight auto-matches each target's border radius and auto-scrolls to off-screen steps. Zero native deps (only `react-native-svg`), <50KB, so it runs in Expo Go with no dev build. Docs: https://himanshu-lal4.github.io/react-native-tour-guide/ — feedback welcome.
 
 ---
 ---
