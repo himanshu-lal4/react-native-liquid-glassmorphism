@@ -24,23 +24,29 @@ This isn't unusual: the same is true of any library with custom native views. It
 
 ## How do I set it up?
 
+{% raw %}
 ```bash
 npx expo install react-native-liquid-glassmorphism
 ```
+{% endraw %}
 
 Then produce a native build. Either run it locally:
 
+{% raw %}
 ```bash
 npx expo run:ios      # or
 npx expo run:android
 ```
+{% endraw %}
 
 …or create a [development build](https://docs.expo.dev/develop/development-builds/introduction/) with EAS:
 
+{% raw %}
 ```bash
 npx expo install expo-dev-client
 eas build --profile development --platform ios     # or --platform android
 ```
+{% endraw %}
 
 After the build installs, `npx expo start --dev-client` gives you the usual workflow. You only need to rebuild when native dependencies change — not when you edit JavaScript.
 
@@ -48,6 +54,7 @@ After the build installs, `npx expo start --dev-client` gives you the usual work
 
 The native module is picked up by **Expo autolinking**, so `expo prebuild` finds it with no manual configuration. The config plugin is optional and, today, a deliberate pass-through:
 
+{% raw %}
 ```json
 {
   "expo": {
@@ -55,6 +62,7 @@ The native module is picked up by **Expo autolinking**, so `expo prebuild` finds
   }
 }
 ```
+{% endraw %}
 
 There is nothing for it to do yet — the effect degrades by **OS version at runtime**, so there are no minimum-SDK bumps, permissions, or `Info.plist` entries to apply at build time. The plugin exists as the single place native configuration would live if the library ever needs it, so listing it now is future-proofing rather than a requirement.
 
@@ -62,6 +70,7 @@ Notably, the Android `tilt` prop uses the gravity/accelerometer sensor, which re
 
 ## What does a working Expo component look like?
 
+{% raw %}
 ```tsx
 import { View, Image, Text, StyleSheet } from 'react-native';
 import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
@@ -95,6 +104,7 @@ const styles = StyleSheet.create({
   body: { color: 'rgba(255,255,255,0.9)', fontSize: 14, lineHeight: 20 },
 });
 ```
+{% endraw %}
 
 The glass needs something interesting behind it — a photo, gradient, or scrolling content. Over a flat colour there's nothing to blur or refract.
 
@@ -102,10 +112,12 @@ The glass needs something interesting behind it — a photo, gradient, or scroll
 
 The `example/` app in the repo is itself an Expo app, so it's a working reference:
 
+{% raw %}
 ```bash
 cd example
 npx expo run:ios      # or: npx expo run:android
 ```
+{% endraw %}
 
 ## What are the platform requirements?
 

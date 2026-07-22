@@ -11,12 +11,14 @@ Add authentic Liquid Glass to a React Native (or Expo) app in three steps.
 
 ## 1. Install
 
+{% raw %}
 ```bash
 npm install react-native-liquid-glassmorphism
 # yarn add react-native-liquid-glassmorphism
 # pnpm add react-native-liquid-glassmorphism
 # Expo: npx expo install react-native-liquid-glassmorphism
 ```
+{% endraw %}
 
 This is a **native module**, so it needs a native build — it does **not** run in Expo Go. On Expo, use a [development build](https://docs.expo.dev/develop/development-builds/introduction/) or `expo prebuild`. On React Native CLI, reinstall pods (`cd ios && pod install`) and rebuild.
 
@@ -28,6 +30,7 @@ This is a **native module**, so it needs a native build — it does **not** run 
 
 ## 2. Add a glass surface
 
+{% raw %}
 ```tsx
 import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
 import { Text } from 'react-native';
@@ -46,6 +49,7 @@ export function Card() {
   );
 }
 ```
+{% endraw %}
 
 Children render crisply **on top** of the glass — only the backdrop behind the view is blurred and refracted. Put the glass over something visually interesting (a photo, gradient, or scrolling content) to see the effect.
 
@@ -53,9 +57,11 @@ Children render crisply **on top** of the glass — only the backdrop behind the
 
 The native module autolinks, so `expo prebuild` picks it up with no manual setup. You can optionally list the plugin in your app config:
 
+{% raw %}
 ```json
 { "expo": { "plugins": ["react-native-liquid-glassmorphism"] } }
 ```
+{% endraw %}
 
 It's a pass-through today — the effect degrades by OS version at runtime, so no minimum-SDK, permission, or `Info.plist` changes are needed.
 

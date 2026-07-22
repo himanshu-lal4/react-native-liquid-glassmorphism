@@ -11,12 +11,14 @@ Android has **no system Liquid Glass**. Apple ships `UIGlassEffect` on iOS 26; G
 
 `react-native-liquid-glassmorphism` closes that gap by **rebuilding the optics from first principles** in a per-frame AGSL shader: it captures the backdrop behind the view, blurs it on the GPU, and then *refracts* it through a modelled glass lozenge. This is the library's genuinely rare capability — most React Native "glass" on Android is a flat blur.
 
+{% raw %}
 ```bash
 npm install react-native-liquid-glassmorphism
 # yarn add react-native-liquid-glassmorphism
 # Expo (dev build / prebuild — not Expo Go):
 npx expo install react-native-liquid-glassmorphism
 ```
+{% endraw %}
 
 ## Does Android have Liquid Glass?
 
@@ -60,15 +62,18 @@ The library's `minSdkVersion` is **24**, so it installs and renders something se
 
 **Confirming which tier ran.** The view logs its render tier once, so you can tell "flat because fallback" from "flat because misconfigured":
 
+{% raw %}
 ```
 adb logcat -s LiquidGlass
 # LiquidGlass: render tier=agsl shaderCompiled=true sdk=34
 ```
+{% endraw %}
 
 `tier` is `agsl`, `blur`, or `tint`.
 
 ## How do I use it?
 
+{% raw %}
 ```tsx
 import { Text, StyleSheet } from 'react-native';
 import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
@@ -101,6 +106,7 @@ const styles = StyleSheet.create({
   label: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
 ```
+{% endraw %}
 
 Put the glass over something visually interesting — a photo, gradient, or scrolling content. Over a flat solid colour there is nothing to blur or refract.
 
@@ -122,6 +128,7 @@ These four have no effect on iOS, where the OS fixes the glass optics — they'r
 
 `clear` faithfully transmits whatever is behind it, which can make foreground icons and labels hard to read over busy content. Use `legibilityFloor` instead of hand-rolling a scrim:
 
+{% raw %}
 ```tsx
 <LiquidGlassView
   variant="clear"
@@ -133,11 +140,13 @@ These four have no effect on iOS, where the OS fixes the glass optics — they'r
   {/* icons + labels stay readable */}
 </LiquidGlassView>
 ```
+{% endraw %}
 
 ## Can the Android glass be a custom shape?
 
 Yes — and the shape is a real **optical silhouette**, not a clip. The path is rasterised into a signed-distance-field texture that the shader samples, so lensing, rim, and dispersion all follow the outline, including concave shapes:
 
+{% raw %}
 ```tsx
 <LiquidGlassView shape={{ type: 'circle' }} style={{ width: 96, height: 96 }} />
 <LiquidGlassView shape={{ type: 'squircle', n: 4 }} />
@@ -151,6 +160,7 @@ Yes — and the shape is a real **optical silhouette**, not a clip. The path is 
   style={{ width: DOCK_W, height: DOCK_H }}
 />
 ```
+{% endraw %}
 
 The shape is stretched to fill the view's bounds (`preserveAspectRatio="none"`), so size the view to the shape's aspect ratio. SVG paths support `M/L/H/V/C/S/Q/T/Z` (absolute and relative); elliptic arcs (`A`) aren't supported — express curves as béziers. A [full notched tab bar recipe]({{ '/recipes/' | relative_url }}) is in the recipes page.
 

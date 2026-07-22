@@ -1,6 +1,6 @@
 ---
 layout: home
-title: "React Native Liquid Glass — iOS 26 UIGlassEffect + Android Glass Refraction"
+title: "React Native Liquid Glass — iOS 26 + Android Glass"
 description: "React Native library for authentic Liquid Glass on iOS and Android from one component. Native UIGlassEffect on iOS 26, real-time AGSL refraction on Android, custom shapes, interactive touch/tilt, Expo config plugin, TypeScript, New Architecture ready."
 ---
 

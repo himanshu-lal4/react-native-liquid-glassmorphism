@@ -20,6 +20,7 @@ gallery app, so you can see them running on a device too.
 A translucent top bar that floats over scrolling content — the backdrop is
 refracted through the glass, so whatever scrolls under it stays legible.
 
+{% raw %}
 ```tsx
 import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -58,12 +59,14 @@ const styles = StyleSheet.create({
   navAction: { color: '#fff', fontSize: 22 },
 });
 ```
+{% endraw %}
 
 ## Glass card over a photo
 
 A frosted card floating over a full-bleed image. Children (title, body, button)
 render crisply on top; only the photo behind the card is blurred and refracted.
 
+{% raw %}
 ```tsx
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
@@ -105,12 +108,14 @@ const styles = StyleSheet.create({
   cardButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 });
 ```
+{% endraw %}
 
 ## Media controls over video (`variant="clear"`)
 
 For media, use the lighter `clear` variant so the video stays vivid behind the
 transport bar. Circle shapes make crisp glass buttons.
 
+{% raw %}
 ```tsx
 import { View, Text, StyleSheet } from 'react-native';
 import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
@@ -149,6 +154,7 @@ const styles = StyleSheet.create({
   glyph: { color: '#fff', fontSize: 22 },
 });
 ```
+{% endraw %}
 
 ## Notched glass tab bar (arbitrary SVG `path`)
 
@@ -158,6 +164,7 @@ lenses the backdrop *around* the notch, so it's a true optical silhouette rather
 than a clip. Size the view to the same view-box the path is authored in so it
 isn't distorted.
 
+{% raw %}
 ```tsx
 import { Dimensions, View, Text, StyleSheet } from 'react-native';
 import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
@@ -240,12 +247,14 @@ const styles = StyleSheet.create({
   fabGlyph: { fontSize: 30, color: '#fff', fontWeight: '300' },
 });
 ```
+{% endraw %}
 
 ## Tinted glass buttons
 
 A quick row of glass buttons — `tintColor` (with an `rgba()` alpha to control
 strength) plus `interactive` for the touch bloom and tilt specular.
 
+{% raw %}
 ```tsx
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
@@ -273,6 +282,7 @@ const styles = StyleSheet.create({
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
 ```
+{% endraw %}
 
 ---
 
