@@ -83,6 +83,33 @@ npx expo install react-native-liquid-glassmorphism
 
 This is a native module, so it needs a native build — it does **not** run in Expo Go. For Expo, use a [development build](https://docs.expo.dev/develop/development-builds/introduction/) / `expo prebuild`.
 
+<details>
+<summary>Installing from GitHub Packages (mirror)</summary>
+
+This package is also mirrored to GitHub Packages as `@himanshu-lal4/react-native-liquid-glassmorphism`. Note that GitHub Packages requires authentication even for public packages, so installing from npm (above) is recommended for most users.
+
+1. Create a GitHub [personal access token](https://github.com/settings/tokens) with the `read:packages` scope.
+2. Add the scope routing and token to your project's `.npmrc`:
+
+```ini
+@himanshu-lal4:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
+```
+
+3. Install (only the `@himanshu-lal4` scope routes to GitHub — all other dependencies still come from npm):
+
+```sh
+npm install @himanshu-lal4/react-native-liquid-glassmorphism
+```
+
+4. Import from the mirrored name:
+
+```ts
+import { LiquidGlassView } from '@himanshu-lal4/react-native-liquid-glassmorphism';
+```
+
+</details>
+
 ### Requirements
 
 | Platform | Minimum | For the full effect |
