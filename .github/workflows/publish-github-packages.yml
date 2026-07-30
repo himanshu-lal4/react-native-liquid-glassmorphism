@@ -1,0 +1,37 @@
+name: Publish to GitHub Packages
+
+# Mirrors the npm release to GitHub Packages under the repo-owner scope
+# (@himanshu-lal4/...), which GitHub requires. The npm package name on
+# npmjs.com (react-native-liquid-glassmorphism) is unaffected.
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Build package
+        run: yarn build
+
+      - name: Publish to GitHub Packages
+        run: |
+          npm pkg set name=@himanshu-lal4/react-native-liquid-glassmorphism
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          npm publish --registry=https://npm.pkg.github.com --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
