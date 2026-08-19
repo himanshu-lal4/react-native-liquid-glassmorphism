@@ -186,7 +186,8 @@
       "tagName": "v${version}"
     },
     "npm": {
-      "publish": true
+      "_comment": "Publishing happens in CI (.github/workflows/publish-npm.yml) so the release gets npm provenance. Provenance can only be generated from CI, and a local publish would also consume the version number the workflow needs. Do not set this back to true.",
+      "publish": false
     },
     "github": {
       "release": true
