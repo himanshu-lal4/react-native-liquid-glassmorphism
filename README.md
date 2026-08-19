@@ -183,7 +183,8 @@ Extends `ViewProps`. All props are optional.
 | --- | --- | --- | --- |
 | `variant` | `'regular' \| 'clear'` | `'regular'` | `regular` = adaptive frosted glass. `clear` = lighter, transparent glass for media. |
 | `tintColor` | `ColorValue` | — | Tint over the backdrop. Use `rgba()` / 8-digit hex to control strength. |
-| `intensity` | `number` (0–100) | `60` | Blur / material strength. On iOS 26 the OS manages the material (used only for the pre-26 fallback); on Android it scales the blur radius. |
+| `intensity` | `number` (0–100) | `60` | Blur / material strength. On iOS 26 the OS manages the material (used only for the pre-26 fallback); on Android it scales the blur radius. `clear` deliberately blurs less than `regular` across the same scale — use `blurRadius` if you want an exact value. |
+| `blurRadius` | `number` (dp) | — | **Android only** — an explicit blur radius, overriding whatever `intensity` would derive, and meaning the same thing on both variants. This is the knob to reach for when you want `clear` glass that is still properly blurred: `<LiquidGlassView variant="clear" blurRadius={16} />`. Useful range ~`0`–`30`. No-op on iOS, where the material's blur is the OS's to choose. |
 | `interactive` | `boolean` | `false` | Reacts to **touch** — a specular bloom + optical magnification under the finger. iOS 26 interactive glass natively. (Device-tilt specular is now the separate `tilt` prop.) |
 | `tilt` | `boolean` | `false` | **Android only** — device-tilt specular driven by the gyro/accelerometer. Decoupled from `interactive` so you can have touch response **without** an always-on motion sensor; the sensor registers only while `tilt` is on. No-op on iOS. |
 | `borderRadius` | `number` (dp) | `0` | Corner radius of the glass surface. Ignored when `shape` is set. |

@@ -21,6 +21,13 @@ export interface NativeProps extends ViewProps {
   /** Blur / material strength, 0–100. Ignored on iOS 26 native glass (OS-managed). */
   intensity?: WithDefault<Int32, 60>;
 
+  /**
+   * Android only: explicit blur radius in dp, overriding the value `intensity`
+   * would derive. Negative (the default) means "derive it from `intensity`" —
+   * codegen floats cannot be null, so a sentinel carries "unset".
+   */
+  blurRadius?: WithDefault<Float, -1>;
+
   /** iOS 26 interactive glass + Android touch-reactive specular highlight. */
   interactive?: boolean;
 

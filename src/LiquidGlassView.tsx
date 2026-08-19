@@ -14,6 +14,7 @@ export function LiquidGlassView({
   borderRadius = 0,
   interactive: _interactive,
   intensity: _intensity,
+  blurRadius: _blurRadius,
   variant: _variant,
   refraction: _refraction,
   thickness: _thickness,

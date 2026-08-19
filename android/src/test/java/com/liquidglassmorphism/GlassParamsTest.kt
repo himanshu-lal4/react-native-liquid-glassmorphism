@@ -46,6 +46,52 @@ class GlassParamsTest {
     assertTrue("expected clear $clear < regular $regular", clear < regular)
   }
 
+  /**
+   * The bug this guards: `clear` used to scale the blur ramp by 0.2, so the
+   * whole 0–100 intensity range mapped onto 0.6–2.4dp. `intensity` was
+   * therefore indistinguishable from a no-op on `clear`, which is what people
+   * reported as "the clear variant has no blur".
+   */
+  @Test
+  fun blurRadius_clearRespondsMeaningfullyToIntensity() {
+    val low = GlassParams.blurRadiusPx(0, isClear = true, density = 3f)
+    val high = GlassParams.blurRadiusPx(100, isClear = true, density = 3f)
+    assertTrue("expected clear blur to grow with intensity", high > low)
+    // In dp: the span across the full range must be visible, not sub-pixel.
+    val spanDp = (high - low) / 3f
+    assertTrue("clear blur span was only ${spanDp}dp across 0-100", spanDp >= 3f)
+  }
+
+  @Test
+  fun blurRadius_explicitOverrideWinsOverIntensity() {
+    val derived = GlassParams.blurRadiusPx(100, isClear = false, density = 2f)
+    val explicit = GlassParams.blurRadiusPx(100, isClear = false, density = 2f, blurRadiusDp = 4f)
+    assertEquals(8f, explicit, 0.001f)
+    assertTrue("override should not equal the derived value here", explicit != derived)
+  }
+
+  @Test
+  fun blurRadius_explicitOverrideIsVariantIndependent() {
+    val regular = GlassParams.blurRadiusPx(60, isClear = false, density = 2f, blurRadiusDp = 10f)
+    val clear = GlassParams.blurRadiusPx(60, isClear = true, density = 2f, blurRadiusDp = 10f)
+    assertEquals("an explicit radius means the same thing on both variants", regular, clear, 0.001f)
+  }
+
+  @Test
+  fun blurRadius_negativeOverrideMeansDeriveFromIntensity() {
+    val sentinel = GlassParams.blurRadiusPx(
+      60, isClear = true, density = 2f, blurRadiusDp = GlassParams.UNSET_BLUR_DP
+    )
+    val derived = GlassParams.blurRadiusPx(60, isClear = true, density = 2f)
+    assertEquals(derived, sentinel, 0.001f)
+  }
+
+  @Test
+  fun blurRadius_explicitZeroStaysPositive() {
+    // RenderEffect.createBlurEffect rejects a radius of 0.
+    assertTrue(GlassParams.blurRadiusPx(60, isClear = false, density = 3f, blurRadiusDp = 0f) > 0f)
+  }
+
   @Test
   fun resolveTint_prefersExplicitColor() {
     val explicit = GlassParams.argb(0x80, 0x0A, 0x84, 0xFF) // translucent blue

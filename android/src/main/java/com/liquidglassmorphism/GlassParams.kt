@@ -17,16 +17,29 @@ object GlassParams {
   /**
    * Blur radius in pixels for the frosted backdrop.
    *
-   * Intensity 0→100 maps onto a [MIN_BLUR_DP]→[MAX_BLUR_DP] ramp; the `clear`
-   * variant is lighter ([CLEAR_BLUR_SCALE]× ) so media reads through it. Always
-   * strictly positive — `RenderEffect.createBlurEffect` rejects a radius of 0.
+   * `blurRadiusDp` wins outright when it is non-negative: it is the explicit
+   * "this many dp of blur, on either variant" escape hatch. Otherwise intensity
+   * 0→100 maps onto a [MIN_BLUR_DP]→[MAX_BLUR_DP] ramp, scaled by
+   * [CLEAR_BLUR_SCALE] on `clear` so media still reads through it.
+   *
+   * Always strictly positive — `RenderEffect.createBlurEffect` rejects 0.
    */
-  fun blurRadiusPx(intensity: Int, isClear: Boolean, density: Float): Float {
+  @JvmOverloads
+  fun blurRadiusPx(
+    intensity: Int,
+    isClear: Boolean,
+    density: Float,
+    blurRadiusDp: Float = UNSET_BLUR_DP,
+  ): Float {
+    if (blurRadiusDp >= 0f) return (blurRadiusDp * density).coerceAtLeast(0.5f)
     val t = clampIntensity(intensity) / 100f
     var dp = MIN_BLUR_DP + t * (MAX_BLUR_DP - MIN_BLUR_DP)
     if (isClear) dp *= CLEAR_BLUR_SCALE
     return (dp * density).coerceAtLeast(0.5f)
   }
+
+  /** Sentinel for "no explicit blurRadius — derive it from intensity". */
+  const val UNSET_BLUR_DP = -1f
 
   /**
    * Resolve the tint to paint over the blurred backdrop.
@@ -90,9 +103,12 @@ object GlassParams {
   // LIGHT — heavy blur destroys the detail the lens needs to bend.
   private const val MIN_BLUR_DP = 3f
   private const val MAX_BLUR_DP = 12f
-  // `clear` glass is nearly un-frosted — iOS clear is basically transparent
-  // refractive glass, so it gets only a whisper of blur.
-  private const val CLEAR_BLUR_SCALE = 0.2f
+  // `clear` glass stays lighter than `regular` — iOS clear is largely
+  // transparent refractive glass. It is not zero, though: at 0.2 the whole
+  // intensity range mapped onto 0.6–2.4dp, so `intensity` read as a no-op on
+  // `clear` and the variant looked like it simply had no blur. Set
+  // `blurRadius` for an exact value on either variant.
+  private const val CLEAR_BLUR_SCALE = 0.45f
   private const val DEFAULT_REGULAR_TINT_ALPHA = 0x1F // ~12%
   private const val DEFAULT_CLEAR_TINT_ALPHA = 0x0D // ~5%
 }

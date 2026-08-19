@@ -75,6 +75,13 @@ describe('LiquidGlassView (native) prop mapping', () => {
 
   // Custom shapes: the wrapper normalises to a path + view-box and stops
   // rounding the outer container (that would clip the shape's corners).
+  // `blurRadius` is Android-only, and codegen floats cannot be null, so "unset"
+  // travels as a negative sentinel that native reads as "derive from intensity".
+  // The jest preset reports 'ios', so nothing should reach native here at all.
+  it('does not send blurRadius to native on iOS', () => {
+    expect(render({ blurRadius: 12 }).props.blurRadius).toBeUndefined();
+  });
+
   it('sends no shape by default', () => {
     const { props } = render();
     expect(props.shapePath).toBe('');

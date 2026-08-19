@@ -56,6 +56,9 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   // --- Props ---
   private var variantClear = false
   private var intensity = 60
+  // Explicit blur radius in dp. Negative means "derive it from `intensity`",
+  // which is the default and what every existing app gets.
+  private var blurRadiusDp = GlassParams.UNSET_BLUR_DP
   private var tintColor: Int? = null
   private var interactive = false
   // Gyro/accelerometer specular is now its own toggle (fix #3), decoupled from
@@ -174,6 +177,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
   fun setIntensityValue(value: Int) {
     if (intensity != value) { intensity = value; invalidate() }
+  }
+
+  fun setBlurRadiusDpValue(value: Float) {
+    if (blurRadiusDp != value) { blurRadiusDp = value; invalidate() }
   }
 
   fun setTint(color: Int?) {
@@ -646,7 +653,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
   /** Blur → (optional) AGSL material chain. Mirrors the iOS compositing order. */
   private fun buildEffect(w: Int, h: Int): RenderEffect {
-    val radius = GlassParams.blurRadiusPx(intensity, variantClear, density)
+    val radius = GlassParams.blurRadiusPx(intensity, variantClear, density, blurRadiusDp)
     val blur = RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP)
 
     val shader = glassShader
@@ -844,7 +851,20 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
           g = gv.xy;
           conf = gv.z;
         } else {
-          float e = 1.0;
+          // Sampled over a WIDE epsilon, not 1px. `sdRoundRect` is an exact
+          // distance field, so |grad| is 1 everywhere except within a pixel of
+          // the medial axis, where the two sides cancel and it drops to 0. With
+          // e = 1 that made `conf` — and therefore `axisFade` below — a 1px
+          // notch of zero refraction with full refraction either side, which is
+          // the hard line across the middle of a pill (the axis of a wide, short
+          // shape is a horizontal line straight through the centre).
+          //
+          // Widening the sample to the scale of the lens ring makes the two
+          // sides cancel *gradually* over tens of pixels instead, so the lens
+          // eases off toward the axis. The direction is unaffected away from the
+          // axis: over any span where the field is locally linear, a wide
+          // central difference gives the same unit normal a narrow one does.
+          float e = clamp(lensW * 0.3, 1.0, 16.0);
           float gx = sdRoundRect(p + float2(e, 0.0), b, iCorner) - sdRoundRect(p - float2(e, 0.0), b, iCorner);
           float gy = sdRoundRect(p + float2(0.0, e), b, iCorner) - sdRoundRect(p - float2(0.0, e), b, iCorner);
           g = float2(gx, gy);
@@ -854,11 +874,13 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
         // The SDF gradient collapses along the shape's medial axis (the ridge
         // equidistant from two edges). On a short/pill shape the top and bottom
-        // lens rings meet there and the normal flips, producing a hard seam
-        // across the middle. Use the gradient magnitude as confidence (≈1 on
-        // clean slopes, → 0 at the ridge and in the saturated interior
-        // plateau) and fade the lens to zero at that ridge → flat clear glass
-        // in the centre, no seam.
+        // lens rings meet there and the normal flips, so the lens has to ease
+        // off toward that ridge or the two rings collide into a seam.
+        //
+        // The ramp itself is unchanged. What matters is that `conf` now varies
+        // smoothly across the ridge on the analytic path (see the wide epsilon
+        // above) instead of stepping 1 → 0 → 1 within two pixels, which turned
+        // this fade into the very seam it exists to prevent.
         float axisFade = smoothstep(0.15, 0.8, conf);
 
         // Lens profile. `rim` ramps 0 (interior) → 1 (at the very edge) across

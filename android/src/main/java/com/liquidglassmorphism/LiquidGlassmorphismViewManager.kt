@@ -38,6 +38,10 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
     view.setIntensityValue(value)
   }
 
+  override fun setBlurRadius(view: LiquidGlassmorphismView, value: Float) {
+    view.setBlurRadiusDpValue(value)
+  }
+
   override fun setInteractive(view: LiquidGlassmorphismView, value: Boolean) {
     view.setInteractiveValue(value)
   }

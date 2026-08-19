@@ -13,6 +13,7 @@ import type { LiquidGlassViewProps } from './types';
 export function LiquidGlassView({
   variant = 'regular',
   intensity = 60,
+  blurRadius,
   interactive = false,
   tilt = false,
   refraction = true,
@@ -38,11 +39,23 @@ export function LiquidGlassView({
       }
     : { shapePath: '', shapeViewBoxWidth: 0, shapeViewBoxHeight: 0 };
 
-  // Android-only optics (liquid volume, edge-reflection, legibility veil); iOS
-  // glass is OS-fixed, so we keep these off the iOS native prop surface.
+  // Android-only optics (liquid volume, edge-reflection, legibility veil, blur
+  // radius); iOS glass is OS-fixed, so we keep these off the iOS native prop
+  // surface. `blurRadius` uses a negative sentinel for "unset" because codegen
+  // floats cannot be null — native then derives the radius from `intensity`.
   const platformProps =
     Platform.OS === 'android'
-      ? { thickness, edgeReflectionStrength, legibilityFloor }
+      ? {
+          thickness,
+          edgeReflectionStrength,
+          legibilityFloor,
+          // `typeof` rather than a null check: it also catches a non-number
+          // arriving from untyped JS, which would otherwise reach the shader.
+          blurRadius:
+            typeof blurRadius === 'number' && Number.isFinite(blurRadius)
+              ? Math.max(0, blurRadius)
+              : -1,
+        }
       : null;
 
   return (

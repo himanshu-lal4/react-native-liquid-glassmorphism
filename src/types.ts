@@ -38,6 +38,25 @@ export interface LiquidGlassViewProps extends ViewProps {
   intensity?: number;
 
   /**
+   * Android only: an explicit blur radius in dp, overriding whatever
+   * {@link intensity} would have derived.
+   *
+   * Reach for this when `intensity` isn't giving you the control you need —
+   * most often on `clear` glass, which deliberately blurs far less than
+   * `regular` and so spans a much narrower range across the whole 0–100
+   * intensity scale. `blurRadius` ignores that scaling and gives both variants
+   * the same units.
+   *
+   * Useful range is roughly `0`–`30`; `0` is a genuinely unblurred pane.
+   * No-op on iOS, where the material's blur is the OS's to choose.
+   *
+   * @example
+   * // Clear glass — transparent and refractive, but properly blurred.
+   * <LiquidGlassView variant="clear" blurRadius={16} />
+   */
+  blurRadius?: number;
+
+  /**
    * Make the glass react to touch — iOS 26 interactive `UIGlassEffect`, and a
    * touch-following specular highlight on Android.
    * @default false
