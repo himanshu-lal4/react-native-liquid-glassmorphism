@@ -1,6 +1,8 @@
 import { Platform } from 'react-native';
 
+import { validateGlassProps } from './devValidate';
 import NativeLiquidGlass from './LiquidGlassmorphismViewNativeComponent';
+import { resolvePreset } from './presets';
 import { normalizeShape } from './shapes';
 import type { LiquidGlassViewProps } from './types';
 
@@ -10,22 +12,30 @@ import type { LiquidGlassViewProps } from './types';
  * Maps the friendly public props onto the codegen native component. The web
  * fallback lives in `LiquidGlassView.tsx`.
  */
-export function LiquidGlassView({
-  variant = 'regular',
-  intensity = 60,
-  interactive = false,
-  tilt = false,
-  refraction = true,
-  thickness = 1,
-  edgeReflectionStrength = 1,
-  legibilityFloor = 0,
-  borderRadius = 0,
-  shape,
-  tintColor,
-  style,
-  children,
-  ...rest
-}: LiquidGlassViewProps) {
+export function LiquidGlassView(props: LiquidGlassViewProps) {
+  // Validate what the caller actually passed, before presets and defaults have
+  // had a chance to fill anything in. Stripped from production bundles.
+  if (__DEV__) {
+    validateGlassProps(props);
+  }
+
+  const {
+    variant = 'regular',
+    intensity = 60,
+    interactive = false,
+    tilt = false,
+    refraction = true,
+    thickness = 1,
+    edgeReflectionStrength = 1,
+    legibilityFloor = 0,
+    borderRadius = 0,
+    shape,
+    tintColor,
+    style,
+    children,
+    ...rest
+  } = resolvePreset(props);
+
   // Normalise any custom shape to a single SVG path + view-box for native. The
   // output string is deterministic, so native prop-diffing skips the work (and
   // the Android SDF rebuild) whenever the shape is unchanged.
@@ -41,9 +51,7 @@ export function LiquidGlassView({
   // Android-only optics (liquid volume, edge-reflection, legibility veil); iOS
   // glass is OS-fixed, so we keep these off the iOS native prop surface.
   const platformProps =
-    Platform.OS === 'android'
-      ? { thickness, edgeReflectionStrength, legibilityFloor }
-      : null;
+    Platform.OS === 'android' ? { thickness, edgeReflectionStrength, legibilityFloor } : null;
 
   return (
     <NativeLiquidGlass

@@ -1,5 +1,6 @@
 import type { ColorValue, ViewProps } from 'react-native';
 
+import type { GlassPresetName } from './presets';
 import type { LiquidGlassShape } from './shapes';
 
 export type { LiquidGlassShape } from './shapes';
@@ -15,6 +16,18 @@ export type { LiquidGlassShape } from './shapes';
 export type GlassVariant = 'regular' | 'clear';
 
 export interface LiquidGlassViewProps extends ViewProps {
+  /**
+   * Start from a tuned material instead of dialling the individual knobs.
+   *
+   * Resolved in JS as `{ ...GlassPresets[preset], ...yourProps }`, so any prop
+   * you pass explicitly always wins. The raw map is exported as `GlassPresets`
+   * if you want to read or extend the values.
+   *
+   * @example
+   * <LiquidGlassView preset="floatingTabBar" borderRadius={32} />
+   */
+  preset?: GlassPresetName;
+
   /**
    * Glass material style.
    * @default 'regular'

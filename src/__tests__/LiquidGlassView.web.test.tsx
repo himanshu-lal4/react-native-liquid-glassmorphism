@@ -16,6 +16,15 @@ const render = (props = {}) => LiquidGlassView(props as any) as any;
 // Flatten the style array the fallback builds into a single object.
 const flatStyle = (el: any) => Object.assign({}, ...el.props.style);
 
+// These cases deliberately pass platform-specific props to prove they are not
+// leaked onto the View; the dev validator's "does nothing here" notices are
+// expected and covered by devValidate.test.ts, so keep them out of the output.
+let warn: jest.SpyInstance;
+beforeAll(() => {
+  warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+});
+afterAll(() => warn.mockRestore());
+
 describe('LiquidGlassView (web fallback)', () => {
   it('renders a plain RN View', () => {
     expect(render().type).toBe(View);

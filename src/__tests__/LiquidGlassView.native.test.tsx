@@ -16,8 +16,19 @@ jest.mock('../LiquidGlassmorphismViewNativeComponent', () => ({
 
 import { LiquidGlassView } from '../LiquidGlassView.native';
 import NativeLiquidGlass from '../LiquidGlassmorphismViewNativeComponent';
+import { GlassPresets } from '../presets';
 
 const render = (props = {}) => LiquidGlassView(props as any) as any;
+
+// One case below passes `refraction={false}`, which the dev validator
+// correctly flags as inert under the jest preset's default 'ios' platform.
+// That notice is covered by devValidate.test.ts; mute it here so this suite's
+// output is about prop mapping only.
+let warn: jest.SpyInstance;
+beforeAll(() => {
+  warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+});
+afterAll(() => warn.mockRestore());
 
 describe('LiquidGlassView (native) prop mapping', () => {
   it('renders the native codegen component', () => {
@@ -87,6 +98,30 @@ describe('LiquidGlassView (native) prop mapping', () => {
     expect(props.shapePath).toContain('M');
     expect(props.shapeViewBoxWidth).toBe(100);
     expect(props.shapeViewBoxHeight).toBe(100);
+  });
+
+  // Presets are resolved in JS before defaulting, so a preset value must reach
+  // native while an explicitly passed prop still wins over it.
+  it('applies a preset to the native props', () => {
+    const { props } = render({ preset: 'crystal' });
+    expect(props.variant).toBe(GlassPresets.crystal.variant);
+    expect(props.intensity).toBe(GlassPresets.crystal.intensity);
+  });
+
+  it('lets an explicit prop override the preset', () => {
+    const { props } = render({ preset: 'crystal', intensity: 90 });
+    expect(props.intensity).toBe(90);
+    expect(props.variant).toBe(GlassPresets.crystal.variant);
+  });
+
+  it('never forwards the `preset` prop itself to native', () => {
+    expect(render({ preset: 'frosted' }).props.preset).toBeUndefined();
+  });
+
+  it('falls back to the documented defaults for an unknown preset', () => {
+    const { props } = render({ preset: 'nope' });
+    expect(props.intensity).toBe(60);
+    expect(props.variant).toBe('regular');
   });
 
   it('omits the container borderRadius when a shape is set', () => {
