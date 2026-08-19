@@ -111,6 +111,29 @@ class GlassParamsTest {
     assertTrue(GlassParams.blurRadiusPx(60, isClear = false, density = 3f, blurRadiusDp = 0f) > 0f)
   }
 
+  /**
+   * The bug this guards: `borderRadius: 999` — the ordinary way to ask for a
+   * pill — made the shader's signed distance POSITIVE across the whole view,
+   * so every pixel read as outside the glass and the surface blew out to a
+   * flat fill. Half the shorter side is the pill; anything beyond is malformed.
+   */
+  @Test
+  fun effectiveCorner_clampsAPillRadiusToHalfTheShorterSide() {
+    assertEquals(39f, GlassParams.effectiveCornerPx(2997f, 78, 120), 0.001f)
+    assertEquals(60f, GlassParams.effectiveCornerPx(999f, 200, 120), 0.001f)
+  }
+
+  @Test
+  fun effectiveCorner_leavesAnOrdinaryRadiusAlone() {
+    assertEquals(24f, GlassParams.effectiveCornerPx(24f, 200, 120), 0.001f)
+  }
+
+  @Test
+  fun effectiveCorner_neverNegative_andSafeAtZeroSize() {
+    assertEquals(0f, GlassParams.effectiveCornerPx(-10f, 100, 100), 0.001f)
+    assertEquals(0f, GlassParams.effectiveCornerPx(50f, 0, 0), 0.001f)
+  }
+
   @Test
   fun resolveTint_prefersExplicitColor() {
     val explicit = GlassParams.argb(0x80, 0x0A, 0x84, 0xFF) // translucent blue
