@@ -56,6 +56,9 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   // --- Props ---
   private var variantClear = false
   private var intensity = 60
+  // Explicit blur radius in dp. Negative means "derive it from `intensity`",
+  // which is the default and what every existing app gets.
+  private var blurRadiusDp = GlassParams.UNSET_BLUR_DP
   private var tintColor: Int? = null
   private var interactive = false
   // Gyro/accelerometer specular is now its own toggle (fix #3), decoupled from
@@ -71,6 +74,11 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   // Legibility floor (#2), 0 → 1: an adaptive surface drawn UNDER the foreground
   // children so chrome (icons/labels) stays readable over clear glass.
   private var legibilityFloor = 0f
+  // Composition primitives: switch the glass's decorative layers off so the
+  // same view can serve as a plain blur pane, a scrim, or a modal backdrop.
+  private var rimEnabled = true
+  private var specularEnabled = true
+  private var dim = 0f
 
   // --- Custom shape (arbitrary SVG silhouette) ---
   private var shapePathData: String = ""
@@ -154,6 +162,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private var touchY = 0f
   private var touchAmt = 0f      // eased current press strength, 0–1
   private var touchTarget = 0f   // 1 while pressed, 0 on release
+  private var touchVel = 0f      // spring velocity for the press animation
 
   init {
     setWillNotDraw(false)
@@ -174,6 +183,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
   fun setIntensityValue(value: Int) {
     if (intensity != value) { intensity = value; invalidate() }
+  }
+
+  fun setBlurRadiusDpValue(value: Float) {
+    if (blurRadiusDp != value) { blurRadiusDp = value; invalidate() }
   }
 
   fun setTint(color: Int?) {
@@ -219,6 +232,19 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   }
 
   /** Legibility floor (#2), 0 (off) → 1 (max), clamped. */
+  fun setRimValue(value: Boolean) {
+    if (rimEnabled != value) { rimEnabled = value; refreshPaints(); invalidate() }
+  }
+
+  fun setSpecularValue(value: Boolean) {
+    if (specularEnabled != value) { specularEnabled = value; invalidate() }
+  }
+
+  fun setDimValue(value: Float) {
+    val v = value.coerceIn(0f, 1f)
+    if (dim != v) { dim = v; invalidate() }
+  }
+
   fun setLegibilityFloorValue(value: Float) {
     val v = value.coerceIn(0f, 1f)
     if (legibilityFloor != v) { legibilityFloor = v; invalidate() }
@@ -505,8 +531,19 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     // Ease the press strength toward its target and keep animating until settled.
     // The press effect is an OPTICAL magnification in the shader (below) — the
     // element keeps its size; only the glass lenses harder under the finger.
-    if (interactive && kotlin.math.abs(touchTarget - touchAmt) > 0.003f) {
-      touchAmt += (touchTarget - touchAmt) * 0.2f
+    // Spring, not an exponential ease. A `+= delta * 0.2` approach is always
+    // decelerating: it leaves fastest at the start and crawls into the target,
+    // which reads as soft and laggy next to iOS. A lightly under-damped spring
+    // arrives quickly and settles with a small overshoot, which is what a
+    // physical material does and what UIKit animates with.
+    if (interactive &&
+      (kotlin.math.abs(touchTarget - touchAmt) > 0.002f ||
+        kotlin.math.abs(touchVel) > 0.01f)
+    ) {
+      val dt = 1f / 60f
+      val accel = SPRING_K * (touchTarget - touchAmt) - SPRING_C * touchVel
+      touchVel += accel * dt
+      touchAmt = (touchAmt + touchVel * dt).coerceIn(0f, 1.15f)
       postInvalidateOnAnimation()
     }
 
@@ -524,10 +561,17 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       rec.drawBitmap(bmp, srcRect, dstRect, null)
       node.endRecording()
       node.setRenderEffect(buildEffect(width, height))
-      // Analytic path: clipToOutline rounds it. Custom shape: the shader alpha
-      // shapes the glass; a path clip guards against any bleed (and shapes the
-      // blur-only fallback on API < 33).
-      if (shapePath != null) {
+      // Analytic path: clipToOutline rounds it. Custom shape: the shader's own
+      // mask alpha shapes the glass.
+      //
+      // `Canvas.clipPath` is NOT anti-aliased on a hardware canvas — it is a
+      // hard per-pixel stencil. Applying it on top of the shader's smooth,
+      // anti-aliased silhouette alpha sawed that edge straight back off, which
+      // is the stair-stepped, speckled rim on every custom shape. The clip is
+      // still needed for the blur-only fallback below API 33, where nothing
+      // else bounds the render node — but where the shader runs, the mask is
+      // the silhouette and the clip can only make it worse.
+      if (shapePath != null && !shaderActive) {
         canvas.save()
         canvas.clipPath(shapePath)
         canvas.drawRenderNode(node)
@@ -578,10 +622,17 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       }
     }
 
-    // Crisp bright rim outline — ALWAYS drawn, exactly like the analytic path.
-    // The shader's rimLine alone is softer/dimmer; skipping this stroke is what
-    // made custom shapes read as missing the clean glass edge the pill has.
-    if (shapePath != null) {
+    // Crisp bright rim outline — only where the shader is NOT drawing one.
+    //
+    // Both were drawing it, which is the double edge Android had and iOS did
+    // not: a Canvas stroke sitting on the outer boundary plus the shader's own
+    // `rimLine` a pixel or two inside it, reading as a sticker outline rather
+    // than a single glass edge. The shader's line is the better one now that
+    // `d` is precise on both paths, so it owns the rim and this stroke is the
+    // fallback for the tiers that have no shader.
+    if (shaderActive || !rimEnabled) {
+      // Shader owns the rim, or the caller turned it off.
+    } else if (shapePath != null) {
       canvas.drawPath(shapePath, rimPaint)
     } else {
       val inset = rimPaint.strokeWidth / 2f
@@ -646,7 +697,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
   /** Blur → (optional) AGSL material chain. Mirrors the iOS compositing order. */
   private fun buildEffect(w: Int, h: Int): RenderEffect {
-    val radius = GlassParams.blurRadiusPx(intensity, variantClear, density)
+    val radius = GlassParams.blurRadiusPx(intensity, variantClear, density, blurRadiusDp)
     val blur = RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP)
 
     val shader = glassShader
@@ -674,13 +725,19 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       // Lensing is intrinsic to glass (always on); the `refraction` prop only
       // dials it up. This is what makes the backdrop bend around the edges.
       shader.setFloatUniform("iLens", GlassParams.lensStrengthPx(variantClear, refractionEnabled, density) * thickness)
-      shader.setFloatUniform("iSat", if (variantClear) 1.55f else 1.3f)
+      // Measured against iOS 26 over the same wallpaper: with the blur
+      // matched, clear glass was holding sat 0.721x its backdrop where iOS
+      // holds 0.656x. The old 1.55 only looked right while the heavier blur
+      // was washing saturation out for it.
+      shader.setFloatUniform("iSat", if (variantClear) 1.32f else 1.3f)
       shader.setFloatUniform("iLift", GlassParams.frostFloorAlpha(variantClear))
       shader.setFloatUniform("iAdapt", GlassParams.adaptiveLift(variantClear))
-      shader.setFloatUniform("iSpecular", GlassParams.specularAlpha(variantClear))
+      shader.setFloatUniform("iSpecular", if (specularEnabled) GlassParams.specularAlpha(variantClear) else 0f)
       // Broad glassy face reflection. Kept subtle on clear — a big milky sheen
       // band is exactly what makes clear glass read as frosted rather than clear.
-      shader.setFloatUniform("iSheen", if (variantClear) 0.07f else 0.10f)
+      shader.setFloatUniform("iSheen", if (!specularEnabled) 0f else if (variantClear) 0.07f else 0.10f)
+      shader.setFloatUniform("iRim", if (rimEnabled) 1f else 0f)
+      shader.setFloatUniform("iDim", dim)
       shader.setFloatUniform("iTilt", tiltX, tiltY)
       shader.setFloatUniform("iTouch", touchX, touchY)
       shader.setFloatUniform("iTouchAmt", if (interactive) touchAmt else 0f)
@@ -756,6 +813,11 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
   companion object {
+    // Lightly under-damped: omega = sqrt(K) ~ 16 rad/s, critical damping would
+    // be 2*sqrt(K) ~ 32, so C = 26 settles fast with a small overshoot.
+    private const val SPRING_K = 260f
+    private const val SPRING_C = 26f
+
     private fun supportsBlur(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     // Refractive glass lozenge, per pixel. This is a LENS, not a blur panel —
@@ -789,6 +851,8 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       uniform float2 iTouch;
       uniform float iTouchAmt;
       uniform float iRefl;
+      uniform float iRim;
+      uniform float iDim;
 
       float sdRoundRect(float2 p, float2 b, float r) {
         float2 q = abs(p) - b + r;
@@ -824,7 +888,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         float reflW = max(14.0, min(b.x, b.y) * 0.7);
         if (iUseSdf > 0.5) {
           half4 s = sdf.eval(coord);
-          d = (float(s.r) - 0.5) * iSdfRange;
+          // Square-law decode, matching GlassSdf's encoding: the codes are
+          // packed densely near the edge, where `rimLine` and `edgeGuard` need
+          // sub-pixel accuracy, and sparsely in the far field, which only feeds
+          // band masks tens of pixels wide.
+          float u = (float(s.r) - 0.5) * 2.0;
+          d = u * abs(u) * iSdfRange;
           rim = float(s.g);
           edgeBand = float(s.b);
         } else {
@@ -844,7 +913,20 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
           g = gv.xy;
           conf = gv.z;
         } else {
-          float e = 1.0;
+          // Sampled over a WIDE epsilon, not 1px. `sdRoundRect` is an exact
+          // distance field, so |grad| is 1 everywhere except within a pixel of
+          // the medial axis, where the two sides cancel and it drops to 0. With
+          // e = 1 that made `conf` — and therefore `axisFade` below — a 1px
+          // notch of zero refraction with full refraction either side, which is
+          // the hard line across the middle of a pill (the axis of a wide, short
+          // shape is a horizontal line straight through the centre).
+          //
+          // Widening the sample to the scale of the lens ring makes the two
+          // sides cancel *gradually* over tens of pixels instead, so the lens
+          // eases off toward the axis. The direction is unaffected away from the
+          // axis: over any span where the field is locally linear, a wide
+          // central difference gives the same unit normal a narrow one does.
+          float e = clamp(lensW * 0.3, 1.0, 16.0);
           float gx = sdRoundRect(p + float2(e, 0.0), b, iCorner) - sdRoundRect(p - float2(e, 0.0), b, iCorner);
           float gy = sdRoundRect(p + float2(0.0, e), b, iCorner) - sdRoundRect(p - float2(0.0, e), b, iCorner);
           g = float2(gx, gy);
@@ -854,11 +936,13 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
         // The SDF gradient collapses along the shape's medial axis (the ridge
         // equidistant from two edges). On a short/pill shape the top and bottom
-        // lens rings meet there and the normal flips, producing a hard seam
-        // across the middle. Use the gradient magnitude as confidence (≈1 on
-        // clean slopes, → 0 at the ridge and in the saturated interior
-        // plateau) and fade the lens to zero at that ridge → flat clear glass
-        // in the centre, no seam.
+        // lens rings meet there and the normal flips, so the lens has to ease
+        // off toward that ridge or the two rings collide into a seam.
+        //
+        // The ramp itself is unchanged. What matters is that `conf` now varies
+        // smoothly across the ridge on the analytic path (see the wide epsilon
+        // above) instead of stepping 1 → 0 → 1 within two pixels, which turned
+        // this fade into the very seam it exists to prevent.
         float axisFade = smoothstep(0.15, 0.8, conf);
 
         // Lens profile. `rim` ramps 0 (interior) → 1 (at the very edge) across
@@ -878,7 +962,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         float2 td = coord - iTouch;
         float tmr = min(iResolution.x, iResolution.y) * 0.9;
         float tFall = exp(-dot(td, td) / (tmr * tmr));
-        float2 magCoord = coord - td * (iTouchAmt * tFall * 0.30);
+        float2 magCoord = coord - td * (iTouchAmt * tFall * 0.17);
 
         // Edge reflection: a lens band at the rim that folds the sample back on
         // itself, so content near the edge appears mirrored — the inverted echo
@@ -896,7 +980,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         // px wide) is untouched, and the crisp bright rim line below still draws
         // the edge. Analytic shapes have no noise, so this is a no-op for them
         // beyond a marginally softer edge.
-        float edgeGuard = smoothstep(0.0, 12.0, -d);
+        // Widened, and scaled to the mirror band rather than a fixed 12px. The
+        // guard multiplies a displacement of ~iLens*3, so a steep ramp turns
+        // any residual noise in `d` into radial smear; spreading it over a
+        // proportional distance keeps the same calm bevel with a far gentler
+        // derivative.
+        float edgeGuard = smoothstep(0.0, max(12.0, reflW * 0.18), -d);
 
         // `iRefl` (edgeReflectionStrength, 0–1) scales ONLY this reflection band
         // — independent of iLens/thickness — so the upside-down edge echo can be
@@ -927,6 +1016,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
         // Vibrant coloured tint (deep, not pastel).
         col = mix(col, iTint.rgb, clamp(iTint.a * 1.5, 0.0, 0.88));
+
+        // Flat dimming scrim. Applied after the tint and BEFORE the lighting,
+        // so a dimmed backdrop still keeps its glass edge and sheen rather
+        // than going uniformly dark — that is the difference between a modal
+        // backdrop made of glass and one made of a black View.
+        col = col * half(1.0 - iDim);
 
         // 3D normal of the surface for lighting. Kept fairly FLAT (a glass
         // sheet, not a bubble) — iOS Liquid Glass is a flat pane; the edge
@@ -960,7 +1055,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         // saturated, and real coloured glass has coloured highlights. Untinted
         // glass keeps white highlights (its default tint IS white).
         half3 hi = mix(half3(1.0), iTint.rgb, iTint.a * 0.6);
-        col = col + hi * (sheen + rimLine * 0.42 + (fres * 0.18 + spec * 0.6) * iSpecular)
+        // rimLine carries the whole glass edge now that the Canvas stroke no
+        // longer doubles it, so it is weighted to match what that stroke used
+        // to contribute on top.
+        col = col + hi * (sheen + rimLine * 0.80 * iRim + (fres * 0.18 + spec * 0.6) * iSpecular)
                   - half3(edgeShade);
 
         // Interactive touch: a soft radial bloom under the finger — iOS glass
@@ -968,7 +1066,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         float2 tp = coord - iTouch;
         float tr = min(iResolution.x, iResolution.y);
         float touch = exp(-dot(tp, tp) / (tr * tr)) * iTouchAmt;
-        col = col + hi * (touch * 0.2);
+        // Measured against iOS 26: pressing its glass lifts luminance about
+        // 6%. At 0.2 this term alone was lifting ours by ~50% — a flash,
+        // not a press.
+        col = col + hi * (touch * 0.035);
 
         col = clamp(col, 0.0, 1.0);
 

@@ -13,6 +13,10 @@ import type { LiquidGlassViewProps } from './types';
 export function LiquidGlassView({
   variant = 'regular',
   intensity = 60,
+  blurRadius,
+  rim = true,
+  specular = true,
+  dim = 0,
   interactive = false,
   tilt = false,
   refraction = true,
@@ -38,11 +42,31 @@ export function LiquidGlassView({
       }
     : { shapePath: '', shapeViewBoxWidth: 0, shapeViewBoxHeight: 0 };
 
-  // Android-only optics (liquid volume, edge-reflection, legibility veil); iOS
-  // glass is OS-fixed, so we keep these off the iOS native prop surface.
+  // The composition primitives go to BOTH platforms. iOS cannot dial the glass
+  // optics — those belong to the system material — but it can answer the one
+  // question that matters for a non-glass surface: with every layer switched
+  // off, it swaps UIGlassEffect for a plain UIBlurEffect material. So `rim`,
+  // `specular`, `thickness` and `blurRadius` all have to reach it.
+  //
+  // `blurRadius` uses a negative sentinel for "unset", because codegen floats
+  // cannot be null — native then derives the radius from `intensity`.
+  const sharedProps = {
+    rim,
+    specular,
+    thickness,
+    // `typeof` rather than a null check: it also catches a non-number arriving
+    // from untyped JS, which would otherwise reach the shader.
+    blurRadius:
+      typeof blurRadius === 'number' && Number.isFinite(blurRadius)
+        ? Math.max(0, blurRadius)
+        : -1,
+  };
+
+  // Genuinely Android-only optics: iOS glass fixes its own rim echo, and the
+  // system material manages its own contrast.
   const platformProps =
     Platform.OS === 'android'
-      ? { thickness, edgeReflectionStrength, legibilityFloor }
+      ? { edgeReflectionStrength, legibilityFloor }
       : null;
 
   return (
@@ -53,7 +77,9 @@ export function LiquidGlassView({
       tilt={tilt}
       refraction={refraction}
       glassCornerRadius={borderRadius}
+      dim={dim}
       {...shapeProps}
+      {...sharedProps}
       tintColor={tintColor}
       {...platformProps}
       // A custom shape defines its own silhouette, so don't also round the

@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { LiquidGlassViewProps } from './types';
 
@@ -8,12 +8,21 @@ import type { LiquidGlassViewProps } from './types';
  * Real backdrop blur is not portable on the web through React Native, so this
  * renders a best-effort translucent surface. Metro resolves the native
  * implementation (`LiquidGlassView.native.tsx`) on iOS and Android.
+ *
+ * The optical props are dropped — there is no honest way to fake refraction
+ * here. The two that are *design* choices rather than optics, `rim` and `dim`,
+ * are honoured, so a scrim or a borderless pane still composes the same way it
+ * does natively.
  */
 export function LiquidGlassView({
   tintColor,
   borderRadius = 0,
+  rim = true,
+  dim = 0,
+  specular: _specular,
   interactive: _interactive,
   intensity: _intensity,
+  blurRadius: _blurRadius,
   variant: _variant,
   refraction: _refraction,
   thickness: _thickness,
@@ -24,6 +33,29 @@ export function LiquidGlassView({
   children,
   ...rest
 }: LiquidGlassViewProps) {
+  const scrim = Math.max(0, Math.min(1, dim));
+
+  // The scrim gets its own layer, because a single `backgroundColor` cannot
+  // carry both the tint and the dim, and natively `dim` sits under the
+  // children. Only wrapped when there IS a scrim — otherwise `children` is
+  // passed straight through, so the common case keeps the element tree (and
+  // anything walking it) exactly as it was.
+  const content =
+    scrim > 0 ? (
+      <>
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: `rgba(0, 0, 0, ${scrim})`, borderRadius },
+          ]}
+        />
+        {children}
+      </>
+    ) : (
+      children
+    );
+
   return (
     <View
       {...rest}
@@ -31,13 +63,13 @@ export function LiquidGlassView({
         {
           backgroundColor: tintColor ?? 'rgba(255, 255, 255, 0.18)',
           borderRadius,
-          borderWidth: 1,
+          borderWidth: rim ? 1 : 0,
           borderColor: 'rgba(255, 255, 255, 0.35)',
         },
         style,
       ]}
     >
-      {children}
+      {content}
     </View>
   );
 }

@@ -38,6 +38,71 @@ export interface LiquidGlassViewProps extends ViewProps {
   intensity?: number;
 
   /**
+   * Draw the bright glass edge.
+   *
+   * Set `false`, together with `specular={false}` and `thickness={0}`, to get a
+   * plain blurred pane — a drop-in for a conventional blur view:
+   *
+   * ```tsx
+   * <LiquidGlassView rim={false} specular={false} thickness={0} blurRadius={20} />
+   * ```
+   *
+   * On iOS the edge belongs to the system material and cannot be dialled — but
+   * turning this off, together with `specular` and `thickness={0}`, tells iOS
+   * you no longer want Liquid Glass at all, and it renders a plain
+   * `UIBlurEffect` material instead.
+   * @default true
+   */
+  rim?: boolean;
+
+  /**
+   * Draw the moving sheen and specular hotspot. `false` removes every
+   * light-driven highlight, leaving a flat material.
+   *
+   * On iOS, part of the "this is not glass" signal — see {@link rim}.
+   * @default true
+   */
+  specular?: boolean;
+
+  /**
+   * A flat dimming scrim over the backdrop, `0`–`1`, drawn under the children.
+   *
+   * This is the modal-overlay / backdrop primitive: a full-screen
+   * `<LiquidGlassView dim={0.4} blurRadius={24} rim={false} />` behind a sheet
+   * gives you the blurred, darkened backdrop that pattern wants.
+   *
+   * Distinct from {@link legibilityFloor}, which is adaptive and exists to keep
+   * chrome legible; `dim` is constant and is a design choice about the surface.
+   *
+   * Works on both platforms.
+   * @default 0
+   */
+  dim?: number;
+
+  /**
+   * An explicit blur radius in dp, overriding whatever
+   * {@link intensity} would have derived.
+   *
+   * Reach for this when `intensity` isn't giving you the control you need —
+   * most often on `clear` glass, which deliberately blurs far less than
+   * `regular` and so spans a much narrower range across the whole 0–100
+   * intensity scale. `blurRadius` ignores that scaling and gives both variants
+   * the same units.
+   *
+   * Useful range is roughly `0`–`30`; `0` is a genuinely unblurred pane.
+   *
+   * On iOS this picks the nearest `UIBlurEffect` material when the view is in
+   * plain-blur mode (see {@link rim}); UIKit's materials are discrete, so it is
+   * the closest equivalent rather than a literal radius. It is ignored while
+   * the view is rendering Liquid Glass, where the OS owns the blur.
+   *
+   * @example
+   * // Clear glass — transparent and refractive, but properly blurred.
+   * <LiquidGlassView variant="clear" blurRadius={16} />
+   */
+  blurRadius?: number;
+
+  /**
    * Make the glass react to touch — iOS 26 interactive `UIGlassEffect`, and a
    * touch-following specular highlight on Android.
    * @default false
@@ -97,7 +162,9 @@ export interface LiquidGlassViewProps extends ViewProps {
    * - `1` — the default liquid glass look
    * - up to `~2` — a deep, heavily-refracting lens
    *
-   * Android only. No-op on iOS, where the OS fixes the `UIGlassEffect` optics.
+   * iOS fixes the `UIGlassEffect` optics, so intermediate values are Android
+   * only — but `0` is honoured on both: with `rim` and `specular` off it is the
+   * signal to drop Liquid Glass for a plain blur material.
    * @default 1
    */
   thickness?: number;

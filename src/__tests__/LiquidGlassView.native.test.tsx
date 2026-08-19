@@ -75,6 +75,46 @@ describe('LiquidGlassView (native) prop mapping', () => {
 
   // Custom shapes: the wrapper normalises to a path + view-box and stops
   // rounding the outer container (that would clip the shape's corners).
+  // The composition primitives reach BOTH platforms: iOS uses them to decide
+  // between UIGlassEffect and a plain UIBlurEffect material.
+  it('defaults the primitives to the full glass treatment', () => {
+    const { props } = render();
+    expect(props.dim).toBe(0);
+    expect(props.rim).toBe(true);
+    expect(props.specular).toBe(true);
+    expect(props.thickness).toBe(1);
+    // Negative sentinel: codegen floats cannot be null, so this is "unset".
+    expect(props.blurRadius).toBe(-1);
+  });
+
+  it('forwards the primitives on iOS too, not just Android', () => {
+    const { props } = render({
+      rim: false,
+      specular: false,
+      thickness: 0,
+      blurRadius: 20,
+      dim: 0.4,
+    });
+    expect(props.rim).toBe(false);
+    expect(props.specular).toBe(false);
+    expect(props.thickness).toBe(0);
+    expect(props.blurRadius).toBe(20);
+    expect(props.dim).toBe(0.4);
+  });
+
+  it('clamps a negative blurRadius rather than passing the unset sentinel', () => {
+    expect(render({ blurRadius: -5 }).props.blurRadius).toBe(0);
+  });
+
+  it('keeps the genuinely Android-only optics off iOS', () => {
+    const { props } = render({
+      edgeReflectionStrength: 0.5,
+      legibilityFloor: 0.5,
+    });
+    expect(props.edgeReflectionStrength).toBeUndefined();
+    expect(props.legibilityFloor).toBeUndefined();
+  });
+
   it('sends no shape by default', () => {
     const { props } = render();
     expect(props.shapePath).toBe('');

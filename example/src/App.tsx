@@ -82,6 +82,10 @@ const BARE_DOCK_PATH = createDockPath(BARE_DOCK_W);
 // Bare swatches: one per row at max size — a square filling the full content
 // width (screen minus the 20px page padding each side).
 const BARE_SIZE = WINDOW_W - 40;
+// Side-by-side A/B cell: two of them plus the gap across the content width.
+const AB_SIZE = Math.floor((WINDOW_W - 40 - 12) / 2);
+// Three-up row for the composition primitives.
+const PRIM_SIZE = Math.floor((WINDOW_W - 40 - 24) / 3);
 function starPoints(
   spikes: number,
   outer: number,
@@ -167,6 +171,84 @@ function Gallery({
           </View>
         </View>
         <Text style={styles.subheading}>Liquid Glass · React Native</Text>
+
+        {/* 0a. Interactive press target ------------------------------------- */}
+        {/* A large, known-position interactive panel. Both platforms render it
+            identically, so a press captured on each can be diffed against its
+            own resting frame and the two deltas compared. */}
+        <Text style={styles.section}>Press target</Text>
+        <LiquidGlassView
+          variant="clear"
+          interactive
+          borderRadius={28}
+          style={styles.pressTarget}
+        />
+
+        {/* 0. SDF vs analytic, like for like -------------------------------- */}
+        {/* The SAME circle, same size, same variant, drawn two ways: as a
+            custom `shape` (signed-distance-field path) and as a rounded rect
+            whose radius makes it a circle (analytic path). Anything that
+            differs between these two is the SDF pipeline's error, not the
+            design. */}
+        <Text style={styles.section}>SDF shape vs analytic — same circle</Text>
+        <View style={styles.abRow}>
+          <View style={styles.abCell}>
+            <LiquidGlassView
+              variant="clear"
+              shape={{ type: 'circle' }}
+              style={styles.abGlass}
+            />
+            <Text style={styles.swatchLabel}>shape=circle (SDF)</Text>
+          </View>
+          <View style={styles.abCell}>
+            <LiquidGlassView
+              variant="clear"
+              borderRadius={AB_SIZE / 2}
+              style={styles.abGlass}
+            />
+            <Text style={styles.swatchLabel}>borderRadius (analytic)</Text>
+          </View>
+        </View>
+
+        {/* 0b. Composition primitives --------------------------------------- */}
+        {/* The same component standing in for the surfaces people normally
+            reach for a BlurView or a translucent View to build. */}
+        <Text style={styles.section}>Primitives — blur · scrim · glass</Text>
+        <View style={styles.abRow}>
+          <View style={styles.abCell}>
+            <LiquidGlassView
+              variant="clear"
+              rim={false}
+              specular={false}
+              thickness={0}
+              blurRadius={20}
+              borderRadius={20}
+              style={styles.primCell}
+            />
+            <Text style={styles.swatchLabel}>plain blur</Text>
+          </View>
+          <View style={styles.abCell}>
+            <LiquidGlassView
+              variant="clear"
+              rim={false}
+              specular={false}
+              thickness={0}
+              blurRadius={24}
+              dim={0.45}
+              borderRadius={20}
+              style={styles.primCell}
+            />
+            <Text style={styles.swatchLabel}>modal scrim</Text>
+          </View>
+          <View style={styles.abCell}>
+            <LiquidGlassView
+              variant="clear"
+              borderRadius={20}
+              style={styles.primCell}
+            />
+            <Text style={styles.swatchLabel}>full glass</Text>
+          </View>
+        </View>
 
         {/* 1. Variants ------------------------------------------------------ */}
         <Text style={styles.section}>Variants</Text>
@@ -286,6 +368,60 @@ function Gallery({
           </LiquidGlassView>
         </View>
 
+        {/* 5b. Clear-glass blur --------------------------------------------- */}
+        {/* `clear` deliberately blurs far less than `regular` across the same
+            `intensity` scale, so `blurRadius` gives it an exact value in dp.
+            Compare these against the grid: 0 is a genuinely unblurred pane. */}
+        <Text style={styles.section}>Clear glass · blurRadius</Text>
+        <View style={styles.rowWrap}>
+          {[0, 8, 16, 24].map((r) => (
+            <LiquidGlassView
+              key={r}
+              variant="clear"
+              blurRadius={r}
+              borderRadius={16}
+              style={styles.chip}
+            >
+              <Text style={styles.chipText}>{r}</Text>
+            </LiquidGlassView>
+          ))}
+        </View>
+
+        {/* Every silhouette as `clear` glass — transparent and refractive, so
+            the grid reads straight through it — first at the variant's own
+            light blur, then with an explicit radius. */}
+        <Text style={styles.section}>Clear glass · custom shapes</Text>
+        <View style={styles.rowWrap}>
+          {BARE_SHAPES.map((s) => (
+            <ShapeSwatch
+              key={s.label}
+              label={s.label}
+              shape={s.shape}
+              variant="clear"
+            />
+          ))}
+        </View>
+
+        <Text style={styles.section}>Clear shapes · blurRadius 18</Text>
+        <View style={styles.rowWrap}>
+          {BARE_SHAPES.map((s) => (
+            <ShapeSwatch
+              key={s.label}
+              label={s.label}
+              shape={s.shape}
+              variant="clear"
+              blurRadius={18}
+            />
+          ))}
+        </View>
+
+        {/* A wide, short bar is the shape that shows the lens easing off
+            through the middle — its medial axis runs straight across it. */}
+        <Text style={styles.section}>Wide bar</Text>
+        <LiquidGlassView borderRadius={28} style={styles.wideBar}>
+          <Text style={styles.tileTitle}>Tab bar</Text>
+        </LiquidGlassView>
+
         {/* 6. Intensity ramp (pre-26 fallback) ------------------------------ */}
         <Text style={styles.section}>Intensity (fallback)</Text>
         <View style={styles.rowWrap}>
@@ -383,11 +519,13 @@ function ShapeSwatch({
   shape,
   variant = 'regular',
   tintColor,
+  blurRadius,
 }: {
   label: string;
   shape: LiquidGlassShape;
   variant?: 'regular' | 'clear';
   tintColor?: string;
+  blurRadius?: number;
 }) {
   return (
     <View style={styles.swatch}>
@@ -396,6 +534,7 @@ function ShapeSwatch({
         interactive
         tintColor={tintColor}
         shape={shape}
+        blurRadius={blurRadius}
         style={styles.swatchGlass}
       />
       <Text style={styles.swatchLabel}>{label}</Text>
@@ -455,6 +594,12 @@ const styles = StyleSheet.create({
 
   // Custom-shape swatches: a fixed square canvas so circle/polygon/star aren't
   // stretched (the shape fills the view's bounds).
+  abRow: { flexDirection: 'row', gap: 12 },
+  abCell: { alignItems: 'center', gap: 6 },
+  abGlass: { width: AB_SIZE, height: AB_SIZE },
+  primCell: { width: PRIM_SIZE, height: PRIM_SIZE },
+  pressTarget: { width: '100%', height: 220 },
+
   swatch: { alignItems: 'center', gap: 6, width: 84 },
   swatchGlass: { width: 84, height: 84 },
   swatchLabel: { fontSize: 12, color: 'rgba(255,255,255,0.85)' },
@@ -466,6 +611,12 @@ const styles = StyleSheet.create({
   bareDock: { width: BARE_DOCK_W, height: DOCK_H, marginTop: 6 },
 
   pill: { paddingHorizontal: 28, paddingVertical: 18, overflow: 'hidden' },
+  wideBar: {
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
   square: {
     width: 88,
     height: 88,

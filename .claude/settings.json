@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(yarn typecheck)",
+      "Bash(yarn lint)",
+      "Bash(yarn test)",
+      "Bash(yarn test *)",
+      "Bash(yarn jest)",
+      "Bash(yarn jest *)",
+      "Bash(yarn tsc)",
+      "Bash(yarn workspaces list)",
+      "Bash(yarn why *)",
+      "Bash(adb devices*)",
+      "Bash(adb shell getprop*)",
+      "Bash(./gradlew :react-native-liquid-glassmorphism:compileDebugKotlin*)",
+      "Bash(./gradlew :react-native-liquid-glassmorphism:testDebugUnitTest*)",
+      "Bash(./gradlew tasks*)",
+      "Bash(npm view *)",
+      "Bash(curl -s https://registry.npmjs.org/*)",
+      "Bash(curl -s https://api.npmjs.org/*)"
+    ]
+  }
+}
