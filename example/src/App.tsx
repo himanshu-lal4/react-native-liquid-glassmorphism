@@ -84,6 +84,8 @@ const BARE_DOCK_PATH = createDockPath(BARE_DOCK_W);
 const BARE_SIZE = WINDOW_W - 40;
 // Side-by-side A/B cell: two of them plus the gap across the content width.
 const AB_SIZE = Math.floor((WINDOW_W - 40 - 12) / 2);
+// Three-up row for the composition primitives.
+const PRIM_SIZE = Math.floor((WINDOW_W - 40 - 24) / 3);
 function starPoints(
   spikes: number,
   outer: number,
@@ -193,6 +195,46 @@ function Gallery({
               style={styles.abGlass}
             />
             <Text style={styles.swatchLabel}>borderRadius (analytic)</Text>
+          </View>
+        </View>
+
+        {/* 0b. Composition primitives --------------------------------------- */}
+        {/* The same component standing in for the surfaces people normally
+            reach for a BlurView or a translucent View to build. */}
+        <Text style={styles.section}>Primitives — blur · scrim · glass</Text>
+        <View style={styles.abRow}>
+          <View style={styles.abCell}>
+            <LiquidGlassView
+              variant="clear"
+              rim={false}
+              specular={false}
+              thickness={0}
+              blurRadius={20}
+              borderRadius={20}
+              style={styles.primCell}
+            />
+            <Text style={styles.swatchLabel}>plain blur</Text>
+          </View>
+          <View style={styles.abCell}>
+            <LiquidGlassView
+              variant="clear"
+              rim={false}
+              specular={false}
+              thickness={0}
+              blurRadius={24}
+              dim={0.45}
+              borderRadius={20}
+              style={styles.primCell}
+            />
+            <Text style={styles.swatchLabel}>modal scrim</Text>
+          </View>
+          <View style={styles.abCell}>
+            <LiquidGlassView
+              variant="clear"
+              borderRadius={20}
+              style={styles.primCell}
+            />
+            <Text style={styles.swatchLabel}>full glass</Text>
           </View>
         </View>
 
@@ -543,6 +585,7 @@ const styles = StyleSheet.create({
   abRow: { flexDirection: 'row', gap: 12 },
   abCell: { alignItems: 'center', gap: 6 },
   abGlass: { width: AB_SIZE, height: AB_SIZE },
+  primCell: { width: PRIM_SIZE, height: PRIM_SIZE },
 
   swatch: { alignItems: 'center', gap: 6, width: 84 },
   swatchGlass: { width: 84, height: 84 },

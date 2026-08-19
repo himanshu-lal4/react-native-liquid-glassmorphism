@@ -32,6 +32,25 @@ export interface NativeProps extends ViewProps {
   interactive?: boolean;
 
   /**
+   * Android only: draw the bright glass edge. `false` leaves a plain blurred
+   * pane with no outline — the building block for a BlurView-style surface.
+   */
+  rim?: WithDefault<boolean, true>;
+
+  /**
+   * Android only: draw the moving sheen and specular hotspot. `false` removes
+   * every light-driven highlight, leaving a flat material.
+   */
+  specular?: WithDefault<boolean, true>;
+
+  /**
+   * A flat dimming scrim over the backdrop, `0`–`1`, under the children.
+   * The modal/backdrop primitive. Unlike `legibilityFloor` it is constant, not
+   * adaptive. Implemented on both platforms.
+   */
+  dim?: WithDefault<Float, 0>;
+
+  /**
    * Android only: device-tilt specular (gyro/accelerometer). Decoupled from
    * `interactive` so touch response can run without an always-on motion sensor.
    * The sensor is registered only while this is `true`.

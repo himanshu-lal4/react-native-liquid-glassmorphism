@@ -74,6 +74,11 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   // Legibility floor (#2), 0 → 1: an adaptive surface drawn UNDER the foreground
   // children so chrome (icons/labels) stays readable over clear glass.
   private var legibilityFloor = 0f
+  // Composition primitives: switch the glass's decorative layers off so the
+  // same view can serve as a plain blur pane, a scrim, or a modal backdrop.
+  private var rimEnabled = true
+  private var specularEnabled = true
+  private var dim = 0f
 
   // --- Custom shape (arbitrary SVG silhouette) ---
   private var shapePathData: String = ""
@@ -226,6 +231,19 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   }
 
   /** Legibility floor (#2), 0 (off) → 1 (max), clamped. */
+  fun setRimValue(value: Boolean) {
+    if (rimEnabled != value) { rimEnabled = value; refreshPaints(); invalidate() }
+  }
+
+  fun setSpecularValue(value: Boolean) {
+    if (specularEnabled != value) { specularEnabled = value; invalidate() }
+  }
+
+  fun setDimValue(value: Float) {
+    val v = value.coerceIn(0f, 1f)
+    if (dim != v) { dim = v; invalidate() }
+  }
+
   fun setLegibilityFloorValue(value: Float) {
     val v = value.coerceIn(0f, 1f)
     if (legibilityFloor != v) { legibilityFloor = v; invalidate() }
@@ -600,8 +618,8 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     // than a single glass edge. The shader's line is the better one now that
     // `d` is precise on both paths, so it owns the rim and this stroke is the
     // fallback for the tiers that have no shader.
-    if (shaderActive) {
-      // Shader owns the rim.
+    if (shaderActive || !rimEnabled) {
+      // Shader owns the rim, or the caller turned it off.
     } else if (shapePath != null) {
       canvas.drawPath(shapePath, rimPaint)
     } else {
@@ -702,10 +720,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       shader.setFloatUniform("iSat", if (variantClear) 1.32f else 1.3f)
       shader.setFloatUniform("iLift", GlassParams.frostFloorAlpha(variantClear))
       shader.setFloatUniform("iAdapt", GlassParams.adaptiveLift(variantClear))
-      shader.setFloatUniform("iSpecular", GlassParams.specularAlpha(variantClear))
+      shader.setFloatUniform("iSpecular", if (specularEnabled) GlassParams.specularAlpha(variantClear) else 0f)
       // Broad glassy face reflection. Kept subtle on clear — a big milky sheen
       // band is exactly what makes clear glass read as frosted rather than clear.
-      shader.setFloatUniform("iSheen", if (variantClear) 0.07f else 0.10f)
+      shader.setFloatUniform("iSheen", if (!specularEnabled) 0f else if (variantClear) 0.07f else 0.10f)
+      shader.setFloatUniform("iRim", if (rimEnabled) 1f else 0f)
+      shader.setFloatUniform("iDim", dim)
       shader.setFloatUniform("iTilt", tiltX, tiltY)
       shader.setFloatUniform("iTouch", touchX, touchY)
       shader.setFloatUniform("iTouchAmt", if (interactive) touchAmt else 0f)
@@ -814,6 +834,8 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       uniform float2 iTouch;
       uniform float iTouchAmt;
       uniform float iRefl;
+      uniform float iRim;
+      uniform float iDim;
 
       float sdRoundRect(float2 p, float2 b, float r) {
         float2 q = abs(p) - b + r;
@@ -978,6 +1000,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         // Vibrant coloured tint (deep, not pastel).
         col = mix(col, iTint.rgb, clamp(iTint.a * 1.5, 0.0, 0.88));
 
+        // Flat dimming scrim. Applied after the tint and BEFORE the lighting,
+        // so a dimmed backdrop still keeps its glass edge and sheen rather
+        // than going uniformly dark — that is the difference between a modal
+        // backdrop made of glass and one made of a black View.
+        col = col * half(1.0 - iDim);
+
         // 3D normal of the surface for lighting. Kept fairly FLAT (a glass
         // sheet, not a bubble) — iOS Liquid Glass is a flat pane; the edge
         // lensing does the work, not a domed bulge. Only a gentle rim tilt.
@@ -1013,7 +1041,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         // rimLine carries the whole glass edge now that the Canvas stroke no
         // longer doubles it, so it is weighted to match what that stroke used
         // to contribute on top.
-        col = col + hi * (sheen + rimLine * 0.80 + (fres * 0.18 + spec * 0.6) * iSpecular)
+        col = col + hi * (sheen + rimLine * 0.80 * iRim + (fres * 0.18 + spec * 0.6) * iSpecular)
                   - half3(edgeShade);
 
         // Interactive touch: a soft radial bloom under the finger — iOS glass

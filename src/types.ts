@@ -38,6 +38,45 @@ export interface LiquidGlassViewProps extends ViewProps {
   intensity?: number;
 
   /**
+   * Draw the bright glass edge.
+   *
+   * Set `false`, together with `specular={false}` and `thickness={0}`, to get a
+   * plain blurred pane — a drop-in for a conventional blur view:
+   *
+   * ```tsx
+   * <LiquidGlassView rim={false} specular={false} thickness={0} blurRadius={20} />
+   * ```
+   *
+   * Android only. No-op on iOS, where the edge is part of the system material.
+   * @default true
+   */
+  rim?: boolean;
+
+  /**
+   * Draw the moving sheen and specular hotspot. `false` removes every
+   * light-driven highlight, leaving a flat material.
+   *
+   * Android only. No-op on iOS.
+   * @default true
+   */
+  specular?: boolean;
+
+  /**
+   * A flat dimming scrim over the backdrop, `0`–`1`, drawn under the children.
+   *
+   * This is the modal-overlay / backdrop primitive: a full-screen
+   * `<LiquidGlassView dim={0.4} blurRadius={24} rim={false} />` behind a sheet
+   * gives you the blurred, darkened backdrop that pattern wants.
+   *
+   * Distinct from {@link legibilityFloor}, which is adaptive and exists to keep
+   * chrome legible; `dim` is constant and is a design choice about the surface.
+   *
+   * Works on both platforms.
+   * @default 0
+   */
+  dim?: number;
+
+  /**
    * Android only: an explicit blur radius in dp, overriding whatever
    * {@link intensity} would have derived.
    *

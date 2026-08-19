@@ -168,6 +168,10 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
   // on iOS 26 the glass is tinted natively instead.
   UIView *_tintOverlay;
 
+  // Flat dimming scrim, above the material and below the app's children —
+  // the same place the Android shader applies it.
+  UIView *_dimOverlay;
+
   // Cached prop state so we only rebuild the effect when its inputs change.
   std::string _variant;
   int _intensity;
@@ -205,6 +209,12 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
     _tintOverlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     _tintOverlay.userInteractionEnabled = NO;
     [_effectView.contentView addSubview:_tintOverlay];
+
+    _dimOverlay = [[UIView alloc] initWithFrame:_effectView.bounds];
+    _dimOverlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    _dimOverlay.userInteractionEnabled = NO;
+    _dimOverlay.backgroundColor = UIColor.clearColor;
+    [_effectView.contentView addSubview:_dimOverlay];
   }
 
   return self;
@@ -216,7 +226,8 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
 // so they render crisply on top of the glass material.
 - (void)mountChildComponentView:(UIView<RCTComponentViewProtocol> *)childComponentView index:(NSInteger)index
 {
-  [_effectView.contentView insertSubview:childComponentView atIndex:index + 1];
+  // +2: the tint wash and the dim scrim both sit below the app's children.
+  [_effectView.contentView insertSubview:childComponentView atIndex:index + 2];
 }
 
 - (void)unmountChildComponentView:(UIView<RCTComponentViewProtocol> *)childComponentView index:(NSInteger)index
@@ -350,6 +361,10 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
 #endif
     _tintOverlay.backgroundColor = nativeGlass ? UIColor.clearColor : tint;
   }
+
+  CGFloat dim = MAX(0.0, MIN(1.0, (CGFloat)newViewProps.dim));
+  _dimOverlay.backgroundColor =
+      dim > 0 ? [UIColor.blackColor colorWithAlphaComponent:dim] : UIColor.clearColor;
 
   // Custom silhouette (SVG path + view-box). When present it masks the whole
   // view and the rounded-corner treatment below is skipped entirely.

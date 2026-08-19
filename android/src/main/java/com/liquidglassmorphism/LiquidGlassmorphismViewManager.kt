@@ -66,6 +66,18 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
     view.setEdgeReflectionStrengthValue(value)
   }
 
+  override fun setRim(view: LiquidGlassmorphismView, value: Boolean) {
+    view.setRimValue(value)
+  }
+
+  override fun setSpecular(view: LiquidGlassmorphismView, value: Boolean) {
+    view.setSpecularValue(value)
+  }
+
+  override fun setDim(view: LiquidGlassmorphismView, value: Float) {
+    view.setDimValue(value)
+  }
+
   override fun setLegibilityFloor(view: LiquidGlassmorphismView, value: Float) {
     view.setLegibilityFloorValue(value)
   }

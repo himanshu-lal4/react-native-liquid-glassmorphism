@@ -14,6 +14,9 @@ export function LiquidGlassView({
   variant = 'regular',
   intensity = 60,
   blurRadius,
+  rim = true,
+  specular = true,
+  dim = 0,
   interactive = false,
   tilt = false,
   refraction = true,
@@ -55,6 +58,8 @@ export function LiquidGlassView({
             typeof blurRadius === 'number' && Number.isFinite(blurRadius)
               ? Math.max(0, blurRadius)
               : -1,
+          rim,
+          specular,
         }
       : null;
 
@@ -66,6 +71,7 @@ export function LiquidGlassView({
       tilt={tilt}
       refraction={refraction}
       glassCornerRadius={borderRadius}
+      dim={dim}
       {...shapeProps}
       tintColor={tintColor}
       {...platformProps}

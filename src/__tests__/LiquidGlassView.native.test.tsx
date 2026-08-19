@@ -82,6 +82,26 @@ describe('LiquidGlassView (native) prop mapping', () => {
     expect(render({ blurRadius: 12 }).props.blurRadius).toBeUndefined();
   });
 
+  // The composition primitives: `rim`/`specular` shape the Android material
+  // only, while `dim` is a design choice both platforms honour.
+  it('defaults the primitives to the full glass treatment', () => {
+    const { props } = render();
+    expect(props.dim).toBe(0);
+    // Android-only, so absent under the jest preset's 'ios'.
+    expect(props.rim).toBeUndefined();
+    expect(props.specular).toBeUndefined();
+  });
+
+  it('forwards `dim` on every platform', () => {
+    expect(render({ dim: 0.4 }).props.dim).toBe(0.4);
+  });
+
+  it('keeps `rim` and `specular` off the iOS prop surface', () => {
+    const { props } = render({ rim: false, specular: false });
+    expect(props.rim).toBeUndefined();
+    expect(props.specular).toBeUndefined();
+  });
+
   it('sends no shape by default', () => {
     const { props } = render();
     expect(props.shapePath).toBe('');
