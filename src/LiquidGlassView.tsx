@@ -1,4 +1,4 @@
-import { View, type NativeSyntheticEvent, type ViewProps } from 'react-native';
+import { StyleSheet, View, type NativeSyntheticEvent, type ViewProps } from 'react-native';
 
 import { validateGlassProps } from './devValidate';
 import { resolvePreset } from './presets';
@@ -17,6 +17,8 @@ const NATIVE_ONLY_PROPS = [
   'tilt',
   'refraction',
   'thickness',
+  'blurRadius',
+  'specular',
   'edgeReflectionStrength',
   'legibilityFloor',
   // A custom silhouette needs a real GPU pipeline; the fallback renders a
@@ -38,6 +40,11 @@ const NATIVE_ONLY_PROPS = [
  * Presets are still resolved here so a `preset` that sets `variant` or
  * `borderRadius` shapes the fallback too, and a cross-platform tree renders
  * consistently rather than silently dropping the prop.
+ *
+ * The optical props are dropped — there is no honest way to fake refraction
+ * here. The two that are *design* choices rather than optics, `rim` and `dim`,
+ * are honoured, so a scrim or a borderless pane still composes the same way it
+ * does natively.
  */
 export function LiquidGlassView(props: LiquidGlassViewProps) {
   if (__DEV__) {
@@ -48,6 +55,8 @@ export function LiquidGlassView(props: LiquidGlassViewProps) {
     tintColor,
     variant = 'regular',
     borderRadius = 0,
+    rim = true,
+    dim = 0,
     style,
     children,
     onPipelineReady,
@@ -81,8 +90,34 @@ export function LiquidGlassView(props: LiquidGlassViewProps) {
   // The `regular` material dims its backdrop on the real implementations, which
   // is what keeps white-on-glass text readable. A uniformly transparent
   // fallback would put white text on a white background with no warning, so the
-  // scrim tracks the variant rather than being a fixed value.
-  const scrim = variant === 'clear' ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.18)';
+  // wash tracks the variant rather than being a fixed value.
+  const wash =
+    variant === 'clear'
+      ? 'rgba(255, 255, 255, 0.10)'
+      : 'rgba(255, 255, 255, 0.18)';
+
+  const scrim = Math.max(0, Math.min(1, dim));
+
+  // The scrim gets its own layer, because a single `backgroundColor` cannot
+  // carry both the tint and the dim, and natively `dim` sits under the
+  // children. Only wrapped when there IS a scrim — otherwise `children` is
+  // passed straight through, so the common case keeps the element tree (and
+  // anything walking it) exactly as it was.
+  const content =
+    scrim > 0 ? (
+      <>
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: `rgba(0, 0, 0, ${scrim})`, borderRadius },
+          ]}
+        />
+        {children}
+      </>
+    ) : (
+      children
+    );
 
   return (
     <View
@@ -90,15 +125,15 @@ export function LiquidGlassView(props: LiquidGlassViewProps) {
       ref={handleRef}
       style={[
         {
-          backgroundColor: tintColor ?? scrim,
+          backgroundColor: tintColor ?? wash,
           borderRadius,
-          borderWidth: 1,
+          borderWidth: rim ? 1 : 0,
           borderColor: 'rgba(255, 255, 255, 0.35)',
         },
         style,
       ]}
     >
-      {children}
+      {content}
     </View>
   );
 }

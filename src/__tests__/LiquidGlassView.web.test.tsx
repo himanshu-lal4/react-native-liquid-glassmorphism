@@ -38,6 +38,24 @@ describe('LiquidGlassView (web fallback)', () => {
     expect(flatStyle(render({ tintColor: '#123456' })).backgroundColor).toBe('#123456');
   });
 
+  // `rim` and `dim` are design choices rather than optics, so the fallback
+  // honours them instead of dropping them with the rest.
+  it('drops the border when rim is off', () => {
+    expect(flatStyle(render()).borderWidth).toBe(1);
+    expect(flatStyle(render({ rim: false })).borderWidth).toBe(0);
+  });
+
+  it('renders a scrim layer for dim', () => {
+    const scrim = render({ dim: 0.4 }).props.children.props.children[0];
+    expect(Object.assign({}, ...scrim.props.style).backgroundColor).toBe('rgba(0, 0, 0, 0.4)');
+  });
+
+  // At dim 0 the children must reach the View untouched — no wrapper, no extra
+  // null slot — or anything walking the tree sees a different shape.
+  it('passes children through untouched when dim is 0', () => {
+    expect(render({ children: 'hi' }).props.children).toBe('hi');
+  });
+
   it('applies borderRadius', () => {
     expect(flatStyle(render({ borderRadius: 20 })).borderRadius).toBe(20);
   });

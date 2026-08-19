@@ -120,6 +120,14 @@ describe('validateGlassProps — platform and tier no-ops', () => {
 
   // Sharing one component across platforms is the normal case; a prop sitting
   // at its default changes nothing on either platform and must stay silent.
+  // `thickness={0}` is honoured on iOS — it is part of the plain-blur signal —
+  // so flagging it as inert would send people away from the working recipe.
+  it('does not flag thickness={0} on iOS', () => {
+    const { validateGlassProps } = loadFor('ios', '26.0');
+    validateGlassProps({ thickness: 0, rim: false, specular: false });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it('stays quiet on iOS for Android-only props left at their defaults', () => {
     const { validateGlassProps } = loadFor('ios', '26.0');
     validateGlassProps({

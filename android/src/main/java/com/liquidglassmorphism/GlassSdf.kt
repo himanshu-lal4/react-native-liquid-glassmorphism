@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -34,7 +35,8 @@ object GlassSdf {
 
   /**
    * @param bitmap the distance field (working resolution, ≤[MAX_DIM])
-   * @param range  full encoded span in view px: d = (r − 0.5) · range
+   * @param range  encoded span in view px, square-law: d = u·|u|·range
+   *   where u = (r − 0.5)·2
    * @param mask   full-view-resolution coverage of the silhouette. The shader
    *   takes its EDGE ALPHA from this (Skia's anti-aliased path rasterisation —
    *   crisp like a CAShapeLayer mask), and only the optics from the SDF; an
@@ -53,6 +55,14 @@ object GlassSdf {
   // shader's normal (finite differences) needs to stay smooth — at 512 a wide
   // shape's normals jitter per-pixel and the refraction reads as shattered.
   private const val MAX_DIM = 1024
+
+  /**
+   * Half-width, in texels, of the stencil the surface normal is differenced
+   * over. Wide enough that the medial axis fades across a band you can see
+   * rather than a hard line; narrow enough to leave the normal untouched
+   * everywhere the field is locally linear, which is almost everywhere.
+   */
+  private const val GRAD_RADIUS = 3
   // Comfortably larger than any squared distance in a ≤1024² grid (~2.1e6) yet
   // small enough to keep float32 precision sharp through the parabola math.
   private const val INF = 1e9f
@@ -153,7 +163,6 @@ object GlassSdf {
     // float here on the CPU. Distances saturate beyond ±range, which is fine —
     // the interior plateau reads as flat clear glass.
     val range = min(220f, max(48f, min(viewW, viewH) * 0.6f))
-    val inv = 1f / (2f * range)
 
     // The two band ramps every optic is built from, precomputed in float.
     // Deriving these in-shader from the 8-bit distance leaves ±½-code ripple,
@@ -175,16 +184,51 @@ object GlassSdf {
       if (inside > maxInside) maxInside = inside
     }
     maxInside = max(1f, maxInside * toView)
-    val lensW = max(28f, min(minDim * 0.56f, maxInside * 0.75f))
-    val reflW = max(14f, min(minDim * 0.35f, maxInside * 0.55f))
+    // The inradius cap has to stay authoritative. A `max(28, …)` floor outside
+    // the `min` silently overrode it on any compact or spiky silhouette: an
+    // 84px triangle has an inradius near 20px, so a 28px floor put the whole
+    // shape inside the lens band and the mirror band covered most of it too —
+    // no calm centre anywhere, which is why small stars and triangles read as
+    // milky plastic instead of glass. The floor is now small enough that the
+    // cap always wins where it matters.
+    // Mirror the analytic path's band multipliers, with the shape's inradius
+    // standing in for the rounded rect's corner radius.
+    //
+    // The analytic circle gets `lensW = cornerRadius * 1.4` and
+    // `reflW = minDim * 0.35`. Against `maxInside * 0.75` / `0.55` the SDF band
+    // came out roughly half as wide for the same circle, which packs the same
+    // displacement into half the distance — twice the gradient. That is the
+    // radial sunburst around every custom silhouette: a steep displacement ramp
+    // stretches the backdrop along the normal. Matching the multipliers makes
+    // the two paths agree.
+    val lensW = max(6f, min(minDim * 0.7f, maxInside * 1.4f))
+    val reflW = max(4f, min(minDim * 0.35f, maxInside * 0.7f))
 
     val out = IntArray(n)
     for (i in 0 until n) {
       // Signed by coverage: negative inside the shape, positive outside.
       val signed = dist[i] * toView
-      var e = 0.5f + signed * inv
-      if (e < 0f) e = 0f else if (e > 1f) e = 1f
-      val v = (e * 255f + 0.5f + dither(i)).toInt().coerceIn(0, 255)
+      // SQUARE-LAW encoding, not linear. `d` has two very different consumers:
+      // broad band masks tens of px wide, and `rimLine`, which needs it
+      // accurate across a 3px band at the very edge. A linear ramp over ±220px
+      // in 8 bits spends ~1.7px per code, so the whole rim highlight lived
+      // inside two codes and came out as the speckled dark ring on every
+      // custom shape — while the analytic path, with an exact float distance,
+      // draws a clean bright edge. Storing sqrt(|d|) concentrates the codes
+      // where the edge is: the first 3px now span ~15 codes instead of 2, and
+      // the far field, which only feeds broad masks, gives up precision it
+      // never needed.
+      val t = min(1f, abs(signed) / range)
+      val u = if (signed < 0f) -sqrt(t) else sqrt(t)
+      val e = (0.5f + u * 0.5f).coerceIn(0f, 1f)
+      // NOT dithered, unlike the ramps below. `d` feeds `edgeGuard`, which
+      // ramps over 12px while multiplying a mirror displacement of ~130px —
+      // roughly an 11x amplification. Sub-code noise there becomes several
+      // pixels of radial sample jitter per output pixel, which is the fine
+      // "sunburst" of hairs around every custom silhouette. The square-law
+      // encoding already puts sub-pixel steps near the edge, so there is no
+      // banding left for dither to break up.
+      val v = (e * 255f + 0.5f).toInt().coerceIn(0, 255)
       val rim = 1f - (-signed / lensW).coerceIn(0f, 1f)
       val eb = 1f - (-signed / reflW).coerceIn(0f, 1f)
       val rimQ = (rim * 255f + 0.5f + dither(i * 5 + 3)).toInt().coerceIn(0, 255)
@@ -201,17 +245,33 @@ object GlassSdf {
     // again — the shader samples these instead of finite-differencing the
     // packed distance texture (which wobbles a few degrees per texel; the
     // lens/mirror displacement magnifies that into radial streaks).
+    // Central differences over a WIDE stencil, not one texel.
+    //
+    // `dist` is very nearly an exact distance field, so |grad| is ~1 everywhere
+    // and collapses only within a texel or two of the medial axis. A 1-texel
+    // difference therefore makes both the direction and the confidence flip
+    // over essentially no distance — along a polygon's angle bisectors that
+    // produced dark, ragged wedges running in from every vertex: in the narrow
+    // transition band the confidence sits mid-range (so the lens is still
+    // partly on) while the direction is pure noise, and the mirror term throws
+    // the sample tens of pixels somewhere arbitrary.
+    //
+    // Sampling over ±GRAD_RADIUS makes the two sides cancel gradually, so the
+    // direction stays stable through the band and the confidence ramps smoothly
+    // — the same reasoning as the analytic rounded-rect's epsilon.
     val gx = FloatArray(n)
     val gy = FloatArray(n)
+    val r = GRAD_RADIUS
     for (y in 0 until h) {
       for (x in 0 until w) {
         val i = y * w + x
-        val xl = dist[if (x > 0) i - 1 else i]
-        val xr = dist[if (x < w - 1) i + 1 else i]
-        val yu = dist[if (y > 0) i - w else i]
-        val yd = dist[if (y < h - 1) i + w else i]
-        gx[i] = (xr - xl) * 0.5f
-        gy[i] = (yd - yu) * 0.5f
+        val xl = dist[y * w + (x - r).coerceAtLeast(0)]
+        val xr = dist[y * w + (x + r).coerceAtMost(w - 1)]
+        val yu = dist[(y - r).coerceAtLeast(0) * w + x]
+        val yd = dist[(y + r).coerceAtMost(h - 1) * w + x]
+        // Normalised by the actual span so |grad| stays ~1 on clean slopes.
+        gx[i] = (xr - xl) / (2f * r)
+        gy[i] = (yd - yu) / (2f * r)
       }
     }
     // Two passes (σ≈1.6): the mirror band displaces by ~iLens·3 px, so it
@@ -238,7 +298,7 @@ object GlassSdf {
     val gradBmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
     gradBmp.setPixels(gradPx, 0, w, 0, 0, w, h)
 
-    return Result(bmp, 2f * range, buildMask(path, viewW, viewH), gradBmp)
+    return Result(bmp, range, buildMask(path, viewW, viewH), gradBmp)
   }
 
   // Full-resolution (capped) anti-aliased coverage of the path — the shader's

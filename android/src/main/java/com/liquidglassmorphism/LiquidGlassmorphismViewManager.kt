@@ -38,6 +38,10 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
     view.setIntensityValue(value)
   }
 
+  override fun setBlurRadius(view: LiquidGlassmorphismView, value: Float) {
+    view.setBlurRadiusDpValue(value)
+  }
+
   override fun setInteractive(view: LiquidGlassmorphismView, value: Boolean) {
     view.setInteractiveValue(value)
   }
@@ -60,6 +64,18 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
 
   override fun setEdgeReflectionStrength(view: LiquidGlassmorphismView, value: Float) {
     view.setEdgeReflectionStrengthValue(value)
+  }
+
+  override fun setRim(view: LiquidGlassmorphismView, value: Boolean) {
+    view.setRimValue(value)
+  }
+
+  override fun setSpecular(view: LiquidGlassmorphismView, value: Boolean) {
+    view.setSpecularValue(value)
+  }
+
+  override fun setDim(view: LiquidGlassmorphismView, value: Float) {
+    view.setDimValue(value)
   }
 
   override fun setLegibilityFloor(view: LiquidGlassmorphismView, value: Float) {
