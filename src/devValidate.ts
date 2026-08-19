@@ -182,6 +182,9 @@ function checkPlatformNoops(props: LiquidGlassViewProps): void {
     if (props.refraction === false) {
       warnPlatformNoop('refraction', 'the OS renders refraction natively');
     }
+    if (props.paused === true) {
+      warnPlatformNoop('paused', 'the OS owns the material’s refresh');
+    }
   }
 }
 

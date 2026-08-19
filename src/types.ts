@@ -183,6 +183,24 @@ export interface LiquidGlassViewProps extends ViewProps {
   legibilityFloor?: number;
 
   /**
+   * Android only: suspend the effect without unmounting. The glass holds its
+   * last frame, and resuming re-captures immediately.
+   *
+   * The glass captures what is behind it once per frame, which is the single
+   * most expensive thing it does. Set this whenever a view is mounted but not
+   * being looked at and the library cannot tell on its own — a screen kept
+   * alive in a navigator's stack, a carousel page off to the side.
+   *
+   * Views that Android itself reports as off-screen — behind a pushed screen,
+   * on an inactive tab, or in a backgrounded app — pause automatically, so this
+   * prop is for the cases that signal cannot see.
+   *
+   * No-op on iOS, where the OS owns the material's refresh.
+   * @default false
+   */
+  paused?: boolean;
+
+  /**
    * Fired once per view, after the first frame, reporting the tier that
    * actually rendered.
    *

@@ -198,6 +198,7 @@ Extends `ViewProps`. All props are optional.
 | `thickness` | `number` (0–2) | `1` | **Android only** — "liquid volume": scales the refraction/lens depth. `0` = flat pane, `1` = default, up to `~2` = deep liquid lens. No-op on iOS (glass optics are OS-fixed). |
 | `edgeReflectionStrength` | `number` (0–1) | `1` | **Android only** — strength of the edge-reflection band (the upside-down rim echo), **independent of `thickness`**. Lower it over text-heavy backdrops where the mirrored copy reads as noise. No-op on iOS. |
 | `legibilityFloor` | `number` (0–1) | `0` | **Android only** — an adaptive veil drawn **under the foreground children** so chrome (icons/labels) stays readable over `clear` glass, without darkening the whole pane. Scales with the value and the backdrop brightness; hued by `tintColor`. `0` = off. No-op on iOS. |
+| `paused` | `boolean` | `false` | **Android only** — suspend the per-frame backdrop capture without unmounting; the glass holds its last frame. Off-screen views pause automatically, so this is for the cases Android can't detect. See [Performance](#performance). No-op on iOS. |
 | `onPipelineReady` | `(e) => void` | — | Fires once per view with the tier that actually rendered. See [Events](#events). |
 | `onError` | `(e) => void` | — | Fires when the view can't do what the props asked for. See [Events](#events). |
 
@@ -256,6 +257,39 @@ run before mount and in tests. It returns:
 | `supportsNativeGlass` | The glass is rendered by the OS, not by our shader. |
 | `supportsBlur` · `supportsRefraction` | Whether the backdrop is really blurred / really lensed. |
 | `supportsShapes` | Whether a custom `shape` gets the full glass treatment (below Android 33 the silhouette still clips, but as a path-clipped frost). |
+
+## Performance
+
+On Android the glass captures what is behind it once per frame, into its own
+bitmap. That capture is the single most expensive thing the library does, and it
+is what the knobs below are all about.
+
+**Views that Android reports as off-screen pause themselves.** A screen pushed on
+top of this one, an inactive tab, a backgrounded app — all stop capturing, and
+re-capture on the way back. You do not need to wire anything up for those.
+
+For the cases that signal cannot see — a screen a navigator keeps alive, a
+carousel page waiting off to the side — pause it yourself:
+
+```tsx
+const isFocused = useIsFocused();          // e.g. @react-navigation/native
+
+<LiquidGlassView paused={!isFocused} />
+```
+
+In rough order of what to reach for when frames drop:
+
+1. **`paused`** on anything mounted but not being looked at. Biggest single win.
+2. **Fewer instances.** Each glass view captures its own backdrop — ten of them
+   on screen is ten full captures per frame. (Sharing one capture across views
+   is [tracked here](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues/38).)
+3. **`tilt={false}`** unless the surface really needs a motion-driven specular;
+   it registers a sensor and repaints on its events.
+4. **Simpler `shape`.** An arbitrary path rebuilds a signed-distance-field
+   texture whenever the silhouette or the view's size changes.
+5. **`thickness={0}`** for a flat pane where the lens isn't doing visible work.
+
+On iOS none of this applies — `UIGlassEffect` is composited by the OS.
 
 ## Events
 

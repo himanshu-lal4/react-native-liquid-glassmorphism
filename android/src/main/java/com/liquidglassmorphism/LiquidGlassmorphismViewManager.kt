@@ -66,6 +66,10 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
     view.setLegibilityFloorValue(value)
   }
 
+  override fun setPaused(view: LiquidGlassmorphismView, value: Boolean) {
+    view.setPausedValue(value)
+  }
+
   override fun setShapePath(view: LiquidGlassmorphismView, value: String?) {
     view.setShapePathData(value)
   }

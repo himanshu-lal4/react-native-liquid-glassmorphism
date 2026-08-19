@@ -101,6 +101,12 @@ export interface NativeProps extends ViewProps {
   legibilityFloor?: WithDefault<Float, 0>;
 
   /**
+   * Android only: suspend the per-frame backdrop capture without unmounting.
+   * The glass holds its last frame. Resuming re-captures immediately.
+   */
+  paused?: WithDefault<boolean, false>;
+
+  /**
    * Fired once per view, after the first frame, with the tier that actually
    * rendered. Not a device capability check — an explicit prop or an OS-level
    * fallback can hold a capable device to a lower tier.
