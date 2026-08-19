@@ -24,8 +24,8 @@ Bring **Liquid Glass** to React Native — on **both iOS and Android** — with 
     <td align="center">🤖&nbsp; <b>Android</b> — real-time AGSL refraction</td>
   </tr>
   <tr>
-    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-ios-v1.gif" alt="React Native Liquid Glass demo reel running on iOS 26 with native UIGlassEffect" width="250" /></td>
-    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-android-v1.gif" alt="React Native Liquid Glass demo reel running on Android with real-time AGSL refraction" width="250" /></td>
+    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-ios-v2.gif" alt="React Native Liquid Glass demo reel running on iOS 26 with native UIGlassEffect" width="250" /></td>
+    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-android-v2.gif" alt="React Native Liquid Glass demo reel running on Android with real-time AGSL refraction" width="250" /></td>
   </tr>
 </table>
 
