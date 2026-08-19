@@ -286,6 +286,60 @@ function Gallery({
           </LiquidGlassView>
         </View>
 
+        {/* 5b. Clear-glass blur --------------------------------------------- */}
+        {/* `clear` deliberately blurs far less than `regular` across the same
+            `intensity` scale, so `blurRadius` gives it an exact value in dp.
+            Compare these against the grid: 0 is a genuinely unblurred pane. */}
+        <Text style={styles.section}>Clear glass · blurRadius</Text>
+        <View style={styles.rowWrap}>
+          {[0, 8, 16, 24].map((r) => (
+            <LiquidGlassView
+              key={r}
+              variant="clear"
+              blurRadius={r}
+              borderRadius={16}
+              style={styles.chip}
+            >
+              <Text style={styles.chipText}>{r}</Text>
+            </LiquidGlassView>
+          ))}
+        </View>
+
+        {/* Every silhouette as `clear` glass — transparent and refractive, so
+            the grid reads straight through it — first at the variant's own
+            light blur, then with an explicit radius. */}
+        <Text style={styles.section}>Clear glass · custom shapes</Text>
+        <View style={styles.rowWrap}>
+          {BARE_SHAPES.map((s) => (
+            <ShapeSwatch
+              key={s.label}
+              label={s.label}
+              shape={s.shape}
+              variant="clear"
+            />
+          ))}
+        </View>
+
+        <Text style={styles.section}>Clear shapes · blurRadius 18</Text>
+        <View style={styles.rowWrap}>
+          {BARE_SHAPES.map((s) => (
+            <ShapeSwatch
+              key={s.label}
+              label={s.label}
+              shape={s.shape}
+              variant="clear"
+              blurRadius={18}
+            />
+          ))}
+        </View>
+
+        {/* A wide, short bar is the shape that shows the lens easing off
+            through the middle — its medial axis runs straight across it. */}
+        <Text style={styles.section}>Wide bar</Text>
+        <LiquidGlassView borderRadius={28} style={styles.wideBar}>
+          <Text style={styles.tileTitle}>Tab bar</Text>
+        </LiquidGlassView>
+
         {/* 6. Intensity ramp (pre-26 fallback) ------------------------------ */}
         <Text style={styles.section}>Intensity (fallback)</Text>
         <View style={styles.rowWrap}>
@@ -383,11 +437,13 @@ function ShapeSwatch({
   shape,
   variant = 'regular',
   tintColor,
+  blurRadius,
 }: {
   label: string;
   shape: LiquidGlassShape;
   variant?: 'regular' | 'clear';
   tintColor?: string;
+  blurRadius?: number;
 }) {
   return (
     <View style={styles.swatch}>
@@ -396,6 +452,7 @@ function ShapeSwatch({
         interactive
         tintColor={tintColor}
         shape={shape}
+        blurRadius={blurRadius}
         style={styles.swatchGlass}
       />
       <Text style={styles.swatchLabel}>{label}</Text>
@@ -466,6 +523,12 @@ const styles = StyleSheet.create({
   bareDock: { width: BARE_DOCK_W, height: DOCK_H, marginTop: 6 },
 
   pill: { paddingHorizontal: 28, paddingVertical: 18, overflow: 'hidden' },
+  wideBar: {
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
   square: {
     width: 88,
     height: 88,
