@@ -194,7 +194,7 @@ Extends `ViewProps`. All props are optional.
 | `rim` | `boolean` | `true` | **Android only** — draw the bright glass edge. See [Not just glass](#not-just-glass--blur-scrim-overlay). |
 | `specular` | `boolean` | `true` | **Android only** — draw the moving sheen and specular hotspot. |
 | `dim` | `number` (0–1) | `0` | A flat dimming scrim over the backdrop, under the children — the modal-backdrop primitive. Works on **both** platforms. |
-| `blurRadius` | `number` (dp) | — | **Android only** — an explicit blur radius, overriding whatever `intensity` would derive, and meaning the same thing on both variants. This is the knob to reach for when you want `clear` glass that is still properly blurred: `<LiquidGlassView variant="clear" blurRadius={16} />`. Useful range ~`0`–`30`. No-op on iOS, where the material's blur is the OS's to choose. |
+| `blurRadius` | `number` (dp) | — | An explicit blur radius, overriding whatever `intensity` would derive, and meaning the same thing on both variants. This is the knob to reach for when you want `clear` glass that is still properly blurred: `<LiquidGlassView variant="clear" blurRadius={16} />`. Useful range ~`0`–`30`. Works on **both** platforms, including on real Liquid Glass — UIKit exposes no radius on `UIGlassEffect`, so on iOS the backdrop is blurred underneath the glass and the glass refracts the already-blurred result. |
 | `interactive` | `boolean` | `false` | Reacts to **touch** — a specular bloom + optical magnification under the finger. iOS 26 interactive glass natively. (Device-tilt specular is now the separate `tilt` prop.) |
 | `tilt` | `boolean` | `false` | **Android only** — device-tilt specular driven by the gyro/accelerometer. Decoupled from `interactive` so you can have touch response **without** an always-on motion sensor; the sensor registers only while `tilt` is on. No-op on iOS. |
 | `borderRadius` | `number` (dp) | `0` | Corner radius of the glass surface. Ignored when `shape` is set. |
@@ -374,9 +374,17 @@ turn off what you don't want.
 **All three "off" switches together are also the cross-platform signal.** With
 `rim={false} specular={false} thickness={0}`, iOS stops rendering Liquid Glass
 and returns a plain `UIBlurEffect` material instead — so a blur view is a blur
-view on both platforms, not glass on one and blur on the other. `blurRadius`
-then picks the nearest UIKit material (they're discrete, so it's the closest
-equivalent rather than a literal radius).
+view on both platforms, not glass on one and blur on the other. In that mode
+`blurRadius` picks the nearest UIKit material (they're discrete, so it's the
+closest equivalent rather than a literal radius).
+
+On **Liquid Glass** itself `blurRadius` is continuous on both platforms. Android
+drives the `RenderEffect` radius directly; iOS blurs the backdrop underneath the
+glass, holding a paused `UIViewPropertyAnimator` at a fraction of a blur so the
+radius interpolates rather than snapping between UIKit's discrete materials.
+Measured over 0–25dp against the Android shader, the two track closely — iOS
+blurs marginally harder at each step and carries slightly *less* veil above
+13dp.
 
 `dim` is deliberately separate from `legibilityFloor`: that one is adaptive and
 exists to keep chrome readable, `dim` is a constant design choice about the

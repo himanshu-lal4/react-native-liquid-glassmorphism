@@ -35,7 +35,7 @@ Most "glass" in React Native is really just **blur**: `expo-blur` and `@react-na
 - **expo-blur** — you only need a blurred backdrop (nav bar, modal scrim) on iOS and Android, don't need refraction or an iOS-26 glass look, and want the smallest possible dependency. Simple and well-supported.
 - **@react-native-community/blur** — a bare-workflow blur view if you're not on Expo.
 - **expo-glass-effect / @callstack/liquid-glass** — you're **iOS-only** and want Apple's native Liquid Glass with the least code. No Android glass.
-- **react-native-liquid-glassmorphism** — you want **real Liquid Glass on both iOS and Android** from one API: native `UIGlassEffect` on iOS 26, a real-time AGSL refraction shader on Android, interactive touch/tilt, and custom shapes — with clean fallbacks on older OS versions. It also covers the plain-blur, glassmorphism and modal-scrim cases outright, so you don't need a second library for the surfaces that aren't glass.
+- **react-native-liquid-glassmorphism** — you want **real Liquid Glass on both iOS and Android** from one API: native `UIGlassEffect` on iOS 26, a real-time AGSL refraction shader on Android, interactive touch/tilt, and custom shapes — with clean fallbacks on older OS versions. It also covers the plain-blur, glassmorphism and modal-scrim cases outright, so on **iOS 15+ and Android 12+** you don't need a second library for the surfaces that aren't glass. See [Do I still need a blur library?](#do-i-still-need-a-blur-library) for the three cases where you do.
 
 ## Migrating from a blur view
 
@@ -74,6 +74,18 @@ On iOS this is the signal to stop rendering Liquid Glass entirely and put up a p
 // Modal backdrop: blurred and dimmed, behind a sheet.
 <LiquidGlassView dim={0.5} blurRadius={24} rim={false} style={StyleSheet.absoluteFill} />
 ```
+
+## Do I still need a blur library?
+
+On **iOS 15+ and Android 12+**, no — the snippets above are a complete replacement, and `dim` covers modal scrims, which no blur library offers. Three cases where you genuinely still want one:
+
+| Case | Why |
+| --- | --- |
+| **Web** | This library is mobile-only. `expo-blur` uses CSS `backdrop-filter` and works on web. |
+| **Android below API 31** | Android's `RenderEffect` is API 31+. Below that this library falls back to a translucent tint — a wash, **not a blur**. `expo-blur`'s `experimentalBlurMethod: 'dimezisBlurView'` renders a real blur back to API 21. |
+| **Dependency weight** | If a blurred nav bar is genuinely all you need, `expo-blur` is much smaller than an AGSL shader and an SDF pipeline. |
+
+`getGlassCapabilities().tier` tells you which side of that line a device falls on before you mount anything — a tier of `'tint'` means no blur is available.
 
 ## FAQ
 
