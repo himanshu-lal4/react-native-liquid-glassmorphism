@@ -24,12 +24,12 @@ Bring **Liquid Glass** to React Native — on **both iOS and Android** — with 
     <td align="center">🤖&nbsp; <b>Android</b> — real-time AGSL refraction</td>
   </tr>
   <tr>
-    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-ios.gif" alt="React Native Liquid Glass demo reel running on iOS 26 with native UIGlassEffect" width="250" /></td>
-    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-android.gif" alt="React Native Liquid Glass demo reel running on Android with real-time AGSL refraction" width="250" /></td>
+    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-ios-v1.gif" alt="React Native Liquid Glass demo reel running on iOS 26 with native UIGlassEffect" width="250" /></td>
+    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-android-v1.gif" alt="React Native Liquid Glass demo reel running on Android with real-time AGSL refraction" width="250" /></td>
   </tr>
 </table>
 
-<p align="center"><em>The same <a href="./example"><code>example/</code></a> reel on both platforms — one component, identical API, custom shapes &amp; drifting glass lenses.</em></p>
+<p align="center"><em>The same <a href="./example"><code>example/</code></a> reel on both platforms — one component, identical API. The dock at the bottom is a live <code>blurRadius</code> sweep on <code>clear</code> glass; the rest is presets, the non-glass materials, custom shapes &amp; drifting glass lenses.</em></p>
 
 On iOS 26 it renders Apple's native `UIGlassEffect`. On Android, where there is no system Liquid Glass, it reproduces the same optics in a real-time **AGSL refractive-lens shader**: it captures the backdrop, bends and magnifies it through a rounded-glass lozenge (edge refraction + chromatic dispersion + a mirrored edge reflection), and finishes with a Fresnel rim and tilt/touch-driven specular highlights.
 
