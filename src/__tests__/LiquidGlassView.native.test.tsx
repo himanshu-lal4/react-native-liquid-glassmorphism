@@ -124,6 +124,42 @@ describe('LiquidGlassView (native) prop mapping', () => {
     expect(props.variant).toBe('regular');
   });
 
+  // Codegen event payloads cannot carry a union, so `tier` and `code` cross the
+  // bridge as plain strings. The wrapper re-types them for the public handler —
+  // it must not drop or reshape the event on the way through.
+  it('forwards onPipelineReady with the payload intact', () => {
+    const onPipelineReady = jest.fn();
+    const event = {
+      nativeEvent: {
+        tier: 'refraction',
+        osVersion: 34,
+        shaderCompiled: true,
+        supportsNativeGlass: false,
+      },
+    };
+    render({ onPipelineReady }).props.onPipelineReady(event);
+    expect(onPipelineReady).toHaveBeenCalledWith(event);
+  });
+
+  it('forwards onError with the payload intact', () => {
+    const onError = jest.fn();
+    const event = {
+      nativeEvent: {
+        code: 'INVALID_SHAPE',
+        message: 'nope',
+        fatal: false,
+      },
+    };
+    render({ onError }).props.onError(event);
+    expect(onError).toHaveBeenCalledWith(event);
+  });
+
+  it('passes no handler through when none was given, so native can skip the work', () => {
+    const { props } = render();
+    expect(props.onPipelineReady).toBeUndefined();
+    expect(props.onError).toBeUndefined();
+  });
+
   it('omits the container borderRadius when a shape is set', () => {
     const { props } = render({ shape: { type: 'circle' }, style: { padding: 8 } });
     // First slot is null (no rounding) rather than a { borderRadius } object.

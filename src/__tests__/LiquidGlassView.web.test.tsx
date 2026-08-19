@@ -42,6 +42,48 @@ describe('LiquidGlassView (web fallback)', () => {
     expect(flatStyle(render({ borderRadius: 20 })).borderRadius).toBe(20);
   });
 
+  it('uses the lighter scrim for the clear variant', () => {
+    expect(flatStyle(render({ variant: 'clear' })).backgroundColor).toBe(
+      'rgba(255, 255, 255, 0.10)'
+    );
+  });
+
+  // The point of synthesising this: a gate written as "render nothing until the
+  // tier arrives" would otherwise hang forever off-Android/iOS. The ref
+  // callback runs on mount, so invoking it with a node is what a mount looks
+  // like from here.
+  describe('onPipelineReady', () => {
+    it('reports tier "none" once the view has mounted', () => {
+      const onPipelineReady = jest.fn();
+      render({ onPipelineReady }).props.ref({});
+      expect(onPipelineReady).toHaveBeenCalledTimes(1);
+      expect(onPipelineReady.mock.calls[0][0].nativeEvent).toStrictEqual({
+        tier: 'none',
+        osVersion: 0,
+        shaderCompiled: false,
+        supportsNativeGlass: false,
+      });
+    });
+
+    it('does not report on unmount, when the ref is called with null', () => {
+      const onPipelineReady = jest.fn();
+      render({ onPipelineReady }).props.ref(null);
+      expect(onPipelineReady).not.toHaveBeenCalled();
+    });
+
+    it('is safe to mount with no handler attached', () => {
+      expect(() => render().props.ref({})).not.toThrow();
+    });
+  });
+
+  it('accepts onError without forwarding it to the View', () => {
+    const onError = jest.fn();
+    // Nothing in the fallback can fail the way native can, so there is no
+    // honest error to report — but the prop must not leak onto the View.
+    expect(render({ onError }).props.onError).toBeUndefined();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
   it('does not forward glass-only props onto the View', () => {
     const { props } = render({
       variant: 'clear',

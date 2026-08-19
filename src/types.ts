@@ -1,9 +1,55 @@
-import type { ColorValue, ViewProps } from 'react-native';
+import type { ColorValue, NativeSyntheticEvent, ViewProps } from 'react-native';
 
+import type { GlassTier } from './capabilities';
 import type { GlassPresetName } from './presets';
 import type { LiquidGlassShape } from './shapes';
 
 export type { LiquidGlassShape } from './shapes';
+
+/**
+ * What `onPipelineReady` reports: the tier that **actually rendered**, not what
+ * the device is capable of. `getGlassCapabilities()` answers the latter.
+ */
+export type GlassPipelineInfo = Readonly<{
+  /** The path this view really took. See {@link GlassTier}. */
+  tier: GlassTier;
+  /** Android API level, or the iOS major version. */
+  osVersion: number;
+  /** Android: whether the AGSL shader compiled. Always `false` on iOS. */
+  shaderCompiled: boolean;
+  /** Whether the OS rendered the glass itself (iOS 26 `UIGlassEffect`). */
+  supportsNativeGlass: boolean;
+}>;
+
+/**
+ * Why a view is not doing what its props asked for.
+ *
+ * - `SHADER_COMPILE_FAILED` — the AGSL would not compile; the view fell back a
+ *   tier. Non-fatal.
+ * - `PIPELINE_DEGRADED` — the OS version cannot run the requested tier.
+ * - `INVALID_SHAPE` — the `shape` path could not be parsed; the view fell back
+ *   to a rounded rectangle.
+ * - `BACKDROP_CAPTURE_FAILED` — a view behind the glass refused a software
+ *   draw, so the previous backdrop is being reused.
+ * - `GLASS_UNAVAILABLE` — iOS below 26, so a `UIBlurEffect` material is
+ *   standing in for `UIGlassEffect`.
+ */
+export type GlassErrorCode =
+  | 'SHADER_COMPILE_FAILED'
+  | 'PIPELINE_DEGRADED'
+  | 'INVALID_SHAPE'
+  | 'BACKDROP_CAPTURE_FAILED'
+  | 'GLASS_UNAVAILABLE';
+
+export type GlassErrorInfo = Readonly<{
+  code: GlassErrorCode;
+  message: string;
+  /**
+   * Whether the view gave up entirely. Almost always `false` — the view
+   * recovered — but it still means the glass is not what the props describe.
+   */
+  fatal: boolean;
+}>;
 
 /**
  * Glass material style.
@@ -135,4 +181,27 @@ export interface LiquidGlassViewProps extends ViewProps {
    * @default 0
    */
   legibilityFloor?: number;
+
+  /**
+   * Fired once per view, after the first frame, reporting the tier that
+   * actually rendered.
+   *
+   * Fires on every platform — including the web fallback, with `tier: 'none'` —
+   * so a gate written as "render nothing until the tier arrives" resolves
+   * everywhere rather than hanging.
+   *
+   * To decide whether to mount a glass view *at all*, use
+   * `getGlassCapabilities()` instead: it answers before anything has committed.
+   */
+  onPipelineReady?: (event: NativeSyntheticEvent<GlassPipelineInfo>) => void;
+
+  /**
+   * Fired when the view cannot do what the props asked for — a shader that
+   * would not compile, an unparseable `shape`, a backdrop capture that failed.
+   *
+   * Each code is reported at most once per view. Most are non-fatal: the view
+   * recovered, but it is not rendering what you asked for. Everything is also
+   * logged natively, so a handler is optional.
+   */
+  onError?: (event: NativeSyntheticEvent<GlassErrorInfo>) => void;
 }

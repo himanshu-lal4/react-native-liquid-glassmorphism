@@ -1,8 +1,8 @@
-import { View, type ViewProps } from 'react-native';
+import { View, type NativeSyntheticEvent, type ViewProps } from 'react-native';
 
 import { validateGlassProps } from './devValidate';
 import { resolvePreset } from './presets';
-import type { LiquidGlassViewProps } from './types';
+import type { GlassPipelineInfo, LiquidGlassViewProps } from './types';
 
 /**
  * Props that mean something only to the native implementations. They are
@@ -22,6 +22,10 @@ const NATIVE_ONLY_PROPS = [
   // A custom silhouette needs a real GPU pipeline; the fallback renders a
   // rounded translucent surface, so the shape is intentionally ignored.
   'shape',
+  // Accepted so a cross-platform tree type-checks, but never fired: nothing
+  // here can fail the way the native implementations can, so there would be no
+  // honest error to report.
+  'onError',
 ] as const;
 
 /**
@@ -46,11 +50,33 @@ export function LiquidGlassView(props: LiquidGlassViewProps) {
     borderRadius = 0,
     style,
     children,
+    onPipelineReady,
     ...rest
   } = resolvePreset(props);
 
   const viewProps: Record<string, unknown> = { ...rest };
   for (const key of NATIVE_ONLY_PROPS) delete viewProps[key];
+
+  // Report the tier once, after mount, so a gate written as "render nothing
+  // until the tier arrives" resolves here instead of hanging forever.
+  //
+  // A ref callback rather than an effect: it runs in the commit phase, exactly
+  // once per mount, and keeps this component a plain function that tests can
+  // call directly — no renderer, and no hook that would make it one.
+  const handleRef = (node: unknown) => {
+    if (node && onPipelineReady) {
+      onPipelineReady({
+        nativeEvent: {
+          tier: 'none',
+          osVersion: 0,
+          shaderCompiled: false,
+          supportsNativeGlass: false,
+        },
+        // Only `nativeEvent` is populated: this is a synthesised compatibility
+        // report, not a real host event.
+      } as NativeSyntheticEvent<GlassPipelineInfo>);
+    }
+  };
 
   // The `regular` material dims its backdrop on the real implementations, which
   // is what keeps white-on-glass text readable. A uniformly transparent
@@ -61,6 +87,7 @@ export function LiquidGlassView(props: LiquidGlassViewProps) {
   return (
     <View
       {...(viewProps as ViewProps)}
+      ref={handleRef}
       style={[
         {
           backgroundColor: tintColor ?? scrim,
