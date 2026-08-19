@@ -150,10 +150,14 @@ export interface LiquidGlassViewProps extends ViewProps {
    *
    * Useful range is roughly `0`–`30`; `0` is a genuinely unblurred pane.
    *
-   * On iOS this picks the nearest `UIBlurEffect` material when the view is in
-   * plain-blur mode (see {@link rim}); UIKit's materials are discrete, so it is
-   * the closest equivalent rather than a literal radius. It is ignored while
-   * the view is rendering Liquid Glass, where the OS owns the blur.
+   * Honoured on both platforms, including on real Liquid Glass. UIKit exposes
+   * no blur radius on `UIGlassEffect`, so on iOS the backdrop is blurred
+   * underneath the glass and the glass refracts the already-blurred result.
+   * Measured against the Android shader across 0–25dp, the two track closely.
+   *
+   * In plain-blur mode (see {@link rim}) iOS picks the nearest `UIBlurEffect`
+   * material instead; those are discrete, so it is the closest equivalent
+   * rather than a literal radius.
    *
    * @example
    * // Clear glass — transparent and refractive, but properly blurred.

@@ -302,11 +302,9 @@ const BLUR_DOCK_H = 104;
  * 26, over whatever scene happens to be running.
  *
  * It is `clear` Liquid Glass, so the dock is also the reel's running example of
- * the variant users asked to be able to blur. Note the platform difference this
- * carries: on Android `blurRadius` drives the RenderEffect directly, so the dock
- * visibly sharpens and dissolves with the number; on iOS the OS owns the blur
- * while a view is rendering Liquid Glass, so there the dock stays a constant
- * `UIGlassEffect` and it is the readout that moves.
+ * the variant users asked to be able to blur — and it blurs on both platforms:
+ * Android drives the RenderEffect directly, iOS blurs the backdrop underneath
+ * the glass so the glass refracts an already-blurred image.
  */
 function BlurDock({ bottom, blur }: { bottom: number; blur: number }) {
   const { width } = useWindowDimensions();
@@ -501,7 +499,7 @@ const CC_TILES = [
 
 function IOSScene() {
   const insets = useSafeAreaInsets();
-  const slide = useLoop(1500);
+  const slide = useLoop(1200);
   return (
     <View style={styles.fill}>
       <View style={[styles.sceneBody, { paddingTop: insets.top + 26 }]}>
@@ -591,7 +589,7 @@ function NavScene() {
         }).start();
         return next;
       });
-    }, 800);
+    }, 700);
     return () => clearInterval(id);
   }, [segX, paused]);
 
@@ -770,7 +768,7 @@ function ShapesScene() {
         friction: 5,
         tension: 120,
       }).start();
-    }, 600);
+    }, 500);
     return () => clearInterval(id);
   }, [pulse, paused]);
 
@@ -887,13 +885,13 @@ function CloserScene() {
 // long enough for its entrance springs to settle plus one beat of the thing it
 // exists to show — no dwelling.
 const SCENES = [
-  { key: 'hero', duration: 2800, render: () => <HeroScene /> },
-  { key: 'materials', duration: 3800, render: () => <MaterialsScene /> },
-  { key: 'ios', duration: 3000, render: () => <IOSScene /> },
-  { key: 'nav', duration: 3000, render: () => <NavScene /> },
-  { key: 'macos', duration: 3200, render: () => <MacScene /> },
-  { key: 'shapes', duration: 3800, render: () => <ShapesScene /> },
-  { key: 'closer', duration: 3400, render: () => <CloserScene /> },
+  { key: 'hero', duration: 2200, render: () => <HeroScene /> },
+  { key: 'materials', duration: 3000, render: () => <MaterialsScene /> },
+  { key: 'ios', duration: 2600, render: () => <IOSScene /> },
+  { key: 'nav', duration: 2600, render: () => <NavScene /> },
+  { key: 'macos', duration: 2800, render: () => <MacScene /> },
+  { key: 'shapes', duration: 3000, render: () => <ShapesScene /> },
+  { key: 'closer', duration: 2600, render: () => <CloserScene /> },
 ] as const;
 
 export default function DemoReel({ onExit }: { onExit: () => void }) {

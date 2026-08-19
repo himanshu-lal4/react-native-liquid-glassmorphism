@@ -164,6 +164,24 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
   // only placement that stays crisp for interactive `UIGlassEffect` too.
   UIVisualEffectView *_effectView;
 
+  // Sits *below* `_effectView` and blurs the backdrop before the glass ever
+  // sees it. This is what makes `blurRadius` mean something while the view is
+  // rendering real Liquid Glass: UIKit gives no radius knob on `UIGlassEffect`
+  // — the OS owns that blur — so instead of fighting it we hand the glass an
+  // already-blurred backdrop to refract. Effect is nil (and the view is a
+  // no-op) whenever `blurRadius` is unset.
+  UIVisualEffectView *_blurUnderlay;
+
+  // Drives `_blurUnderlay` to a *fraction* of a blur effect. UIKit exposes no
+  // blur radius, only a handful of discrete materials — but a paused
+  // UIViewPropertyAnimator interpolates the effect's real filter parameters, so
+  // holding one at `fractionComplete` gives continuous control between "no
+  // blur" and the target material. This is the same technique expo-blur uses
+  // for its 0-100 intensity, and it is genuinely different from fading a
+  // blurred layer in with alpha: alpha composites a blurred copy *over* the
+  // sharp backdrop, which reads as a ghost rather than a blur.
+  UIViewPropertyAnimator *_underlayAnimator;
+
   // Subtle tint wash, sits at the bottom of the effect's contentView (above the
   // material, below the app's children). Only used for the pre-iOS-26 fallback;
   // on iOS 26 the glass is tinted natively instead.
@@ -214,6 +232,14 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
 
     // Created up front (with no effect yet) so children can mount into its
     // contentView before the first prop update arrives.
+    // Added first so it renders underneath the glass — the glass samples what
+    // is already on screen behind it, which now includes this.
+    _blurUnderlay = [[UIVisualEffectView alloc] initWithEffect:nil];
+    _blurUnderlay.frame = self.bounds;
+    _blurUnderlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    _blurUnderlay.userInteractionEnabled = NO;
+    [self addSubview:_blurUnderlay];
+
     _effectView = [[UIVisualEffectView alloc] initWithEffect:nil];
     _effectView.frame = self.bounds;
     _effectView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
@@ -298,6 +324,18 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
 
 #pragma mark - Effect construction
 
+// `UIBlurEffect`'s materials are discrete, so an exact radius is not on offer —
+// this is the nearest bucket. Shared by the plain-blur path and the underlay
+// that gives `blurRadius` meaning under real Liquid Glass.
+static UIBlurEffectStyle LGMBlurStyleForRadius(float dp)
+{
+  if (dp <= 6) return UIBlurEffectStyleSystemUltraThinMaterial;
+  if (dp <= 12) return UIBlurEffectStyleSystemThinMaterial;
+  if (dp <= 20) return UIBlurEffectStyleSystemMaterial;
+  if (dp <= 30) return UIBlurEffectStyleSystemThickMaterial;
+  return UIBlurEffectStyleSystemChromeMaterial;
+}
+
 // Builds the platform glass effect for the current variant/intensity/interactive
 // /tint state. On iOS 26+ this is a real `UIGlassEffect` honouring the
 // regular/clear style and native tint; below that it degrades to a frosted
@@ -329,11 +367,7 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
   if (_plainBlur) {
     UIBlurEffectStyle plain;
     if (_blurRadiusDp >= 0) {
-      if (_blurRadiusDp <= 6) plain = UIBlurEffectStyleSystemUltraThinMaterial;
-      else if (_blurRadiusDp <= 12) plain = UIBlurEffectStyleSystemThinMaterial;
-      else if (_blurRadiusDp <= 20) plain = UIBlurEffectStyleSystemMaterial;
-      else if (_blurRadiusDp <= 30) plain = UIBlurEffectStyleSystemThickMaterial;
-      else plain = UIBlurEffectStyleSystemChromeMaterial;
+      plain = LGMBlurStyleForRadius(_blurRadiusDp);
     } else if (_intensity >= 80) {
       plain = UIBlurEffectStyleSystemThickMaterial;
     } else if (_intensity >= 50) {
@@ -409,6 +443,17 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
     }
 #endif
     _tintOverlay.backgroundColor = nativeGlass ? UIColor.clearColor : tint;
+
+    // Pre-blur the backdrop only when the glass itself cannot honour the
+    // radius. In plain-blur mode the material *is* the radius, and below
+    // iOS 26 the fallback material already tracks `intensity`, so in both
+    // cases a second blur underneath would just double-frost the view.
+    BOOL underlayWanted = nativeGlass && !_plainBlur && _blurRadiusDp > 0;
+    if (underlayWanted) {
+      [self setUnderlayFraction:MIN(1.0, _blurRadiusDp / 26.0)];
+    } else {
+      [self tearDownUnderlay];
+    }
   }
 
   CGFloat dim = MAX(0.0, MIN(1.0, (CGFloat)newViewProps.dim));
@@ -521,6 +566,52 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
 // Fabric recycles component views. Without this the next mount would inherit
 // this one's cached prop state and its already-reported latch, so the effect
 // would not be rebuilt and onPipelineReady would never fire again.
+#pragma mark - Variable-radius underlay
+
+// Holds the underlay at `f` (0-1) of a full blur. The animator is never
+// started — `fractionComplete` on a paused animator is what interpolates the
+// filter, and running it would animate away from the value just set.
+- (void)setUnderlayFraction:(CGFloat)f
+{
+  if (_underlayAnimator == nil) {
+    _blurUnderlay.effect = nil;
+    __weak __typeof__(self) weakSelf = self;
+    _underlayAnimator =
+        [[UIViewPropertyAnimator alloc] initWithDuration:1.0
+                                                   curve:UIViewAnimationCurveLinear
+                                              animations:^{
+          __typeof__(self) strongSelf = weakSelf;
+          // The lightest material on purpose. Heavier ones reach full blur a
+          // third of the way through the range and then spend the rest of it
+          // just whitening: measured against the Android shader over 0-25dp,
+          // `thick` killed all detail by 10dp and pushed luminance to 181,
+          // where Android holds 120.
+          strongSelf->_blurUnderlay.effect =
+              [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterial];
+        }];
+    // Without this the animator completes and discards its interpolated state
+    // the first time fractionComplete reaches 1.
+    _underlayAnimator.pausesOnCompletion = YES;
+  }
+  _underlayAnimator.fractionComplete = f;
+}
+
+- (void)tearDownUnderlay
+{
+  // A property animator left un-stopped when it deallocs raises. Stop it
+  // before clearing the effect so the final state is ours, not the animator's.
+  if (_underlayAnimator) {
+    [_underlayAnimator stopAnimation:YES];
+    _underlayAnimator = nil;
+  }
+  _blurUnderlay.effect = nil;
+}
+
+- (void)dealloc
+{
+  [self tearDownUnderlay];
+}
+
 - (void)prepareForRecycle
 {
   [super prepareForRecycle];
@@ -533,6 +624,7 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
   _plainBlur = NO;
   _blurRadiusDp = -1;
   _dimOverlay.backgroundColor = UIColor.clearColor;
+  [self tearDownUnderlay];
 
   // The silhouette is cached too, and a stale mask would survive onto whatever
   // view reuses this instance.
