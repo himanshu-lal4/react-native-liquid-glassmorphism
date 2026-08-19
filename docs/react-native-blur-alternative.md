@@ -19,6 +19,10 @@ Most "glass" in React Native is really just **blur**: `expo-blur` and `@react-na
 | Chromatic dispersion + Fresnel rim | ✅ (Android shader) | ❌ | ❌ | OS-managed (iOS) |
 | Interactive (touch bloom + tilt specular) | ✅ | ❌ | ❌ | Partial (iOS interactive glass) |
 | Custom shapes (concave SVG silhouette) | ✅ | ❌ | ❌ | ❌ |
+| Plain blur view, glass turned **off** | ✅ | ✅ | ✅ | ❌ |
+| Explicit blur radius in dp | ✅ `blurRadius` | ⚠️ 0–100 `intensity` | ✅ | ❌ |
+| Dimming scrim for modal backdrops | ✅ `dim` | ❌ | ❌ | ❌ |
+| Tuned presets | ✅ six | ❌ | ❌ | ❌ |
 | Graceful fallback on older OS | ✅ blur / tint | ✅ | ✅ | ⚠️ iOS 26 only |
 | Expo config plugin | ✅ | ✅ | ❌ | ✅ |
 | New Architecture (Fabric) | ✅ | ✅ | ⚠️ | ✅ |
@@ -28,10 +32,10 @@ Most "glass" in React Native is really just **blur**: `expo-blur` and `@react-na
 
 ## When to pick which
 
-- **expo-blur** — you only need a blurred backdrop (nav bar, modal scrim) on iOS and Android, and don't need refraction or an iOS-26 glass look. Simple and well-supported.
+- **expo-blur** — you only need a blurred backdrop (nav bar, modal scrim) on iOS and Android, don't need refraction or an iOS-26 glass look, and want the smallest possible dependency. Simple and well-supported.
 - **@react-native-community/blur** — a bare-workflow blur view if you're not on Expo.
 - **expo-glass-effect / @callstack/liquid-glass** — you're **iOS-only** and want Apple's native Liquid Glass with the least code. No Android glass.
-- **react-native-liquid-glassmorphism** — you want **real Liquid Glass on both iOS and Android** from one API: native `UIGlassEffect` on iOS 26, a real-time AGSL refraction shader on Android, interactive touch/tilt, and custom shapes — with clean fallbacks on older OS versions.
+- **react-native-liquid-glassmorphism** — you want **real Liquid Glass on both iOS and Android** from one API: native `UIGlassEffect` on iOS 26, a real-time AGSL refraction shader on Android, interactive touch/tilt, and custom shapes — with clean fallbacks on older OS versions. It also covers the plain-blur, glassmorphism and modal-scrim cases outright, so you don't need a second library for the surfaces that aren't glass.
 
 ## Migrating from a blur view
 
@@ -51,11 +55,31 @@ The mental model is the same — wrap content in a view; the backdrop behind it 
 
 Children still render crisply on top; only the backdrop is affected.
 
+### If you want *exactly* a blur view, not glass
+
+The glass-specific parts are individual props, not a mode, so you can turn them off and get a conventional blurred pane — with an explicit radius in dp rather than an opaque 0–100 scale:
+
+```tsx
+<LiquidGlassView rim={false} specular={false} thickness={0} blurRadius={20} style={styles.card}>
+  <Text>Content</Text>
+</LiquidGlassView>
+```
+
+On iOS this is the signal to stop rendering Liquid Glass entirely and put up a plain `UIBlurEffect` material instead; on Android it's a bare `RenderEffect` blur. Two related primitives round out the surfaces a blur view is usually asked to cover:
+
+```tsx
+// Glassmorphism: transparent, blurred, tinted.
+<LiquidGlassView variant="clear" blurRadius={14} tintColor="rgba(255,255,255,0.16)" />
+
+// Modal backdrop: blurred and dimmed, behind a sheet.
+<LiquidGlassView dim={0.5} blurRadius={24} rim={false} style={StyleSheet.absoluteFill} />
+```
+
 ## FAQ
 
 ### What's the best react-native-blur / expo-blur alternative for real glass?
 
-If you only need a blurred backdrop, `expo-blur` and `@react-native-community/blur` are the right tools. If you want an actual glass material — refraction and edge lensing, not just blur — `react-native-liquid-glassmorphism` renders native `UIGlassEffect` on iOS 26 and a matching AGSL refraction shader on Android, which no blur library does.
+`expo-blur` and `@react-native-community/blur` remain good, small choices if a blurred backdrop is genuinely all you need. If you want an actual glass material — refraction and edge lensing, not just blur — `react-native-liquid-glassmorphism` renders native `UIGlassEffect` on iOS 26 and a matching AGSL refraction shader on Android, which no blur library does. It also does the plain-blur case itself (`rim={false} specular={false} thickness={0} blurRadius={20}`), so switching to it doesn't mean giving up the simple surfaces or keeping two libraries around for them.
 
 ### Does this work on Android, unlike the iOS-only glass libraries?
 
