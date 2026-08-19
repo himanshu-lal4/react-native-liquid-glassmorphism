@@ -71,6 +71,20 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private var refractionEnabled = false
   private var thickness = 1f
   private var cornerRadiusPx = 0f
+
+  /**
+   * The corner radius actually usable at this size.
+   *
+   * A radius larger than half the shorter side is not a rounder rectangle, it
+   * is a malformed one: `Outline.setRoundRect` rejects it, and `sdRoundRect`
+   * computes `length(max(q,0)) - r` as POSITIVE everywhere, so the whole view
+   * reads as OUTSIDE the glass and blows out to a flat fill. `borderRadius:
+   * 999` — the ordinary way to ask for a pill — hit exactly that.
+   *
+   * Half the shorter side IS the pill, so clamping loses nothing.
+   */
+  private fun cornerFor(w: Int, h: Int): Float =
+    GlassParams.effectiveCornerPx(cornerRadiusPx, w, h)
   // Edge-reflection band strength (#5), 0 (off) → 1 (default). Independent of
   // `thickness` so the upside-down rim echo can be calmed over text.
   private var edgeReflectionStrength = 1f
@@ -185,7 +199,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     clipToOutline = true
     outlineProvider = object : ViewOutlineProvider() {
       override fun getOutline(view: View, outline: Outline) {
-        outline.setRoundRect(0, 0, view.width, view.height, cornerRadiusPx)
+        outline.setRoundRect(0, 0, view.width, view.height, cornerFor(view.width, view.height))
       }
     }
     refreshPaints()
@@ -747,8 +761,9 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         canvas.drawPath(shapePath, frostPaint)
         canvas.drawPath(shapePath, tintPaint)
       } else {
-        canvas.drawRoundRect(0f, 0f, w, h, cornerRadiusPx, cornerRadiusPx, frostPaint)
-        canvas.drawRoundRect(0f, 0f, w, h, cornerRadiusPx, cornerRadiusPx, tintPaint)
+        val cr = cornerFor(width, height)
+        canvas.drawRoundRect(0f, 0f, w, h, cr, cr, frostPaint)
+        canvas.drawRoundRect(0f, 0f, w, h, cr, cr, tintPaint)
         drawCanvasSpecular(canvas, w, h)
       }
     }
@@ -764,7 +779,8 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       if (shapePath != null) {
         canvas.drawPath(shapePath, legibilityPaint)
       } else {
-        canvas.drawRoundRect(0f, 0f, w, h, cornerRadiusPx, cornerRadiusPx, legibilityPaint)
+        val cr = cornerFor(width, height)
+        canvas.drawRoundRect(0f, 0f, w, h, cr, cr, legibilityPaint)
       }
     }
 
@@ -782,7 +798,8 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       canvas.drawPath(shapePath, rimPaint)
     } else {
       val inset = rimPaint.strokeWidth / 2f
-      canvas.drawRoundRect(inset, inset, w - inset, h - inset, cornerRadiusPx, cornerRadiusPx, rimPaint)
+      val cr = cornerFor(width, height)
+      canvas.drawRoundRect(inset, inset, w - inset, h - inset, cr, cr, rimPaint)
     }
 
     // Last thing in the first draw: `shaderActive` is settled by now, and every
@@ -872,7 +889,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       // reference is the example's pill dock: 28dp radius on a 64dp height =
       // 0.44·minDim, and that ratio is what makes its whole surface read as a
       // deep liquid lens. 0.2 made custom shapes visibly flatter than the pill.
-      shader.setFloatUniform("iCorner", if (useSdf) min(w, h) * 0.4f else cornerRadiusPx)
+      shader.setFloatUniform("iCorner", if (useSdf) min(w, h) * 0.4f else cornerFor(w, h))
       // Lensing is intrinsic to glass (always on); the `refraction` prop only
       // dials it up. This is what makes the backdrop bend around the edges.
       shader.setFloatUniform("iLens", GlassParams.lensStrengthPx(variantClear, refractionEnabled, density) * thickness)
@@ -924,7 +941,8 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       Shader.TileMode.CLAMP
     )
     specularPaint.shader = gradient
-    canvas.drawRoundRect(0f, 0f, w, h, cornerRadiusPx, cornerRadiusPx, specularPaint)
+    val cr = cornerFor(width, height)
+    canvas.drawRoundRect(0f, 0f, w, h, cr, cr, specularPaint)
     specularPaint.shader = null
   }
 
@@ -1166,7 +1184,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         col = mix(col, half3(1.0), adapt);
 
         // Vibrant coloured tint (deep, not pastel).
-        col = mix(col, iTint.rgb, clamp(iTint.a * 1.5, 0.0, 0.88));
+        // The alpha you pass is the alpha you get. This used to be
+        // `iTint.a * 1.5`, so `rgba(255,55,95,0.5)` landed as a 75% mix and
+        // read as a solid coloured card next to iOS, where the same colour
+        // stays clearly translucent. The 1.5 was compensating for a default
+        // wash that is now set correctly at source instead.
+        col = mix(col, iTint.rgb, clamp(iTint.a, 0.0, 0.88));
 
         // Flat dimming scrim. Applied after the tint and BEFORE the lighting,
         // so a dimmed backdrop still keeps its glass edge and sheen rather
