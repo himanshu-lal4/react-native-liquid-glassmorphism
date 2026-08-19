@@ -114,8 +114,19 @@ describe('validateGlassProps — platform and tier no-ops', () => {
 
   it('does not flag those props on Android, where they do work', () => {
     const { validateGlassProps } = loadFor('android', 34);
-    validateGlassProps({ tilt: true, thickness: 0.5, legibilityFloor: 0.5 });
+    validateGlassProps({
+      tilt: true,
+      thickness: 0.5,
+      legibilityFloor: 0.5,
+      paused: true,
+    });
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('flags `paused` as inert on iOS', () => {
+    const { validateGlassProps } = loadFor('ios', '26.0');
+    validateGlassProps({ paused: true });
+    expect(warnings()).toContain('`paused` has no effect on ios');
   });
 
   // Sharing one component across platforms is the normal case; a prop sitting

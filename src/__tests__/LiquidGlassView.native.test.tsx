@@ -164,6 +164,12 @@ describe('LiquidGlassView (native) prop mapping', () => {
     expect(props.variant).toBe('regular');
   });
 
+  // `paused` is Android-only; the jest preset reports 'ios', so it must be kept
+  // off the native prop surface here alongside the other Android-only optics.
+  it('does not send `paused` to native on iOS', () => {
+    expect(render({ paused: true }).props.paused).toBeUndefined();
+  });
+
   // Codegen event payloads cannot carry a union, so `tier` and `code` cross the
   // bridge as plain strings. The wrapper re-types them for the public handler —
   // it must not drop or reshape the event on the way through.

@@ -83,6 +83,19 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private var specularEnabled = true
   private var dim = 0f
 
+  // Suspend the backdrop capture without unmounting. The glass holds its last
+  // frame; only the per-frame `root.draw()` into our bitmap stops.
+  private var pausedProp = false
+
+  // Android's own answer to "is this view actually on screen", accounting for
+  // the view, every ancestor, and the window — so it covers a pushed navigation
+  // screen, an inactive tab, and the app being backgrounded, all at once.
+  private var aggregatedVisible = true
+
+  /** Capture work is skipped when the view is paused or not actually visible. */
+  private val captureSuspended: Boolean
+    get() = pausedProp || !aggregatedVisible
+
   // --- Custom shape (arbitrary SVG silhouette) ---
   private var shapePathData: String = ""
   private var shapeVBWidth = 0f
@@ -235,6 +248,14 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   }
 
   /** Legibility floor (#2), 0 (off) → 1 (max), clamped. */
+  fun setPausedValue(value: Boolean) {
+    if (pausedProp == value) return
+    pausedProp = value
+    // Resuming has to force a fresh capture: whatever is behind the glass moved
+    // while we were not looking, so the held frame is stale by definition.
+    if (!captureSuspended) resumeCapture()
+  }
+
   fun setRimValue(value: Boolean) {
     if (rimEnabled != value) { rimEnabled = value; refreshPaints(); invalidate() }
   }
@@ -396,6 +417,38 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     maybeWarnNoChildren()
   }
 
+  /**
+   * Android's aggregate visibility signal: false whenever this view, any
+   * ancestor, or the window is not visible.
+   *
+   * That single callback covers a screen pushed on top of this one, an inactive
+   * tab, and the app being backgrounded — all cases where the glass stays
+   * mounted and would otherwise keep capturing a backdrop nobody can see.
+   */
+  override fun onVisibilityAggregated(isVisible: Boolean) {
+    super.onVisibilityAggregated(isVisible)
+    if (aggregatedVisible == isVisible) return
+    aggregatedVisible = isVisible
+    if (isVisible && !captureSuspended) resumeCapture()
+    // The motion sensor is pure cost while off-screen: it cannot move a
+    // specular highlight nobody is looking at.
+    if (tilt) {
+      if (isVisible) registerSensor() else unregisterSensor()
+    }
+  }
+
+  /**
+   * Drop the held frame and repaint from a fresh capture.
+   *
+   * Clearing [haveGoodCapture] is what forces [onPreDraw] to repaint even if the
+   * backdrop hash happens to match the frame we froze on.
+   */
+  private fun resumeCapture() {
+    haveGoodCapture = false
+    lastBackdropHash = 0
+    postInvalidateOnAnimation()
+  }
+
   // Dev warning (#8): touch/tilt effects are driven by this view's own
   // dispatchTouchEvent, so they're a silent no-op unless foreground content is
   // a CHILD of the glass (not a sibling overlay). Warn once so the footgun is
@@ -512,6 +565,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
   override fun onPreDraw(): Boolean {
     if (isCapturing || width == 0 || height == 0) return true
+    // A paused or off-screen view keeps its last frame and stops doing the one
+    // expensive thing here: a full software `root.draw()` into our bitmap, every
+    // frame, for as long as the view exists.
+    if (captureSuspended) return true
     captureBackdrop()
     // Only repaint when the backdrop actually changed (fix #1). Comparing a
     // cheap sampled hash breaks the old self-sustaining 60fps capture→invalidate

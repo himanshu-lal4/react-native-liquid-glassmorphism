@@ -21,6 +21,7 @@ const NATIVE_ONLY_PROPS = [
   'specular',
   'edgeReflectionStrength',
   'legibilityFloor',
+  'paused',
   // A custom silhouette needs a real GPU pipeline; the fallback renders a
   // rounded translucent surface, so the shape is intentionally ignored.
   'shape',

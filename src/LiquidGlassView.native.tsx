@@ -51,6 +51,7 @@ export function LiquidGlassView(props: LiquidGlassViewProps) {
     thickness = 1,
     edgeReflectionStrength = 1,
     legibilityFloor = 0,
+    paused = false,
     borderRadius = 0,
     shape,
     tintColor,
@@ -103,7 +104,7 @@ export function LiquidGlassView(props: LiquidGlassViewProps) {
   // system material manages its own contrast.
   const platformProps =
     Platform.OS === 'android'
-      ? { edgeReflectionStrength, legibilityFloor }
+      ? { edgeReflectionStrength, legibilityFloor, paused }
       : null;
 
   return (
