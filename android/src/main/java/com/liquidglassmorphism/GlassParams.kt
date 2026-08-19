@@ -38,6 +38,22 @@ object GlassParams {
     return (dp * density).coerceAtLeast(0.5f)
   }
 
+  /**
+   * The corner radius actually usable at a given size, in px.
+   *
+   * A radius larger than half the shorter side is not a rounder rectangle, it
+   * is a malformed one: `Outline.setRoundRect` rejects it, and the shader's
+   * `sdRoundRect` computes `length(max(q,0)) - r` as POSITIVE everywhere, so
+   * the whole view reads as OUTSIDE the glass and blows out to a flat fill.
+   * `borderRadius: 999` — the ordinary way to ask for a pill — hit exactly
+   * that. Half the shorter side IS the pill, so clamping loses nothing.
+   */
+  fun effectiveCornerPx(requestedPx: Float, width: Int, height: Int): Float {
+    if (width <= 0 || height <= 0) return 0f
+    val half = minOf(width, height) * 0.5f
+    return requestedPx.coerceIn(0f, half)
+  }
+
   /** Sentinel for "no explicit blurRadius — derive it from intensity". */
   const val UNSET_BLUR_DP = -1f
 
@@ -116,8 +132,11 @@ object GlassParams {
   // want a frostier clear — that is what it is for, and it is why the default
   // no longer has to compromise between "looks like iOS" and "is adjustable".
   private const val CLEAR_BLUR_SCALE = 0.22f
-  private const val DEFAULT_REGULAR_TINT_ALPHA = 0x1F // ~12%
+  // Raised alongside dropping the shader's 1.5x tint multiplier, so the
+  // DEFAULT wash lands exactly where it did when it was measured against
+  // iOS — only explicitly-passed alphas change meaning.
+  private const val DEFAULT_REGULAR_TINT_ALPHA = 0x2F // ~18%
   // ~3%. The shader mixes `tint.a * 1.5` toward white, so 5% put clear
   // glass at 1.78x its backdrop luminance where iOS sits at 1.62x.
-  private const val DEFAULT_CLEAR_TINT_ALPHA = 0x08 // ~3%
+  private const val DEFAULT_CLEAR_TINT_ALPHA = 0x0C // ~4.7%
 }
