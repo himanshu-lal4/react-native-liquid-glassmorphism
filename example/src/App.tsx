@@ -172,6 +172,18 @@ function Gallery({
         </View>
         <Text style={styles.subheading}>Liquid Glass · React Native</Text>
 
+        {/* 0a. Interactive press target ------------------------------------- */}
+        {/* A large, known-position interactive panel. Both platforms render it
+            identically, so a press captured on each can be diffed against its
+            own resting frame and the two deltas compared. */}
+        <Text style={styles.section}>Press target</Text>
+        <LiquidGlassView
+          variant="clear"
+          interactive
+          borderRadius={28}
+          style={styles.pressTarget}
+        />
+
         {/* 0. SDF vs analytic, like for like -------------------------------- */}
         {/* The SAME circle, same size, same variant, drawn two ways: as a
             custom `shape` (signed-distance-field path) and as a rounded rect
@@ -586,6 +598,7 @@ const styles = StyleSheet.create({
   abCell: { alignItems: 'center', gap: 6 },
   abGlass: { width: AB_SIZE, height: AB_SIZE },
   primCell: { width: PRIM_SIZE, height: PRIM_SIZE },
+  pressTarget: { width: '100%', height: 220 },
 
   swatch: { alignItems: 'center', gap: 6, width: 84 },
   swatchGlass: { width: 84, height: 84 },

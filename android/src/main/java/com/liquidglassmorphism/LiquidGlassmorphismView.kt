@@ -162,6 +162,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private var touchY = 0f
   private var touchAmt = 0f      // eased current press strength, 0–1
   private var touchTarget = 0f   // 1 while pressed, 0 on release
+  private var touchVel = 0f      // spring velocity for the press animation
 
   init {
     setWillNotDraw(false)
@@ -530,8 +531,19 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     // Ease the press strength toward its target and keep animating until settled.
     // The press effect is an OPTICAL magnification in the shader (below) — the
     // element keeps its size; only the glass lenses harder under the finger.
-    if (interactive && kotlin.math.abs(touchTarget - touchAmt) > 0.003f) {
-      touchAmt += (touchTarget - touchAmt) * 0.2f
+    // Spring, not an exponential ease. A `+= delta * 0.2` approach is always
+    // decelerating: it leaves fastest at the start and crawls into the target,
+    // which reads as soft and laggy next to iOS. A lightly under-damped spring
+    // arrives quickly and settles with a small overshoot, which is what a
+    // physical material does and what UIKit animates with.
+    if (interactive &&
+      (kotlin.math.abs(touchTarget - touchAmt) > 0.002f ||
+        kotlin.math.abs(touchVel) > 0.01f)
+    ) {
+      val dt = 1f / 60f
+      val accel = SPRING_K * (touchTarget - touchAmt) - SPRING_C * touchVel
+      touchVel += accel * dt
+      touchAmt = (touchAmt + touchVel * dt).coerceIn(0f, 1.15f)
       postInvalidateOnAnimation()
     }
 
@@ -801,6 +813,11 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
   companion object {
+    // Lightly under-damped: omega = sqrt(K) ~ 16 rad/s, critical damping would
+    // be 2*sqrt(K) ~ 32, so C = 26 settles fast with a small overshoot.
+    private const val SPRING_K = 260f
+    private const val SPRING_C = 26f
+
     private fun supportsBlur(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     // Refractive glass lozenge, per pixel. This is a LENS, not a blur panel —
@@ -945,7 +962,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         float2 td = coord - iTouch;
         float tmr = min(iResolution.x, iResolution.y) * 0.9;
         float tFall = exp(-dot(td, td) / (tmr * tmr));
-        float2 magCoord = coord - td * (iTouchAmt * tFall * 0.30);
+        float2 magCoord = coord - td * (iTouchAmt * tFall * 0.17);
 
         // Edge reflection: a lens band at the rim that folds the sample back on
         // itself, so content near the edge appears mirrored — the inverted echo
@@ -1049,7 +1066,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         float2 tp = coord - iTouch;
         float tr = min(iResolution.x, iResolution.y);
         float touch = exp(-dot(tp, tp) / (tr * tr)) * iTouchAmt;
-        col = col + hi * (touch * 0.2);
+        // Measured against iOS 26: pressing its glass lifts luminance about
+        // 6%. At 0.2 this term alone was lifting ours by ~50% — a flash,
+        // not a press.
+        col = col + hi * (touch * 0.035);
 
         col = clamp(col, 0.0, 1.0);
 
