@@ -62,10 +62,7 @@ export function LiquidGlassView(props: LiquidGlassViewProps) {
     ...rest
   } = resolvePreset(props);
 
-  const handlePipelineReady = narrowHandler<
-    PipelineReadyEvent,
-    GlassPipelineInfo
-  >(onPipelineReady);
+  const handlePipelineReady = narrowHandler<PipelineReadyEvent, GlassPipelineInfo>(onPipelineReady);
   const handleError = narrowHandler<GlassErrorEvent, GlassErrorInfo>(onError);
 
   // Normalise any custom shape to a single SVG path + view-box for native. The
@@ -95,17 +92,13 @@ export function LiquidGlassView(props: LiquidGlassViewProps) {
     // `typeof` rather than a null check: it also catches a non-number arriving
     // from untyped JS, which would otherwise reach the shader.
     blurRadius:
-      typeof blurRadius === 'number' && Number.isFinite(blurRadius)
-        ? Math.max(0, blurRadius)
-        : -1,
+      typeof blurRadius === 'number' && Number.isFinite(blurRadius) ? Math.max(0, blurRadius) : -1,
   };
 
   // Genuinely Android-only optics: iOS glass fixes its own rim echo, and the
   // system material manages its own contrast.
   const platformProps =
-    Platform.OS === 'android'
-      ? { edgeReflectionStrength, legibilityFloor, paused }
-      : null;
+    Platform.OS === 'android' ? { edgeReflectionStrength, legibilityFloor, paused } : null;
 
   return (
     <NativeLiquidGlass

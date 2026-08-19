@@ -92,10 +92,7 @@ export function LiquidGlassView(props: LiquidGlassViewProps) {
   // is what keeps white-on-glass text readable. A uniformly transparent
   // fallback would put white text on a white background with no warning, so the
   // wash tracks the variant rather than being a fixed value.
-  const wash =
-    variant === 'clear'
-      ? 'rgba(255, 255, 255, 0.10)'
-      : 'rgba(255, 255, 255, 0.18)';
+  const wash = variant === 'clear' ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.18)';
 
   const scrim = Math.max(0, Math.min(1, dim));
 

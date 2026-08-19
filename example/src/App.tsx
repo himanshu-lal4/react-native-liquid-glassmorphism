@@ -22,6 +22,7 @@ import {
 import { CurvedDock, DOCK_H, createDockPath } from './CurvedDock';
 import DemoReel from './DemoReel';
 import CardGallery from './CardGallery';
+import UseCases from './UseCases';
 
 // Full PHYSICAL screen size (includes the system status/navigation bars).
 // React Native applies the bottom system inset as padding on the root view, so
@@ -108,7 +109,9 @@ function starPoints(
  * chip goes back.
  */
 export default function App() {
-  const [mode, setMode] = useState<'reel' | 'gallery' | 'cards'>('reel');
+  const [mode, setMode] = useState<'reel' | 'gallery' | 'cards' | 'uses'>(
+    'reel'
+  );
   return (
     <SafeAreaProvider>
       <View style={styles.root}>
@@ -117,10 +120,13 @@ export default function App() {
           <DemoReel onExit={() => setMode('gallery')} />
         ) : mode === 'cards' ? (
           <CardGallery onBack={() => setMode('gallery')} />
+        ) : mode === 'uses' ? (
+          <UseCases onBack={() => setMode('gallery')} />
         ) : (
           <Gallery
             onShowReel={() => setMode('reel')}
             onShowCards={() => setMode('cards')}
+            onShowUses={() => setMode('uses')}
           />
         )}
       </View>
@@ -131,9 +137,11 @@ export default function App() {
 function Gallery({
   onShowReel,
   onShowCards,
+  onShowUses,
 }: {
   onShowReel: () => void;
   onShowCards: () => void;
+  onShowUses: () => void;
 }) {
   const [interactive, setInteractive] = useState(true);
   const [refraction, setRefraction] = useState(true);
@@ -150,6 +158,15 @@ function Gallery({
         <View style={styles.headingRow}>
           <Text style={styles.heading}>Liquid Glass</Text>
           <View style={styles.headingChips}>
+            <Pressable onPress={onShowUses}>
+              <LiquidGlassView
+                tintColor="rgba(255,255,255,0.18)"
+                borderRadius={16}
+                style={styles.demoChip}
+              >
+                <Text style={styles.demoChipText}>◫ Uses</Text>
+              </LiquidGlassView>
+            </Pressable>
             <Pressable onPress={onShowCards}>
               <LiquidGlassView
                 tintColor="rgba(255,255,255,0.18)"

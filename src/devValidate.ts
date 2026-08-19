@@ -173,11 +173,7 @@ function checkPlatformNoops(props: LiquidGlassViewProps): void {
     // `thickness={0}` IS honoured on iOS: with `rim` and `specular` off it is
     // the signal to drop Liquid Glass for a plain UIBlurEffect material. Only
     // the intermediate values are inert there.
-    if (
-      props.thickness !== undefined &&
-      props.thickness !== 1 &&
-      props.thickness !== 0
-    ) {
+    if (props.thickness !== undefined && props.thickness !== 1 && props.thickness !== 0) {
       warnPlatformNoop(
         'thickness',
         'UIGlassEffect fixes the glass optics — only 0 is meaningful here, as ' +
