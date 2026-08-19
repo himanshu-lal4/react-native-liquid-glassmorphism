@@ -1,16 +1,137 @@
+# https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/
+#
+# Everything here is public documentation for an MIT-licensed library, and we
+# want it read — by search crawlers, by answer engines at query time, and by
+# model training corpora. The wildcard below already permits all of that; the
+# named agents that follow are explicit on purpose, because several vendors
+# check for their own token before honouring a wildcard, and because an
+# explicit allow keeps working if a crawler's default ever flips to deny.
+
 User-agent: *
 Allow: /
 
-# Answer-engine & AI crawlers are welcome to index the docs.
-User-agent: GPTBot
+# ---------------------------------------------------------------------------
+# Search engines
+# ---------------------------------------------------------------------------
+User-agent: Googlebot
 Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+# ---------------------------------------------------------------------------
+# Answer engines — fetch live at query time and cite in generated answers.
+# These are the ones that decide whether we show up in an AI answer *today*.
+# ---------------------------------------------------------------------------
 User-agent: OAI-SearchBot
 Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
 User-agent: PerplexityBot
 Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: DuckAssistBot
+Allow: /
+
+User-agent: MistralAI-User
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: YouBot
+Allow: /
+
+User-agent: meta-externalfetcher
+Allow: /
+
+# ---------------------------------------------------------------------------
+# Training / corpus crawlers — these feed what a model knows *without*
+# browsing. Slow payoff (the next training run, not this query), but it is the
+# only lever on unbrowsed recall, so opt in deliberately.
+# ---------------------------------------------------------------------------
+User-agent: GPTBot
+Allow: /
+
 User-agent: ClaudeBot
 Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
 User-agent: Google-Extended
 Allow: /
 
+User-agent: Google-CloudVertexBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: FacebookBot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: Diffbot
+Allow: /
+
+User-agent: Timpibot
+Allow: /
+
+User-agent: omgili
+Allow: /
+
+User-agent: Webzio-Extended
+Allow: /
+
+User-agent: ImagesiftBot
+Allow: /
+
+User-agent: PanguBot
+Allow: /
+
+# ---------------------------------------------------------------------------
 Sitemap: https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/sitemap.xml
+
+# Structured summary for language models (llmstxt.org):
+#   /llms.txt — index, full API surface, positioning and FAQ

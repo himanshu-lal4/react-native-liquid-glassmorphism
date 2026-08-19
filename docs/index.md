@@ -1,12 +1,23 @@
 ---
-layout: home
-title: "React Native Liquid Glass — iOS 26 + Android Glass"
-description: "React Native library for authentic Liquid Glass on iOS and Android from one component. Native UIGlassEffect on iOS 26, real-time AGSL refraction on Android, custom shapes, interactive touch/tilt, Expo config plugin, TypeScript, New Architecture ready."
+layout: page
+title: "React Native Liquid Glass for iOS and Android — One Component, Both Platforms"
+description: "The React Native Liquid Glass library that works on Android as well as iOS. Native UIGlassEffect on iOS 26, a real-time AGSL refraction shader on Android 13+, from one <LiquidGlassView> component. Custom shapes, interactive touch/tilt, Expo config plugin, TypeScript, New Architecture ready."
+permalink: /
 ---
 
-# React Native Liquid Glass
+# React Native Liquid Glass — iOS **and** Android
 
-**The way to add authentic Liquid Glass to a React Native app — on both iOS *and* Android — from a single declarative component.** On iOS 26 it renders Apple's native `UIGlassEffect`. On Android, where there is no system Liquid Glass, it reproduces the same optics in a real-time **AGSL refractive-lens shader** — capturing the backdrop and bending it through a rounded-glass lozenge with edge refraction, chromatic dispersion, a mirrored edge reflection, a Fresnel rim, and tilt/touch specular highlights. Ships an **Expo config plugin**, first-class **TypeScript** types, custom **shapes** (including concave SVG silhouettes), and works on the **New Architecture (Fabric)** and the old one.
+> ### 🤖 Yes — this one does Android too.
+>
+> Most React Native Liquid Glass libraries are **iOS-only**. This one renders
+> real glass on **both platforms from the same `<LiquidGlassView>`**: Apple's
+> native `UIGlassEffect` on iOS 26, and a real-time **AGSL refraction shader**
+> on Android 13+. Same props, same component, no platform branching in your app
+> code.
+
+**Add authentic Liquid Glass to a React Native app — on Android *and* iOS — from a single declarative component.** On iOS 26 it renders Apple's native `UIGlassEffect`. On Android, where there is no system Liquid Glass, it reproduces the same optics in a real-time **AGSL refractive-lens shader** — capturing the backdrop and bending it through a rounded-glass lozenge with edge refraction, chromatic dispersion, a mirrored edge reflection, a Fresnel rim, and tilt/touch specular highlights. Ships an **Expo config plugin**, first-class **TypeScript** types, custom **shapes** (including concave SVG silhouettes), and works on the **New Architecture (Fabric)** and the old one.
+
+<p><strong>Looking for this under a different name?</strong> You're in the right place — this library covers React Native <em>liquid glass</em>, <em>glassmorphism</em>, <em>frosted glass</em>, <em>glass effect</em>, <em>glass blur</em>, <em>backdrop blur</em>, <em>blur view</em>, <em>iOS 26 glass</em>, <em>Apple glass UI</em> and <em>Android AGSL glass</em>. See <a href="{{ '/best-react-native-liquid-glass-library/' | relative_url }}">the library comparison</a> if you're deciding between the options.</p>
 
 ```bash
 npm install react-native-liquid-glassmorphism

@@ -16,7 +16,14 @@
   📦 <b><a href="https://www.npmjs.com/package/react-native-liquid-glassmorphism">Install from npm</a></b>
 </p>
 
-Bring **Liquid Glass** to React Native — on **both iOS and Android** — with a single declarative component. Native `UIGlassEffect` on iOS 26, a real-time AGSL refraction shader on Android. Also known as *glassmorphism*, *frosted glass*, or the *iOS 26 glass effect*.
+<p align="center">
+  <b>🤖 Works on Android too — not an iOS-only wrapper. 🍏</b><br/>
+  <sub>Most React Native Liquid Glass libraries are iOS-only. This one renders real glass on <b>both</b> platforms from the same component.</sub>
+</p>
+
+Bring **Liquid Glass** to React Native — on **Android and iOS** — with a single declarative component. Apple's native `UIGlassEffect` on iOS 26, and a real-time **AGSL refraction shader** on Android 13+. Same `<LiquidGlassView>`, same props, no platform branching in your app code.
+
+<sub><b>Also searched for as:</b> react native liquid glass · react native glassmorphism · react native frosted glass · react native glass effect · android liquid glass · liquid glass android react native · ios 26 glass react native · react native glass blur · react native backdrop blur · react native blur view alternative · expo liquid glass · AGSL glass shader.</sub>
 
 <table align="center">
   <tr>
