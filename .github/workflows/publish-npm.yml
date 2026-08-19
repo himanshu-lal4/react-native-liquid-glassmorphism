@@ -14,6 +14,12 @@ name: Publish to npm
 #
 # Until that is configured, this workflow will fail at the publish step with
 # an auth error — that is expected, not a bug in the workflow.
+#
+# To smoke-test auth without publishing anything: dispatch this manually while
+# package.json's version is one already on npm. Auth happens first, so a
+# "cannot publish over previously published versions" failure means trusted
+# publishing works, whereas an OIDC/token error means the registration does
+# not match.
 
 on:
   workflow_dispatch:
@@ -36,10 +42,26 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      # Trusted publishing requires a recent npm; the one bundled with Node
-      # may predate OIDC support.
-      - name: Update npm
-        run: npm install -g npm@latest
+      # Trusted publishing needs npm >= 11.5.1, which is where OIDC landed.
+      # Pinned to the 11.x line rather than @latest on purpose: npm 12 requires
+      # Node ^22.22.2 || ^24.15.0 || >=26, and .nvmrc pins v24.13.0, so
+      # `npm@latest` fails the install outright with EBADENGINE and takes the
+      # whole release with it. Raise this only alongside .nvmrc.
+      - name: Pin npm to a version that supports trusted publishing
+        run: npm install -g npm@^11
+
+      # Fail loudly here rather than quietly publishing without provenance.
+      - name: Verify npm supports trusted publishing
+        run: |
+          NPM_V="$(npm --version)"
+          echo "npm ${NPM_V} on node $(node --version)"
+          MAJOR="${NPM_V%%.*}"
+          REST="${NPM_V#*.}"
+          MINOR="${REST%%.*}"
+          if [ "$MAJOR" -lt 11 ] || { [ "$MAJOR" -eq 11 ] && [ "$MINOR" -lt 5 ]; }; then
+            echo "npm ${NPM_V} is too old for trusted publishing (need >= 11.5.1)"
+            exit 1
+          fi
 
       - name: Build package
         run: yarn build
