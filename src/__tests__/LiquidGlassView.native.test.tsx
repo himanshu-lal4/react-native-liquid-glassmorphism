@@ -75,31 +75,44 @@ describe('LiquidGlassView (native) prop mapping', () => {
 
   // Custom shapes: the wrapper normalises to a path + view-box and stops
   // rounding the outer container (that would clip the shape's corners).
-  // `blurRadius` is Android-only, and codegen floats cannot be null, so "unset"
-  // travels as a negative sentinel that native reads as "derive from intensity".
-  // The jest preset reports 'ios', so nothing should reach native here at all.
-  it('does not send blurRadius to native on iOS', () => {
-    expect(render({ blurRadius: 12 }).props.blurRadius).toBeUndefined();
-  });
-
-  // The composition primitives: `rim`/`specular` shape the Android material
-  // only, while `dim` is a design choice both platforms honour.
+  // The composition primitives reach BOTH platforms: iOS uses them to decide
+  // between UIGlassEffect and a plain UIBlurEffect material.
   it('defaults the primitives to the full glass treatment', () => {
     const { props } = render();
     expect(props.dim).toBe(0);
-    // Android-only, so absent under the jest preset's 'ios'.
-    expect(props.rim).toBeUndefined();
-    expect(props.specular).toBeUndefined();
+    expect(props.rim).toBe(true);
+    expect(props.specular).toBe(true);
+    expect(props.thickness).toBe(1);
+    // Negative sentinel: codegen floats cannot be null, so this is "unset".
+    expect(props.blurRadius).toBe(-1);
   });
 
-  it('forwards `dim` on every platform', () => {
-    expect(render({ dim: 0.4 }).props.dim).toBe(0.4);
+  it('forwards the primitives on iOS too, not just Android', () => {
+    const { props } = render({
+      rim: false,
+      specular: false,
+      thickness: 0,
+      blurRadius: 20,
+      dim: 0.4,
+    });
+    expect(props.rim).toBe(false);
+    expect(props.specular).toBe(false);
+    expect(props.thickness).toBe(0);
+    expect(props.blurRadius).toBe(20);
+    expect(props.dim).toBe(0.4);
   });
 
-  it('keeps `rim` and `specular` off the iOS prop surface', () => {
-    const { props } = render({ rim: false, specular: false });
-    expect(props.rim).toBeUndefined();
-    expect(props.specular).toBeUndefined();
+  it('clamps a negative blurRadius rather than passing the unset sentinel', () => {
+    expect(render({ blurRadius: -5 }).props.blurRadius).toBe(0);
+  });
+
+  it('keeps the genuinely Android-only optics off iOS', () => {
+    const { props } = render({
+      edgeReflectionStrength: 0.5,
+      legibilityFloor: 0.5,
+    });
+    expect(props.edgeReflectionStrength).toBeUndefined();
+    expect(props.legibilityFloor).toBeUndefined();
   });
 
   it('sends no shape by default', () => {

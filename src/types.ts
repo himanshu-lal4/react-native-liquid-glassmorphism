@@ -47,7 +47,10 @@ export interface LiquidGlassViewProps extends ViewProps {
    * <LiquidGlassView rim={false} specular={false} thickness={0} blurRadius={20} />
    * ```
    *
-   * Android only. No-op on iOS, where the edge is part of the system material.
+   * On iOS the edge belongs to the system material and cannot be dialled — but
+   * turning this off, together with `specular` and `thickness={0}`, tells iOS
+   * you no longer want Liquid Glass at all, and it renders a plain
+   * `UIBlurEffect` material instead.
    * @default true
    */
   rim?: boolean;
@@ -56,7 +59,7 @@ export interface LiquidGlassViewProps extends ViewProps {
    * Draw the moving sheen and specular hotspot. `false` removes every
    * light-driven highlight, leaving a flat material.
    *
-   * Android only. No-op on iOS.
+   * On iOS, part of the "this is not glass" signal — see {@link rim}.
    * @default true
    */
   specular?: boolean;
@@ -77,7 +80,7 @@ export interface LiquidGlassViewProps extends ViewProps {
   dim?: number;
 
   /**
-   * Android only: an explicit blur radius in dp, overriding whatever
+   * An explicit blur radius in dp, overriding whatever
    * {@link intensity} would have derived.
    *
    * Reach for this when `intensity` isn't giving you the control you need —
@@ -87,7 +90,11 @@ export interface LiquidGlassViewProps extends ViewProps {
    * the same units.
    *
    * Useful range is roughly `0`–`30`; `0` is a genuinely unblurred pane.
-   * No-op on iOS, where the material's blur is the OS's to choose.
+   *
+   * On iOS this picks the nearest `UIBlurEffect` material when the view is in
+   * plain-blur mode (see {@link rim}); UIKit's materials are discrete, so it is
+   * the closest equivalent rather than a literal radius. It is ignored while
+   * the view is rendering Liquid Glass, where the OS owns the blur.
    *
    * @example
    * // Clear glass — transparent and refractive, but properly blurred.
@@ -155,7 +162,9 @@ export interface LiquidGlassViewProps extends ViewProps {
    * - `1` — the default liquid glass look
    * - up to `~2` — a deep, heavily-refracting lens
    *
-   * Android only. No-op on iOS, where the OS fixes the `UIGlassEffect` optics.
+   * iOS fixes the `UIGlassEffect` optics, so intermediate values are Android
+   * only — but `0` is honoured on both: with `rim` and `specular` off it is the
+   * signal to drop Liquid Glass for a plain blur material.
    * @default 1
    */
   thickness?: number;

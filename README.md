@@ -226,17 +226,28 @@ turn off what you don't want.
 <LiquidGlassView variant="clear" borderRadius={20} />
 ```
 
-| Prop | What it turns off | Platform |
+| Prop | What it does | Platform |
 | --- | --- | --- |
-| `rim={false}` | The bright glass edge | Android |
-| `specular={false}` | The moving sheen and specular hotspot | Android |
-| `thickness={0}` | Edge refraction / lensing — a flat pane | Android |
-| `dim={0…1}` | *Adds* a flat scrim under the children | **both** |
-| `blurRadius` | Sets the blur in dp outright | Android |
+| `rim={false}` | Drops the bright glass edge | Android |
+| `specular={false}` | Drops the moving sheen and specular hotspot | Android |
+| `thickness={0}` | Drops edge refraction / lensing — a flat pane | Android |
+| `dim={0…1}` | Adds a flat scrim under the children | **both** |
+| `blurRadius` | Sets the blur in dp outright | **both** |
 
-`dim` is the modal-backdrop primitive and works on iOS too. It's deliberately
-separate from `legibilityFloor`: that one is adaptive and exists to keep chrome
-readable, `dim` is a constant design choice about the surface.
+**All three "off" switches together are also the cross-platform signal.** With
+`rim={false} specular={false} thickness={0}`, iOS stops rendering Liquid Glass
+and returns a plain `UIBlurEffect` material instead — so a blur view is a blur
+view on both platforms, not glass on one and blur on the other. `blurRadius`
+then picks the nearest UIKit material (they're discrete, so it's the closest
+equivalent rather than a literal radius).
+
+`dim` is deliberately separate from `legibilityFloor`: that one is adaptive and
+exists to keep chrome readable, `dim` is a constant design choice about the
+surface.
+
+> On the web fallback there is no real backdrop blur — React Native Web can't do
+> it portably — so you get a translucent surface with the `rim` and `dim` you
+> asked for, and no blur. Check `Platform.OS` if that matters to your design.
 
 ## Custom shapes
 

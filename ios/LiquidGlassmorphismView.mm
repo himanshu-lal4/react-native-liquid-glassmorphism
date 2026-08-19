@@ -177,6 +177,12 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
   int _intensity;
   BOOL _interactive;
   UIColor *_appliedTint;
+
+  // The composition primitives. When the caller has switched every glass
+  // layer off, this stops being liquid glass and becomes a plain blur view,
+  // which on iOS means a UIBlurEffect material rather than UIGlassEffect.
+  BOOL _plainBlur;
+  float _blurRadiusDp;
 }
 
 + (ComponentDescriptorProvider)componentDescriptorProvider
@@ -193,6 +199,8 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
     _variant = "";
     _intensity = -1;
     _interactive = NO;
+    _plainBlur = NO;
+    _blurRadiusDp = -1;
     _appliedTint = nil;
 
     // Clip the glass and children to the rounded card shape.
@@ -294,6 +302,7 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
 
 #if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   if (@available(iOS 26.0, *)) {
+    if (!_plainBlur) {
     UIGlassEffect *glass =
         [UIGlassEffect effectWithStyle:(isClear ? UIGlassEffectStyleClear : UIGlassEffectStyleRegular)];
     glass.interactive = _interactive;
@@ -303,8 +312,33 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
       glass.tintColor = tint;
     }
     return glass;
+    }
   }
 #endif
+
+  // A plain blur view: every glass layer was switched off, so give back the
+  // classic frosted material instead of Liquid Glass. `blurRadius` picks the
+  // bucket when it is set — UIBlurEffect's materials are discrete, so this is
+  // the nearest equivalent to an exact radius rather than a literal one.
+  if (_plainBlur) {
+    UIBlurEffectStyle plain;
+    if (_blurRadiusDp >= 0) {
+      if (_blurRadiusDp <= 6) plain = UIBlurEffectStyleSystemUltraThinMaterial;
+      else if (_blurRadiusDp <= 12) plain = UIBlurEffectStyleSystemThinMaterial;
+      else if (_blurRadiusDp <= 20) plain = UIBlurEffectStyleSystemMaterial;
+      else if (_blurRadiusDp <= 30) plain = UIBlurEffectStyleSystemThickMaterial;
+      else plain = UIBlurEffectStyleSystemChromeMaterial;
+    } else if (_intensity >= 80) {
+      plain = UIBlurEffectStyleSystemThickMaterial;
+    } else if (_intensity >= 50) {
+      plain = UIBlurEffectStyleSystemMaterial;
+    } else if (_intensity >= 25) {
+      plain = UIBlurEffectStyleSystemThinMaterial;
+    } else {
+      plain = UIBlurEffectStyleSystemUltraThinMaterial;
+    }
+    return [UIBlurEffect effectWithStyle:plain];
+  }
 
   // Pre-iOS-26 fallback: choose a material whose heaviness tracks `intensity`.
   UIBlurEffectStyle style;
@@ -332,6 +366,12 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
   int newIntensity = newViewProps.intensity;
   BOOL newInteractive = newViewProps.interactive;
 
+  // "Every glass layer off" is the signal for a plain blur view. It is not a
+  // separate mode — it falls out of the primitives the caller already set.
+  BOOL newPlainBlur = !newViewProps.rim && !newViewProps.specular &&
+      newViewProps.thickness == 0.0f;
+  float newBlurRadius = newViewProps.blurRadius;
+
   // Resolve the tint: explicit tintColor, else a subtle adaptive wash so a bare
   // <LiquidGlassView> still reads as glass.
   UIColor *explicitTint = RCTUIColorFromSharedColor(newViewProps.tintColor);
@@ -341,11 +381,14 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
 
   BOOL effectChanged = (_effectView.effect == nil) || newVariant != _variant ||
       newIntensity != _intensity || newInteractive != _interactive ||
+      newPlainBlur != _plainBlur || newBlurRadius != _blurRadiusDp ||
       ![tint isEqual:_appliedTint];
 
   _variant = newVariant;
   _intensity = newIntensity;
   _interactive = newInteractive;
+  _plainBlur = newPlainBlur;
+  _blurRadiusDp = newBlurRadius;
   _appliedTint = tint;
 
   if (effectChanged) {
