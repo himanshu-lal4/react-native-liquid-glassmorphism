@@ -53,6 +53,14 @@ object GlassSdf {
   // shader's normal (finite differences) needs to stay smooth — at 512 a wide
   // shape's normals jitter per-pixel and the refraction reads as shattered.
   private const val MAX_DIM = 1024
+
+  /**
+   * Half-width, in texels, of the stencil the surface normal is differenced
+   * over. Wide enough that the medial axis fades across a band you can see
+   * rather than a hard line; narrow enough to leave the normal untouched
+   * everywhere the field is locally linear, which is almost everywhere.
+   */
+  private const val GRAD_RADIUS = 3
   // Comfortably larger than any squared distance in a ≤1024² grid (~2.1e6) yet
   // small enough to keep float32 precision sharp through the parabola math.
   private const val INF = 1e9f
@@ -175,8 +183,15 @@ object GlassSdf {
       if (inside > maxInside) maxInside = inside
     }
     maxInside = max(1f, maxInside * toView)
-    val lensW = max(28f, min(minDim * 0.56f, maxInside * 0.75f))
-    val reflW = max(14f, min(minDim * 0.35f, maxInside * 0.55f))
+    // The inradius cap has to stay authoritative. A `max(28, …)` floor outside
+    // the `min` silently overrode it on any compact or spiky silhouette: an
+    // 84px triangle has an inradius near 20px, so a 28px floor put the whole
+    // shape inside the lens band and the mirror band covered most of it too —
+    // no calm centre anywhere, which is why small stars and triangles read as
+    // milky plastic instead of glass. The floor is now small enough that the
+    // cap always wins where it matters.
+    val lensW = max(6f, min(minDim * 0.56f, maxInside * 0.75f))
+    val reflW = max(4f, min(minDim * 0.35f, maxInside * 0.55f))
 
     val out = IntArray(n)
     for (i in 0 until n) {
@@ -201,17 +216,33 @@ object GlassSdf {
     // again — the shader samples these instead of finite-differencing the
     // packed distance texture (which wobbles a few degrees per texel; the
     // lens/mirror displacement magnifies that into radial streaks).
+    // Central differences over a WIDE stencil, not one texel.
+    //
+    // `dist` is very nearly an exact distance field, so |grad| is ~1 everywhere
+    // and collapses only within a texel or two of the medial axis. A 1-texel
+    // difference therefore makes both the direction and the confidence flip
+    // over essentially no distance — along a polygon's angle bisectors that
+    // produced dark, ragged wedges running in from every vertex: in the narrow
+    // transition band the confidence sits mid-range (so the lens is still
+    // partly on) while the direction is pure noise, and the mirror term throws
+    // the sample tens of pixels somewhere arbitrary.
+    //
+    // Sampling over ±GRAD_RADIUS makes the two sides cancel gradually, so the
+    // direction stays stable through the band and the confidence ramps smoothly
+    // — the same reasoning as the analytic rounded-rect's epsilon.
     val gx = FloatArray(n)
     val gy = FloatArray(n)
+    val r = GRAD_RADIUS
     for (y in 0 until h) {
       for (x in 0 until w) {
         val i = y * w + x
-        val xl = dist[if (x > 0) i - 1 else i]
-        val xr = dist[if (x < w - 1) i + 1 else i]
-        val yu = dist[if (y > 0) i - w else i]
-        val yd = dist[if (y < h - 1) i + w else i]
-        gx[i] = (xr - xl) * 0.5f
-        gy[i] = (yd - yu) * 0.5f
+        val xl = dist[y * w + (x - r).coerceAtLeast(0)]
+        val xr = dist[y * w + (x + r).coerceAtMost(w - 1)]
+        val yu = dist[(y - r).coerceAtLeast(0) * w + x]
+        val yd = dist[(y + r).coerceAtMost(h - 1) * w + x]
+        // Normalised by the actual span so |grad| stays ~1 on clean slopes.
+        gx[i] = (xr - xl) / (2f * r)
+        gy[i] = (yd - yu) / (2f * r)
       }
     }
     // Two passes (σ≈1.6): the mirror band displaces by ~iLens·3 px, so it

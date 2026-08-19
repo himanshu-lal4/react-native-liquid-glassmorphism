@@ -531,10 +531,17 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       rec.drawBitmap(bmp, srcRect, dstRect, null)
       node.endRecording()
       node.setRenderEffect(buildEffect(width, height))
-      // Analytic path: clipToOutline rounds it. Custom shape: the shader alpha
-      // shapes the glass; a path clip guards against any bleed (and shapes the
-      // blur-only fallback on API < 33).
-      if (shapePath != null) {
+      // Analytic path: clipToOutline rounds it. Custom shape: the shader's own
+      // mask alpha shapes the glass.
+      //
+      // `Canvas.clipPath` is NOT anti-aliased on a hardware canvas — it is a
+      // hard per-pixel stencil. Applying it on top of the shader's smooth,
+      // anti-aliased silhouette alpha sawed that edge straight back off, which
+      // is the stair-stepped, speckled rim on every custom shape. The clip is
+      // still needed for the blur-only fallback below API 33, where nothing
+      // else bounds the render node — but where the shader runs, the mask is
+      // the silhouette and the clip can only make it worse.
+      if (shapePath != null && !shaderActive) {
         canvas.save()
         canvas.clipPath(shapePath)
         canvas.drawRenderNode(node)
