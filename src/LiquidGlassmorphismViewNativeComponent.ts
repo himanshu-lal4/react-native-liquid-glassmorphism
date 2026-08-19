@@ -1,5 +1,30 @@
 import { codegenNativeComponent, type ColorValue, type ViewProps } from 'react-native';
-import type { Float, Int32, WithDefault } from 'react-native/Libraries/Types/CodegenTypes';
+import type {
+  DirectEventHandler,
+  Float,
+  Int32,
+  WithDefault,
+} from 'react-native/Libraries/Types/CodegenTypes';
+
+/**
+ * Payload of `onPipelineReady` — which rendering path this view actually got.
+ *
+ * `tier` is a string rather than a union because codegen event payloads cannot
+ * carry one; the JS wrapper narrows it back to `GlassTier`.
+ */
+export type PipelineReadyEvent = Readonly<{
+  tier: string;
+  osVersion: Int32;
+  shaderCompiled: boolean;
+  supportsNativeGlass: boolean;
+}>;
+
+/** Payload of `onError` — see `GlassErrorCode` in `types.ts` for the codes. */
+export type GlassErrorEvent = Readonly<{
+  code: string;
+  message: string;
+  fatal: boolean;
+}>;
 
 /**
  * Codegen spec for the native Liquid Glass Fabric component.
@@ -100,6 +125,21 @@ export interface NativeProps extends ViewProps {
    * backdrop brightness. 0 = off. No-op on iOS.
    */
   legibilityFloor?: WithDefault<Float, 0>;
+
+  /**
+   * Fired once per view, after the first frame, with the tier that actually
+   * rendered. Not a device capability check — an explicit prop or an OS-level
+   * fallback can hold a capable device to a lower tier.
+   */
+  onPipelineReady?: DirectEventHandler<PipelineReadyEvent>;
+
+  /**
+   * Fired when the view cannot do what the props asked for: a shader that would
+   * not compile, an unparseable shape, a backdrop capture that failed. Each
+   * code is reported at most once per view, so a per-frame failure cannot spam
+   * the bridge.
+   */
+  onError?: DirectEventHandler<GlassErrorEvent>;
 }
 
 export default codegenNativeComponent<NativeProps>('LiquidGlassmorphismView');

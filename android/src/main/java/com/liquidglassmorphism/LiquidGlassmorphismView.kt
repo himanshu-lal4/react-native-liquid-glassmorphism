@@ -25,6 +25,9 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.ViewTreeObserver
+import com.facebook.react.bridge.ReactContext
+import com.facebook.react.uimanager.UIManagerHelper
+import com.facebook.react.uimanager.events.Event
 import com.facebook.react.views.view.ReactViewGroup
 import kotlin.math.max
 import kotlin.math.min
@@ -309,13 +312,33 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       PathParser.createPathFromPathData(shapePathData)
     } catch (_: Throwable) {
       null
-    } ?: run { sdfKey = key; return }
+    } ?: run {
+      sdfKey = key
+      emitError(
+        GlassErrorEvent.INVALID_SHAPE,
+        "The `shape` path could not be parsed, so the glass is drawing its " +
+          "rounded rectangle instead. Elliptic arcs (A) are not supported — " +
+          "express curves as béziers."
+      )
+      return
+    }
 
     // Stretch the authored view-box onto the actual bounds (aspect-agnostic).
     val m = Matrix()
     m.setScale(w / shapeVBWidth, h / shapeVBHeight)
     path.transform(m)
     scaledShapePath = path
+
+    if (glassShader == null) {
+      // The silhouette still clips, but without the signed-distance field the
+      // lens optics that make it read as glass are simply absent.
+      emitError(
+        GlassErrorEvent.PIPELINE_DEGRADED,
+        "A custom `shape` needs the AGSL lens pipeline (API 33+); on API " +
+          "${Build.VERSION.SDK_INT} the silhouette clips but renders as a " +
+          "path-clipped frost with no refraction."
+      )
+    }
 
     if (glassShader != null) {
       val result = GlassSdf.build(path, w, h)
@@ -389,6 +412,78 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
           "unless foreground content is rendered as a CHILD of <LiquidGlassView>."
       )
     }
+  }
+
+  // ---- Events ----
+
+  // Codes already reported for this view. A failure inside onDraw repeats every
+  // frame, so without this the bridge would carry the same error at 60fps.
+  private val reportedErrors = HashSet<String>()
+
+  private fun dispatch(event: Event<*>) {
+    val reactContext = context as? ReactContext ?: return
+    UIManagerHelper
+      .getEventDispatcherForReactTag(reactContext, id)
+      ?.dispatchEvent(event)
+  }
+
+  /**
+   * Report that the view is not doing what its props asked for.
+   *
+   * Always logged, whether or not JS attached a handler — the logcat line is
+   * what makes this debuggable on a device with no debugger attached.
+   */
+  private fun emitError(code: String, message: String, fatal: Boolean = false) {
+    if (!reportedErrors.add(code)) return
+    android.util.Log.w("LiquidGlass", "$code: $message")
+    dispatch(GlassErrorEvent(UIManagerHelper.getSurfaceId(this), id, code, message, fatal))
+  }
+
+  /**
+   * Report the tier that actually rendered, once per view.
+   *
+   * Fires from [onDraw] for **every** tier, including the ones that never reach
+   * the RenderNode path — a report that only arrives on capable devices is the
+   * opposite of what this is for.
+   */
+  private fun emitPipelineReady() {
+    if (reportedTier) return
+    reportedTier = true
+
+    val tier = when {
+      shaderActive -> "refraction"
+      supportsBlur() -> "blur"
+      else -> "tint"
+    }
+    val compiled = glassShader != null
+
+    // Kept alongside the event: QA can confirm the tier from a device build
+    // with no JS handler wired up.
+    android.util.Log.i(
+      "LiquidGlass",
+      "render tier=$tier shaderCompiled=$compiled sdk=${Build.VERSION.SDK_INT}"
+    )
+
+    // The AGSL is expected to compile on API 33+; if it did not, the view is
+    // silently a tier lower than the device can do, which is worth an error and
+    // not just a tier report.
+    if (!compiled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      emitError(
+        GlassErrorEvent.SHADER_COMPILE_FAILED,
+        "The AGSL glass shader did not compile on API ${Build.VERSION.SDK_INT}; " +
+          "falling back to blur + tint."
+      )
+    }
+
+    dispatch(
+      GlassPipelineReadyEvent(
+        UIManagerHelper.getSurfaceId(this),
+        id,
+        tier,
+        Build.VERSION.SDK_INT,
+        compiled
+      )
+    )
   }
 
   override fun onDetachedFromWindow() {
@@ -483,8 +578,17 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     isCapturing = true
     try {
       root.draw(canvas)
-    } catch (_: Throwable) {
-      // A child that refuses software draw → keep the previous backdrop.
+    } catch (t: Throwable) {
+      // A child that refuses software draw → keep the previous backdrop. This
+      // used to be swallowed entirely, which made "the glass froze on one
+      // frame" impossible to explain from the JS side.
+      emitError(
+        GlassErrorEvent.BACKDROP_CAPTURE_FAILED,
+        "A view behind the glass could not be drawn to a software canvas " +
+          "(${t.javaClass.simpleName}), so the previous backdrop is being " +
+          "reused. SurfaceView, TextureView and some video/map views cannot " +
+          "be captured this way."
+      )
     } finally {
       isCapturing = false
     }
@@ -579,21 +683,6 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       } else {
         canvas.drawRenderNode(node)
       }
-      // Report which tier actually ran, once (#6) — logcat so QA can confirm
-      // from a device which path ran (agsl / blur / tint).
-      if (!reportedTier) {
-        reportedTier = true
-        val tier = when {
-          shaderActive -> "agsl"
-          supportsBlur() -> "blur"
-          else -> "tint"
-        }
-        val compiled = glassShader != null
-        android.util.Log.i(
-          "LiquidGlass",
-          "render tier=$tier shaderCompiled=$compiled sdk=${Build.VERSION.SDK_INT}"
-        )
-      }
     }
 
     if (!shaderActive) {
@@ -638,6 +727,11 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       val inset = rimPaint.strokeWidth / 2f
       canvas.drawRoundRect(inset, inset, w - inset, h - inset, cornerRadiusPx, cornerRadiusPx, rimPaint)
     }
+
+    // Last thing in the first draw: `shaderActive` is settled by now, and every
+    // tier reaches this point — the previous report sat inside the RenderNode
+    // branch, so a device on the tint tier never reported at all.
+    emitPipelineReady()
   }
 
   // Colour of the legibility veil: a dark scrim whose opacity scales with

@@ -94,6 +94,19 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
     view.setShapeViewBoxHeight(value)
   }
 
+  /**
+   * Both the `top`-prefixed name and the `registrationName` entry are required.
+   * Without an entry here the event is dispatched natively, matches nothing in
+   * JS, and vanishes with no error on either side.
+   */
+  override fun getExportedCustomDirectEventTypeConstants(): MutableMap<String, Any> =
+    mutableMapOf(
+      GlassPipelineReadyEvent.EVENT_NAME to
+        mutableMapOf("registrationName" to "onPipelineReady"),
+      GlassErrorEvent.EVENT_NAME to
+        mutableMapOf("registrationName" to "onError"),
+    )
+
   companion object {
     const val NAME = "LiquidGlassmorphismView"
   }

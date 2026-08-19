@@ -69,6 +69,9 @@ See the [full comparison](https://himanshu-lal4.github.io/react-native-liquid-gl
 - 🔷 **Custom shapes** — circle, squircle, polygon, star, points, or arbitrary/concave SVG paths
 - 🧊 `regular` (frosted) and `clear` (transparent) materials
 - 🪟 **Also a blur view** — switch the glass layers off for a plain blur, a scrim, or a dimmed modal backdrop
+- 🎚️ **Presets** — six tuned materials (`navigationBar`, `floatingTabBar`, `cardOverMedia`, …) you can override per-prop
+- 🔍 **Capability detection** — `useGlassSupport()` tells you which tier a device can render, without mounting anything
+- 🛟 **Dev-time warnings** for the mistakes that otherwise fail silently, stripped from production builds
 - ⚡ New Architecture (Fabric) **and** old architecture
 - 🟦 First-class TypeScript types · 📦 Expo config plugin
 
@@ -126,14 +129,16 @@ it once via the SDK Manager and rebuild.
 
 **Android degradation matrix** (what actually renders per OS tier):
 
-| Android tier | Renders |
-| --- | --- |
-| API 33+ | Full AGSL lens: blur → vibrancy → **edge refraction** → tint → specular |
-| API 31–32 | Blur + Canvas tint/specular (**no refraction lensing**) |
-| < API 31 | Translucent tint + rim only |
+| Android tier | `tier` | Renders |
+| --- | --- | --- |
+| API 33+ | `refraction` | Full AGSL lens: blur → vibrancy → **edge refraction** → tint → specular |
+| API 31–32 | `blur` | Blur + Canvas tint/specular (**no refraction lensing**) |
+| < API 31 | `tint` | Translucent tint + rim only |
 
-To confirm which tier ran on a given device, check logcat for
-`LiquidGlass: render tier=agsl|blur|tint shaderCompiled=…`.
+To find out which tier a device will run **before mounting anything**, call
+[`getGlassCapabilities()`](#capability-detection). To confirm which one actually
+rendered, handle [`onPipelineReady`](#events) — or read the same line from
+logcat: `LiquidGlass: render tier=… shaderCompiled=…`.
 
 ## Usage
 
@@ -182,6 +187,7 @@ Extends `ViewProps`. All props are optional.
 
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
+| `preset` | `GlassPresetName` | — | Start from a tuned material instead of dialling every knob. See [Presets](#presets). Any prop you pass explicitly wins over the preset. |
 | `variant` | `'regular' \| 'clear'` | `'regular'` | `regular` = adaptive frosted glass. `clear` = lighter, transparent glass for media. |
 | `tintColor` | `ColorValue` | — | Tint over the backdrop. Use `rgba()` / 8-digit hex to control strength. |
 | `intensity` | `number` (0–100) | `60` | Blur / material strength. On iOS 26 the OS manages the material (used only for the pre-26 fallback); on Android it scales the blur radius. `clear` deliberately blurs less than `regular` across the same scale — use `blurRadius` if you want an exact value. |
@@ -197,6 +203,103 @@ Extends `ViewProps`. All props are optional.
 | `thickness` | `number` (0–2) | `1` | **Android only** — "liquid volume": scales the refraction/lens depth. `0` = flat pane, `1` = default, up to `~2` = deep liquid lens. No-op on iOS (glass optics are OS-fixed). |
 | `edgeReflectionStrength` | `number` (0–1) | `1` | **Android only** — strength of the edge-reflection band (the upside-down rim echo), **independent of `thickness`**. Lower it over text-heavy backdrops where the mirrored copy reads as noise. No-op on iOS. |
 | `legibilityFloor` | `number` (0–1) | `0` | **Android only** — an adaptive veil drawn **under the foreground children** so chrome (icons/labels) stays readable over `clear` glass, without darkening the whole pane. Scales with the value and the backdrop brightness; hued by `tintColor`. `0` = off. No-op on iOS. |
+| `onPipelineReady` | `(e) => void` | — | Fires once per view with the tier that actually rendered. See [Events](#events). |
+| `onError` | `(e) => void` | — | Fires when the view can't do what the props asked for. See [Events](#events). |
+
+## Presets
+
+Six tuned starting points, so the common cases don't need the whole prop table:
+
+```tsx
+import { LiquidGlassView, GlassPresets } from 'react-native-liquid-glassmorphism';
+
+<LiquidGlassView preset="floatingTabBar" style={styles.tabBar} />
+
+// Start from a preset and override a single value — explicit props always win.
+<LiquidGlassView preset="cardOverMedia" legibilityFloor={0.5} />
+```
+
+| Preset | For |
+| --- | --- |
+| `navigationBar` | A translucent header with content scrolling under it. Square corners, shallow lens. |
+| `floatingTabBar` | A detached, fully-rounded bar floating above content. Full thickness and a live rim. |
+| `cardOverMedia` | A readable card over photography or video. `clear` glass plus a legibility veil. |
+| `compactControl` | A chip, badge or small floating control. Small surfaces need small numbers. |
+| `frosted` | Heavy and matte — a settings sheet or modal backdrop, where legibility beats transparency. |
+| `crystal` | Thin, hard and deeply refracting. Decorative; not somewhere to put a paragraph. |
+
+A preset is resolved in JS as `{ ...GlassPresets[preset], ...yourProps }`. The raw
+map is exported as `GlassPresets` if you want to read, diff or extend the values.
+
+## Capability detection
+
+Branch **without mounting a view** — useful for deciding whether to render glass
+at all, or to swap in a flat design on older devices:
+
+```tsx
+import {
+  useGlassSupport,
+  isLiquidGlassSupported,
+  getGlassCapabilities,
+} from 'react-native-liquid-glassmorphism';
+
+function Panel() {
+  const { tier, supportsRefraction } = useGlassSupport();
+  if (tier === 'none') return <FlatPanel />;
+  return <LiquidGlassView preset="cardOverMedia">…</LiquidGlassView>;
+}
+```
+
+`getGlassCapabilities()` is pure `Platform` arithmetic — no native call, safe to
+run before mount and in tests. It returns:
+
+| Field | Meaning |
+| --- | --- |
+| `supported` | A native implementation exists on this platform. |
+| `tier` | `'glass'` (real iOS 26 `UIGlassEffect`) · `'refraction'` (AGSL, Android 33+) · `'blur'` (iOS 15–25, Android 31–32) · `'tint'` (Android < 31) · `'none'`. |
+| `osVersion` | Android API level, or the iOS major version — comparable with `>=` on both. |
+| `supportsNativeGlass` | The glass is rendered by the OS, not by our shader. |
+| `supportsBlur` · `supportsRefraction` | Whether the backdrop is really blurred / really lensed. |
+| `supportsShapes` | Whether a custom `shape` gets the full glass treatment (below Android 33 the silhouette still clips, but as a path-clipped frost). |
+
+## Events
+
+```tsx
+<LiquidGlassView
+  onPipelineReady={({ nativeEvent }) => setTier(nativeEvent.tier)}
+  onError={({ nativeEvent: { code, message, fatal } }) => {
+    if (fatal) setUseGlass(false);
+    else console.warn(`[glass] ${code}: ${message}`);
+  }}
+/>
+```
+
+| Event | Payload | Notes |
+| --- | --- | --- |
+| `onPipelineReady` | `{ tier, osVersion, shaderCompiled, supportsNativeGlass }` | Fires **once per view**, after its first frame, with the tier that actually rendered. Fires on every platform — including the web fallback, with `tier: 'none'` — so a gate written against it resolves instead of hanging. |
+| `onError` | `{ code, message, fatal }` | The view can't do what the props asked for. Each code fires at most once per view. |
+
+`onPipelineReady` reports what **did** render; `getGlassCapabilities()` reports
+what the device **can** render, and answers before anything has mounted. Use the
+capability API to decide whether to render glass at all, and the event to confirm
+what you got.
+
+Error codes: `SHADER_COMPILE_FAILED`, `PIPELINE_DEGRADED`, `INVALID_SHAPE`,
+`BACKDROP_CAPTURE_FAILED`, `GLASS_UNAVAILABLE`. Most are `fatal: false` — the
+view recovered — but they always mean it isn't drawing what you asked for.
+`BACKDROP_CAPTURE_FAILED` in particular is worth handling: `SurfaceView`,
+`TextureView` and some video/map views can't be drawn to a software canvas, so
+the glass behind them freezes on its last good frame. Everything is also logged
+natively under the `LiquidGlass` tag, so a handler is optional.
+
+## Development warnings
+
+In `__DEV__` builds the library warns — once per problem, then never again — about
+the things that would otherwise fail silently: non-finite values, a value passed on
+the wrong scale (`intensity` is 0–100 while `thickness` is 0–2 and `legibilityFloor`
+is 0–1), `borderRadius` combined with a `shape` that overrides it, an unknown
+`preset` name, and props that do nothing on the current platform or OS version.
+All of it is stripped from production bundles.
 
 ## Not just glass — blur, scrim, overlay
 

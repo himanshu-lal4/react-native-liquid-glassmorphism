@@ -7,6 +7,7 @@
 #import <React/RCTConversions.h>
 
 #import <react/renderer/components/LiquidGlassmorphismViewSpec/ComponentDescriptors.h>
+#import <react/renderer/components/LiquidGlassmorphismViewSpec/EventEmitters.h>
 #import <react/renderer/components/LiquidGlassmorphismViewSpec/Props.h>
 #import <react/renderer/components/LiquidGlassmorphismViewSpec/RCTComponentViewHelpers.h>
 
@@ -178,6 +179,10 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
   BOOL _interactive;
   UIColor *_appliedTint;
 
+  // `onPipelineReady` is a one-shot per mounted view. Fabric recycles views, so
+  // this is reset in -prepareForRecycle rather than only in -init.
+  BOOL _reportedPipeline;
+
   // The composition primitives. When the caller has switched every glass
   // layer off, this stops being liquid glass and becomes a plain blur view,
   // which on iOS means a UIBlurEffect material rather than UIGlassEffect.
@@ -202,6 +207,7 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
     _plainBlur = NO;
     _blurRadiusDp = -1;
     _appliedTint = nil;
+    _reportedPipeline = NO;
 
     // Clip the glass and children to the rounded card shape.
     self.clipsToBounds = YES;
@@ -464,6 +470,77 @@ static UIBezierPath *LGMBezierPathFromSVG(NSString *d)
   }
 
   [super updateProps:props oldProps:oldProps];
+
+  [self reportPipelineIfNeeded];
+}
+
+#pragma mark - Events
+
+// Reported after the first prop commit rather than from -updateEventEmitter,
+// so the effect view has actually been built and the answer describes what is
+// on screen instead of what is about to be.
+- (void)reportPipelineIfNeeded
+{
+  if (_reportedPipeline || !_eventEmitter) {
+    return;
+  }
+  _reportedPipeline = YES;
+
+  BOOL nativeGlass = NO;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26.0, *)) {
+    nativeGlass = [_effectView.effect isKindOfClass:[UIGlassEffect class]];
+  }
+#endif
+
+  const auto emitter =
+      std::static_pointer_cast<LiquidGlassmorphismViewEventEmitter const>(_eventEmitter);
+
+  emitter->onPipelineReady({
+      // Real system glass, or the UIBlurEffect material standing in for it.
+      .tier = nativeGlass ? "glass" : "blur",
+      .osVersion = (int)NSProcessInfo.processInfo.operatingSystemVersion.majorVersion,
+      // Android-only concept; the field exists so the payload is identical on
+      // both platforms.
+      .shaderCompiled = false,
+      .supportsNativeGlass = (bool)nativeGlass,
+  });
+
+  if (!nativeGlass) {
+    emitter->onError({
+        .code = "GLASS_UNAVAILABLE",
+        .message = "UIGlassEffect needs iOS 26; this device is running iOS " +
+            std::to_string(NSProcessInfo.processInfo.operatingSystemVersion.majorVersion) +
+            ", so a UIBlurEffect material is standing in. It blurs, but it does "
+            "not refract.",
+        .fatal = false,
+    });
+  }
+}
+
+// Fabric recycles component views. Without this the next mount would inherit
+// this one's cached prop state and its already-reported latch, so the effect
+// would not be rebuilt and onPipelineReady would never fire again.
+- (void)prepareForRecycle
+{
+  [super prepareForRecycle];
+
+  _variant = "";
+  _intensity = -1;
+  _interactive = NO;
+  _appliedTint = nil;
+  _reportedPipeline = NO;
+  _plainBlur = NO;
+  _blurRadiusDp = -1;
+  _dimOverlay.backgroundColor = UIColor.clearColor;
+
+  // The silhouette is cached too, and a stale mask would survive onto whatever
+  // view reuses this instance.
+  self.shapePath = nil;
+  self.shapeVBWidth = 0;
+  self.shapeVBHeight = 0;
+  self.shapeMaskLayer = nil;
+  self.layer.mask = nil;
 }
 
 @end
