@@ -592,10 +592,17 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       }
     }
 
-    // Crisp bright rim outline — ALWAYS drawn, exactly like the analytic path.
-    // The shader's rimLine alone is softer/dimmer; skipping this stroke is what
-    // made custom shapes read as missing the clean glass edge the pill has.
-    if (shapePath != null) {
+    // Crisp bright rim outline — only where the shader is NOT drawing one.
+    //
+    // Both were drawing it, which is the double edge Android had and iOS did
+    // not: a Canvas stroke sitting on the outer boundary plus the shader's own
+    // `rimLine` a pixel or two inside it, reading as a sticker outline rather
+    // than a single glass edge. The shader's line is the better one now that
+    // `d` is precise on both paths, so it owns the rim and this stroke is the
+    // fallback for the tiers that have no shader.
+    if (shaderActive) {
+      // Shader owns the rim.
+    } else if (shapePath != null) {
       canvas.drawPath(shapePath, rimPaint)
     } else {
       val inset = rimPaint.strokeWidth / 2f
@@ -688,7 +695,11 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       // Lensing is intrinsic to glass (always on); the `refraction` prop only
       // dials it up. This is what makes the backdrop bend around the edges.
       shader.setFloatUniform("iLens", GlassParams.lensStrengthPx(variantClear, refractionEnabled, density) * thickness)
-      shader.setFloatUniform("iSat", if (variantClear) 1.55f else 1.3f)
+      // Measured against iOS 26 over the same wallpaper: with the blur
+      // matched, clear glass was holding sat 0.721x its backdrop where iOS
+      // holds 0.656x. The old 1.55 only looked right while the heavier blur
+      // was washing saturation out for it.
+      shader.setFloatUniform("iSat", if (variantClear) 1.32f else 1.3f)
       shader.setFloatUniform("iLift", GlassParams.frostFloorAlpha(variantClear))
       shader.setFloatUniform("iAdapt", GlassParams.adaptiveLift(variantClear))
       shader.setFloatUniform("iSpecular", GlassParams.specularAlpha(variantClear))
@@ -838,7 +849,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         float reflW = max(14.0, min(b.x, b.y) * 0.7);
         if (iUseSdf > 0.5) {
           half4 s = sdf.eval(coord);
-          d = (float(s.r) - 0.5) * iSdfRange;
+          // Square-law decode, matching GlassSdf's encoding: the codes are
+          // packed densely near the edge, where `rimLine` and `edgeGuard` need
+          // sub-pixel accuracy, and sparsely in the far field, which only feeds
+          // band masks tens of pixels wide.
+          float u = (float(s.r) - 0.5) * 2.0;
+          d = u * abs(u) * iSdfRange;
           rim = float(s.g);
           edgeBand = float(s.b);
         } else {
@@ -925,7 +941,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         // px wide) is untouched, and the crisp bright rim line below still draws
         // the edge. Analytic shapes have no noise, so this is a no-op for them
         // beyond a marginally softer edge.
-        float edgeGuard = smoothstep(0.0, 12.0, -d);
+        // Widened, and scaled to the mirror band rather than a fixed 12px. The
+        // guard multiplies a displacement of ~iLens*3, so a steep ramp turns
+        // any residual noise in `d` into radial smear; spreading it over a
+        // proportional distance keeps the same calm bevel with a far gentler
+        // derivative.
+        float edgeGuard = smoothstep(0.0, max(12.0, reflW * 0.18), -d);
 
         // `iRefl` (edgeReflectionStrength, 0–1) scales ONLY this reflection band
         // — independent of iLens/thickness — so the upside-down edge echo can be
@@ -989,7 +1010,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         // saturated, and real coloured glass has coloured highlights. Untinted
         // glass keeps white highlights (its default tint IS white).
         half3 hi = mix(half3(1.0), iTint.rgb, iTint.a * 0.6);
-        col = col + hi * (sheen + rimLine * 0.42 + (fres * 0.18 + spec * 0.6) * iSpecular)
+        // rimLine carries the whole glass edge now that the Canvas stroke no
+        // longer doubles it, so it is weighted to match what that stroke used
+        // to contribute on top.
+        col = col + hi * (sheen + rimLine * 0.80 + (fres * 0.18 + spec * 0.6) * iSpecular)
                   - half3(edgeShade);
 
         // Interactive touch: a soft radial bloom under the finger — iOS glass

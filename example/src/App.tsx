@@ -82,6 +82,8 @@ const BARE_DOCK_PATH = createDockPath(BARE_DOCK_W);
 // Bare swatches: one per row at max size — a square filling the full content
 // width (screen minus the 20px page padding each side).
 const BARE_SIZE = WINDOW_W - 40;
+// Side-by-side A/B cell: two of them plus the gap across the content width.
+const AB_SIZE = Math.floor((WINDOW_W - 40 - 12) / 2);
 function starPoints(
   spikes: number,
   outer: number,
@@ -167,6 +169,32 @@ function Gallery({
           </View>
         </View>
         <Text style={styles.subheading}>Liquid Glass · React Native</Text>
+
+        {/* 0. SDF vs analytic, like for like -------------------------------- */}
+        {/* The SAME circle, same size, same variant, drawn two ways: as a
+            custom `shape` (signed-distance-field path) and as a rounded rect
+            whose radius makes it a circle (analytic path). Anything that
+            differs between these two is the SDF pipeline's error, not the
+            design. */}
+        <Text style={styles.section}>SDF shape vs analytic — same circle</Text>
+        <View style={styles.abRow}>
+          <View style={styles.abCell}>
+            <LiquidGlassView
+              variant="clear"
+              shape={{ type: 'circle' }}
+              style={styles.abGlass}
+            />
+            <Text style={styles.swatchLabel}>shape=circle (SDF)</Text>
+          </View>
+          <View style={styles.abCell}>
+            <LiquidGlassView
+              variant="clear"
+              borderRadius={AB_SIZE / 2}
+              style={styles.abGlass}
+            />
+            <Text style={styles.swatchLabel}>borderRadius (analytic)</Text>
+          </View>
+        </View>
 
         {/* 1. Variants ------------------------------------------------------ */}
         <Text style={styles.section}>Variants</Text>
@@ -512,6 +540,10 @@ const styles = StyleSheet.create({
 
   // Custom-shape swatches: a fixed square canvas so circle/polygon/star aren't
   // stretched (the shape fills the view's bounds).
+  abRow: { flexDirection: 'row', gap: 12 },
+  abCell: { alignItems: 'center', gap: 6 },
+  abGlass: { width: AB_SIZE, height: AB_SIZE },
+
   swatch: { alignItems: 'center', gap: 6, width: 84 },
   swatchGlass: { width: 84, height: 84 },
   swatchLabel: { fontSize: 12, color: 'rgba(255,255,255,0.85)' },

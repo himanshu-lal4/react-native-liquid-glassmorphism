@@ -104,11 +104,20 @@ object GlassParams {
   private const val MIN_BLUR_DP = 3f
   private const val MAX_BLUR_DP = 12f
   // `clear` glass stays lighter than `regular` — iOS clear is largely
-  // transparent refractive glass. It is not zero, though: at 0.2 the whole
-  // intensity range mapped onto 0.6–2.4dp, so `intensity` read as a no-op on
-  // `clear` and the variant looked like it simply had no blur. Set
-  // `blurRadius` for an exact value on either variant.
-  private const val CLEAR_BLUR_SCALE = 0.45f
+  // transparent refractive glass, and this value is measured against it rather
+  // than guessed. Sampling the same tile over the same wallpaper on iOS 26 and
+  // on Android, the fraction of backdrop detail the material lets through is:
+  //
+  //   iOS clear          0.945
+  //   Android @ 0.45     0.726   (blurs ~5x harder than iOS)
+  //   Android @ 0.22     ~0.93   (matches)
+  //
+  // So the default tracks the real material. Reach for `blurRadius` when you
+  // want a frostier clear — that is what it is for, and it is why the default
+  // no longer has to compromise between "looks like iOS" and "is adjustable".
+  private const val CLEAR_BLUR_SCALE = 0.22f
   private const val DEFAULT_REGULAR_TINT_ALPHA = 0x1F // ~12%
-  private const val DEFAULT_CLEAR_TINT_ALPHA = 0x0D // ~5%
+  // ~3%. The shader mixes `tint.a * 1.5` toward white, so 5% put clear
+  // glass at 1.78x its backdrop luminance where iOS sits at 1.62x.
+  private const val DEFAULT_CLEAR_TINT_ALPHA = 0x08 // ~3%
 }
