@@ -68,6 +68,7 @@ See the [full comparison](https://himanshu-lal4.github.io/react-native-liquid-gl
 - ✨ **Interactive** glass — reacts to touch (bloom + optical magnification) and to device tilt (specular)
 - 🔷 **Custom shapes** — circle, squircle, polygon, star, points, or arbitrary/concave SVG paths
 - 🧊 `regular` (frosted) and `clear` (transparent) materials
+- 🪟 **Also a blur view** — switch the glass layers off for a plain blur, a scrim, or a dimmed modal backdrop
 - 🎚️ **Presets** — six tuned materials (`navigationBar`, `floatingTabBar`, `cardOverMedia`, …) you can override per-prop
 - 🔍 **Capability detection** — `useGlassSupport()` tells you which tier a device can render, without mounting anything
 - 🛟 **Dev-time warnings** for the mistakes that otherwise fail silently, stripped from production builds
@@ -189,7 +190,11 @@ Extends `ViewProps`. All props are optional.
 | `preset` | `GlassPresetName` | — | Start from a tuned material instead of dialling every knob. See [Presets](#presets). Any prop you pass explicitly wins over the preset. |
 | `variant` | `'regular' \| 'clear'` | `'regular'` | `regular` = adaptive frosted glass. `clear` = lighter, transparent glass for media. |
 | `tintColor` | `ColorValue` | — | Tint over the backdrop. Use `rgba()` / 8-digit hex to control strength. |
-| `intensity` | `number` (0–100) | `60` | Blur / material strength. On iOS 26 the OS manages the material (used only for the pre-26 fallback); on Android it scales the blur radius. |
+| `intensity` | `number` (0–100) | `60` | Blur / material strength. On iOS 26 the OS manages the material (used only for the pre-26 fallback); on Android it scales the blur radius. `clear` deliberately blurs less than `regular` across the same scale — use `blurRadius` if you want an exact value. |
+| `rim` | `boolean` | `true` | **Android only** — draw the bright glass edge. See [Not just glass](#not-just-glass--blur-scrim-overlay). |
+| `specular` | `boolean` | `true` | **Android only** — draw the moving sheen and specular hotspot. |
+| `dim` | `number` (0–1) | `0` | A flat dimming scrim over the backdrop, under the children — the modal-backdrop primitive. Works on **both** platforms. |
+| `blurRadius` | `number` (dp) | — | **Android only** — an explicit blur radius, overriding whatever `intensity` would derive, and meaning the same thing on both variants. This is the knob to reach for when you want `clear` glass that is still properly blurred: `<LiquidGlassView variant="clear" blurRadius={16} />`. Useful range ~`0`–`30`. No-op on iOS, where the material's blur is the OS's to choose. |
 | `interactive` | `boolean` | `false` | Reacts to **touch** — a specular bloom + optical magnification under the finger. iOS 26 interactive glass natively. (Device-tilt specular is now the separate `tilt` prop.) |
 | `tilt` | `boolean` | `false` | **Android only** — device-tilt specular driven by the gyro/accelerometer. Decoupled from `interactive` so you can have touch response **without** an always-on motion sensor; the sensor registers only while `tilt` is on. No-op on iOS. |
 | `borderRadius` | `number` (dp) | `0` | Corner radius of the glass surface. Ignored when `shape` is set. |
@@ -329,6 +334,57 @@ the wrong scale (`intensity` is 0–100 while `thickness` is 0–2 and `legibili
 is 0–1), `borderRadius` combined with a `shape` that overrides it, an unknown
 `preset` name, and props that do nothing on the current platform or OS version.
 All of it is stripped from production bundles.
+
+## Not just glass — blur, scrim, overlay
+
+The glass is composed from layers you can switch off individually, so the same
+component covers what you'd otherwise reach for a blur view, a translucent
+`View`, or a dimmed modal backdrop to build. There's no `mode` to learn — just
+turn off what you don't want.
+
+```tsx
+// A plain blur view. No edge, no highlights, no lensing.
+<LiquidGlassView rim={false} specular={false} thickness={0} blurRadius={20} />
+
+// A modal backdrop: blurred and dimmed, behind a sheet.
+<LiquidGlassView
+  style={StyleSheet.absoluteFill}
+  rim={false}
+  specular={false}
+  thickness={0}
+  blurRadius={24}
+  dim={0.45}
+/>
+
+// Blur with a glass edge, but no moving highlights.
+<LiquidGlassView specular={false} blurRadius={16} borderRadius={20} />
+
+// The full material.
+<LiquidGlassView variant="clear" borderRadius={20} />
+```
+
+| Prop | What it does | Platform |
+| --- | --- | --- |
+| `rim={false}` | Drops the bright glass edge | Android |
+| `specular={false}` | Drops the moving sheen and specular hotspot | Android |
+| `thickness={0}` | Drops edge refraction / lensing — a flat pane | Android |
+| `dim={0…1}` | Adds a flat scrim under the children | **both** |
+| `blurRadius` | Sets the blur in dp outright | **both** |
+
+**All three "off" switches together are also the cross-platform signal.** With
+`rim={false} specular={false} thickness={0}`, iOS stops rendering Liquid Glass
+and returns a plain `UIBlurEffect` material instead — so a blur view is a blur
+view on both platforms, not glass on one and blur on the other. `blurRadius`
+then picks the nearest UIKit material (they're discrete, so it's the closest
+equivalent rather than a literal radius).
+
+`dim` is deliberately separate from `legibilityFloor`: that one is adaptive and
+exists to keep chrome readable, `dim` is a constant design choice about the
+surface.
+
+> On the web fallback there is no real backdrop blur — React Native Web can't do
+> it portably — so you get a translucent surface with the `rim` and `dim` you
+> asked for, and no blur. Check `Platform.OS` if that matters to your design.
 
 ## Custom shapes
 

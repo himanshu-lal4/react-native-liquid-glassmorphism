@@ -170,8 +170,19 @@ function checkPlatformNoops(props: LiquidGlassViewProps): void {
     if (props.tilt === true) {
       warnPlatformNoop('tilt', 'the OS renders the glass specular itself');
     }
-    if (props.thickness !== undefined && props.thickness !== 1) {
-      warnPlatformNoop('thickness', 'UIGlassEffect fixes the glass optics');
+    // `thickness={0}` IS honoured on iOS: with `rim` and `specular` off it is
+    // the signal to drop Liquid Glass for a plain UIBlurEffect material. Only
+    // the intermediate values are inert there.
+    if (
+      props.thickness !== undefined &&
+      props.thickness !== 1 &&
+      props.thickness !== 0
+    ) {
+      warnPlatformNoop(
+        'thickness',
+        'UIGlassEffect fixes the glass optics — only 0 is meaningful here, as ' +
+          'part of the plain-blur signal'
+      );
     }
     if (props.edgeReflectionStrength !== undefined && props.edgeReflectionStrength !== 1) {
       warnPlatformNoop('edgeReflectionStrength', 'the rim is part of the system material');
