@@ -867,6 +867,13 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     super.onDetachedFromWindow()
     viewTreeObserver.removeOnPreDrawListener(this)
     unregisterSensor()
+    // Stop being suppressed. A container sets this on its children and only
+    // ever sets it back while it is still walking them — so a child removed
+    // from a container, or reparented, would otherwise render NOTHING for the
+    // rest of its life. Resetting on detach makes the flag owned by the
+    // relationship rather than by the view.
+    glassSuppressed = false
+
     // The bitmap belongs to the root, not to us — hand back our reference and
     // let the holder free it if we were the last glass view under it.
     SharedBackdrop.release(sharedRoot, shared)

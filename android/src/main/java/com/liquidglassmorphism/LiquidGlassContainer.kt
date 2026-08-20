@@ -85,27 +85,34 @@ class LiquidGlassContainer(context: Context) : LiquidGlassmorphismView(context) 
    * `getLocationInWindow` reports where the view actually is, transforms of
    * every ancestor included, which is the only thing the shader can use.
    */
+  private val found = ArrayList<LiquidGlassmorphismView>(MAX_BODIES * 2)
+  private var warnedTruncated = false
+
   private fun syncBodies() {
+    found.clear()
+    forEachGlassDescendant { found.add(it) }
+
     if (spacingDp <= 0f) {
-      forEachGlassDescendant { it.setGlassSuppressed(false) }
+      for (v in found) v.setGlassSuppressed(false)
       setMergedBodies(rects, radii, 0, 0f)
       return
     }
 
     getLocationInWindow(locSelf)
     var n = 0
-    // The merged surface is ours to draw, so it has to LOOK like the bodies it
-    // replaced. Taken from the first glass descendant: a merged blob is one
-    // material by definition, and the first child is the least surprising
-    // choice when they differ.
     var adopted = false
-    forEachGlassDescendant { child ->
-      if (n >= MAX_BODIES || child.width <= 0 || child.height <= 0) return@forEachGlassDescendant
-      child.getLocationInWindow(locChild)
 
-      // Scale from the ancestor chain shows up as a difference between the
-      // laid-out size and the on-screen size, so take it from the view's own
-      // scale rather than assuming 1.
+    for (child in found) {
+      // Past the cap, or degenerate: this child keeps drawing its OWN glass.
+      // Leaving it suppressed would make it vanish, which is far worse than
+      // it simply not merging — and a child can cross the cap boundary just
+      // by another one mounting.
+      if (n >= MAX_BODIES || child.width <= 0 || child.height <= 0) {
+        child.setGlassSuppressed(false)
+        continue
+      }
+
+      child.getLocationInWindow(locChild)
       val w = child.width * child.scaleX
       val h = child.height * child.scaleY
 
@@ -120,7 +127,32 @@ class LiquidGlassContainer(context: Context) : LiquidGlassmorphismView(context) 
       n++
     }
 
+    if (found.size > MAX_BODIES && !warnedTruncated) {
+      warnedTruncated = true
+      android.util.Log.w(
+        "LiquidGlass",
+        "LiquidGlassContainer has ${found.size} glass children but can merge at " +
+          "most $MAX_BODIES (the AGSL uniform array needs a compile-time bound). " +
+          "The rest render as ordinary unmerged glass."
+      )
+    }
+
     setMergedBodies(rects, radii, n, spacingDp * resources.displayMetrics.density)
+  }
+
+  /**
+   * Hand the children back their own glass.
+   *
+   * Without this a container being removed leaves every child it had
+   * suppressed — drawing content but no glass — for as long as those views
+   * live. Detach is the last moment we can still reach them.
+   */
+  override fun onDetachedFromWindow() {
+    found.clear()
+    forEachGlassDescendant { found.add(it) }
+    for (v in found) v.setGlassSuppressed(false)
+    found.clear()
+    super.onDetachedFromWindow()
   }
 
   /** Depth-first walk, skipping our own merged surface. */
