@@ -69,6 +69,36 @@ Most React Native "glass" is just a blur. This library actually **refracts** the
 
 See the [full comparison](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/react-native-blur-alternative/). *(Other libraries evolve quickly — check their current docs before deciding.)*
 
+## Three rules that decide whether this works
+
+Read these before the API. Nearly every "it looks broken" report is one of the three.
+
+**1. There must be something detailed behind the glass.** Refraction bends the
+backdrop — and a bent flat colour is the same flat colour. Over a solid
+background the library correctly renders almost nothing, which reads as broken.
+It needs high-frequency detail: a photo, text, a busy list, a gradient at
+minimum. If you are evaluating the library, test it over an image first.
+
+**2. `shape` wins over `borderRadius`.** When you pass a `shape`, `borderRadius`
+is ignored entirely — the silhouette defines the geometry. Setting both and
+wondering why the radius does nothing is the second most common report.
+
+**3. Several props are Android-only no-ops.** On iOS 26 the OS owns the
+material, so it exposes no knobs for these. They are safe to pass
+unconditionally — they simply do nothing on iOS:
+
+| Android only | iOS 26 equivalent |
+| --- | --- |
+| `thickness` (except `0`) · `refraction` | OS-fixed optics |
+| `edgeReflectionStrength` | OS-rendered rim |
+| `legibilityFloor` | use `variant="regular"`, `tintColor` or `dim` |
+| `tilt` | OS-rendered specular |
+| `paused` | OS owns the refresh |
+| `intensity` | OS-managed (drives the pre-26 fallback only) |
+
+`blurRadius` and `dim` **do** work on both. Reach for `blurRadius` over
+`intensity` when you want the same units on each platform.
+
 ## Features
 
 - 🍏 **Native Liquid Glass on iOS** (`UIGlassEffect` on iOS 26), with a `UIBlurEffect` fallback below iOS 26
@@ -305,6 +335,37 @@ In rough order of what to reach for when frames drop:
 
 On iOS none of this applies — `UIGlassEffect` is composited by the OS.
 
+## Known limitations
+
+Things this library genuinely does not do well, so you can find out here rather
+than three days into an integration.
+
+- **Each glass view captures its own backdrop.** Ten on screen is ten full
+  software `rootView.draw()` calls per frame on Android. This is the ceiling on
+  putting glass in a long `FlatList` today. Sharing one capture per frame across
+  all views is [tracked in #38](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues/38).
+- **Below Android 13 you are not getting Liquid Glass.** API 31–32 gets a
+  `RenderEffect` blur with tint — no lensing, no dispersion, no rim reflection.
+  Below API 31 it is a translucent tint only. The ladder is automatic and
+  documented, but it is a real downgrade, not a subtle one.
+- **GPU-backed surfaces cannot be captured.** Video players, `SurfaceView`,
+  map views and some camera previews refuse a software draw, so the glass
+  reuses its previous backdrop and reports `BACKDROP_CAPTURE_FAILED`. Glass over
+  a playing video does not work on Android.
+- **Elliptic arcs are not supported in `shape` paths.** `A` commands fail to
+  parse and fall back to a rounded rectangle with `INVALID_SHAPE`. Export
+  curves as cubic or quadratic béziers.
+- **No Expo Go.** It is a native module. Development build or `expo prebuild`,
+  always. This is true of every library that renders native glass.
+- **iOS exposes no blur radius on `UIGlassEffect`.** `blurRadius` is honoured by
+  blurring the backdrop *underneath* the glass, which then refracts the blurred
+  result. It tracks the Android shader closely across 0–25 dp, but it is not the
+  OS applying a radius.
+- **Web is a non-glass fallback.** The tier reports `none`. This library is
+  mobile-focused.
+- **No accessibility handling yet.** Reduce Transparency and high-contrast
+  settings are not honoured — [tracked in #44](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues/44).
+
 ## Events
 
 ```tsx
@@ -427,6 +488,11 @@ The shape is **stretched to fill the view's bounds** (`preserveAspectRatio="none
 
 - **iOS** composites glass natively with `UIGlassEffect` (iOS 26); below 26 it falls back to `UIVisualEffectView` + `UIBlurEffect` bucketed by `intensity`. A custom `shape` masks the glass to the silhouette with a `CAShapeLayer`.
 - **Android** has no system Liquid Glass, so each frame it: captures the view hierarchy behind the glass into a downscaled bitmap → GPU Gaussian blur → an **AGSL shader** that models a glass lozenge (SDF-derived surface normal → Snell-style edge refraction → chromatic dispersion → mirrored edge reflection → adaptive frost + vibrant tint → Fresnel rim + tilt/touch specular). Below API 33 it degrades to blur + tint; below API 31, to a translucent tint. A custom `shape` is rasterised into a **signed-distance-field texture** the shader samples, so lensing/rim/dispersion follow any silhouette.
+
+📐 **[ARCHITECTURE.md](./ARCHITECTURE.md)** goes deeper — the capture loop and the
+HWUI invalidation trap, why the per-frame capture is deliberately not throttled,
+the SDF texture design and the shattered-glass artifacts that drove it, the iOS 26
+`cornerConfiguration` segfault, and how to symbolicate a native crash here.
 
 ## Example
 
