@@ -8,6 +8,7 @@ describe('GlassPresets', () => {
       'cardOverMedia',
       'compactControl',
       'frosted',
+      'toast',
       'crystal',
     ]);
   });
@@ -103,5 +104,28 @@ describe('artistic preset values', () => {
       expect(GlassPresets[name].grain ?? 0).toBe(0);
       expect(GlassPresets[name].iridescence ?? 0).toBe(0);
     }
+  });
+});
+
+describe('toast preset', () => {
+  it('is the most legibility-protective preset — it renders over unknown content', () => {
+    const toast = GlassPresets.toast;
+    // Highest legibilityFloor of any preset: a toast must survive a white page.
+    for (const name of GLASS_PRESET_NAMES) {
+      if (name === 'toast') continue;
+      expect(toast.legibilityFloor ?? 0).toBeGreaterThanOrEqual(
+        GlassPresets[name].legibilityFloor ?? 0
+      );
+    }
+    // Shallow lens: deep refraction on a 60dp strip warps its own text.
+    expect(toast.thickness).toBeLessThanOrEqual(0.7);
+    // Heavy-ish blur to quiet whatever is behind.
+    expect(toast.intensity).toBeGreaterThanOrEqual(70);
+  });
+
+  it('resolves under user props like every other preset', () => {
+    const resolved = resolvePreset({ preset: 'toast', borderRadius: 24 });
+    expect(resolved.borderRadius).toBe(24); // explicit prop wins
+    expect(resolved.legibilityFloor).toBe(GlassPresets.toast.legibilityFloor);
   });
 });

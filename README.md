@@ -1,4 +1,6 @@
-# react-native-liquid-glassmorphism
+# React Native Liquid Glass — for Android AND iOS
+
+<p align="center"><code>react-native-liquid-glassmorphism</code></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/react-native-liquid-glassmorphism"><img src="https://img.shields.io/npm/v/react-native-liquid-glassmorphism?color=cb3837&logo=npm&logoColor=white" alt="npm version" /></a>
@@ -15,6 +17,14 @@
   📚 <b><a href="https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/">Documentation &amp; guides</a></b> ·
   📦 <b><a href="https://www.npmjs.com/package/react-native-liquid-glassmorphism">Install from npm</a></b>
 </p>
+
+<p align="center">
+  <a href="https://github.com/sponsors/himanshu-lal4"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/GitHub_Sponsors-21262D?style=for-the-badge&logo=githubsponsors&logoColor=EA4AAA"><img src="https://img.shields.io/badge/GitHub_Sponsors-EAEEF2?style=for-the-badge&logo=githubsponsors&logoColor=EA4AAA" height="32" alt="Sponsor on GitHub" /></picture></a>
+  &nbsp;
+  <a href="https://buymeacoffee.com/wrack"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/Buy_Me_a_Coffee-21262D?style=for-the-badge&logo=buymeacoffee&logoColor=FFDD00"><img src="https://img.shields.io/badge/Buy_Me_a_Coffee-EAEEF2?style=for-the-badge&logo=buymeacoffee&logoColor=FFDD00" height="32" alt="Buy Me a Coffee" /></picture></a>
+</p>
+
+<p align="center"><sub>If this library saves you a native module, a ⭐ and a coffee keep it maintained.</sub></p>
 
 <p align="center">
   <b>🤖 Works on Android too — not an iOS-only wrapper. 🍏</b><br/>
@@ -741,6 +751,10 @@ Yes — with a development build or `expo prebuild`. It does **not** run in Expo
 ### Does it support the New Architecture (Fabric)?
 
 Yes. It's a native Fabric component (codegen), and the same delegate covers the old architecture too.
+
+### How is it different from react-native-liquid-glass (Expo) or @callstack/liquid-glass?
+
+Those are thin wrappers over Apple's `UIGlassEffect`, so they are **iOS-26-only** — on Android they render nothing glass-like. This library drives the same native `UIGlassEffect` on iOS **and** reproduces the optics on Android 13+ with a real-time AGSL refraction shader, from one `<LiquidGlassView>`. It also supports [glass shape **merging**](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/react-native-glass-merging/) — neighbouring glass views fusing like liquid — which the wrappers don't expose. If your app is iOS-only and stock, the wrappers are fine; if you ship to Android too, that's the gap this library exists to close.
 
 ### How is it different from expo-blur / react-native-blur?
 

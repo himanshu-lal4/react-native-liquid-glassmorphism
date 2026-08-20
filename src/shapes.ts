@@ -65,6 +65,24 @@ export type LiquidGlassShape =
     }
   | {
       /**
+       * A regular hexagon — sugar for `{ type: 'polygon', sides: 6 }`, kept as
+       * a first-class name because it is asked for constantly.
+       */
+      type: 'hexagon';
+      /** Rotation in degrees. 0 is flat-top… point-up. @default 0 */
+      rotation?: number;
+      /** Optional corner rounding, 0–1 as a fraction of the radius. @default 0 */
+      cornerRadius?: number;
+    }
+  | {
+      /**
+       * A heart inscribed in the bounds — two cubic lobes meeting at a cleft,
+       * tapering to the bottom point.
+       */
+      type: 'heart';
+    }
+  | {
+      /**
        * A raw SVG path. Supports M/L/H/V/C/S/Q/T/Z (absolute + relative). Elliptic
        * arcs (`A`) are not supported — express curves as cubic/quadratic béziers.
        * Concave shapes (e.g. a tab-bar notch) are fully supported.
@@ -134,8 +152,15 @@ function squircleShape(n: number): NormalizedShape {
   return { path: polylinePath(pts), ...UNIT_BOX };
 }
 
-/** Regular N-gon inscribed in the 100×100 box, first vertex up (before rotation). */
-function polygonShape(sides: number, rotationDeg: number): NormalizedShape {
+/**
+ * Regular N-gon inscribed in the 100×100 box, first vertex up (before rotation).
+ *
+ * `cornerRadius` (0–1, fraction of the radius) rounds each vertex with a
+ * quadratic bézier: each edge is shortened by the rounding distance at both
+ * ends and the vertex becomes the control point. Previously this option was
+ * documented on the type but silently ignored.
+ */
+function polygonShape(sides: number, rotationDeg: number, cornerRadius = 0): NormalizedShape {
   const count = Math.max(3, Math.round(sides));
   const rot = (rotationDeg * Math.PI) / 180;
   const verts: Array<readonly [number, number]> = [];
@@ -143,7 +168,63 @@ function polygonShape(sides: number, rotationDeg: number): NormalizedShape {
     const a = -Math.PI / 2 + rot + (i / count) * Math.PI * 2;
     verts.push([50 + Math.cos(a) * 50, 50 + Math.sin(a) * 50]);
   }
-  return { path: polylinePath(verts), ...UNIT_BOX };
+
+  const round = Math.min(1, Math.max(0, cornerRadius));
+  if (round <= 0) return { path: polylinePath(verts), ...UNIT_BOX };
+
+  // Wrap-around vertex access without non-null assertions (count >= 3, so the
+  // fallback is unreachable — it exists to satisfy noUncheckedIndexedAccess).
+  const at = (i: number): readonly [number, number] =>
+    verts[((i % count) + count) % count] ?? [50, 50];
+
+  // Rounding distance along each edge, capped at half the edge length so
+  // adjacent roundings can never overlap.
+  const edge = Math.hypot(at(1)[0] - at(0)[0], at(1)[1] - at(0)[1]);
+  const d = Math.min(round * 50, edge / 2);
+
+  const lerpToward = (
+    from: readonly [number, number],
+    to: readonly [number, number]
+  ): readonly [number, number] => {
+    const len = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    const t = len === 0 ? 0 : d / len;
+    return [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
+  };
+
+  const cmds: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const prev = at(i - 1);
+    const v = at(i);
+    const next = at(i + 1);
+    const inPt = lerpToward(v, prev); // rounding start, on the incoming edge
+    const outPt = lerpToward(v, next); // rounding end, on the outgoing edge
+    cmds.push(i === 0 ? `M ${fmt(inPt[0])} ${fmt(inPt[1])}` : `L ${fmt(inPt[0])} ${fmt(inPt[1])}`);
+    cmds.push(`Q ${fmt(v[0])} ${fmt(v[1])} ${fmt(outPt[0])} ${fmt(outPt[1])}`);
+  }
+  cmds.push('Z');
+  return { path: cmds.join(' '), ...UNIT_BOX };
+}
+
+/**
+ * Heart in the 100×100 box: two cubic lobes from the cleft (top centre) around
+ * to the bottom point. Proportions tuned so the silhouette reads as a heart at
+ * chip size, not just full-screen.
+ */
+function heartShape(): NormalizedShape {
+  const path = [
+    // cleft
+    'M 50 26',
+    // left lobe: up-and-out, around, then down to the bottom point
+    'C 42 12 24 8 13.5 18',
+    'C 3 28 3.5 45 13 56.5',
+    'C 22 67.5 38 80 50 92',
+    // right lobe, mirrored
+    'C 62 80 78 67.5 87 56.5',
+    'C 96.5 45 97 28 86.5 18',
+    'C 76 8 58 12 50 26',
+    'Z',
+  ].join(' ');
+  return { path, ...UNIT_BOX };
 }
 
 /**
@@ -198,7 +279,11 @@ export function normalizeShape(shape: LiquidGlassShape): NormalizedShape | null 
     case 'squircle':
       return squircleShape(shape.n ?? 4);
     case 'polygon':
-      return polygonShape(shape.sides, shape.rotation ?? 0);
+      return polygonShape(shape.sides, shape.rotation ?? 0, shape.cornerRadius ?? 0);
+    case 'hexagon':
+      return polygonShape(6, shape.rotation ?? 0, shape.cornerRadius ?? 0);
+    case 'heart':
+      return heartShape();
     case 'star':
       return starShape(shape.points ?? 5, shape.innerRatio ?? 0.5);
     case 'points':

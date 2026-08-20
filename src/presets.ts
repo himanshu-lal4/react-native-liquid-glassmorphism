@@ -109,6 +109,26 @@ export const GlassPresets = Object.freeze({
   }),
 
   /**
+   * A notification toast — a small, short-lived surface that must stay legible
+   * over content it cannot predict (white pages, photos, video).
+   *
+   * The tuning is legibility-first: a high `legibilityFloor` (the highest of
+   * any preset) buys text contrast over a pure-white backdrop, heavy-ish blur
+   * flattens whatever is behind into a quiet ground, and a shallow lens keeps
+   * the two lines of text crisp — a deep lens on a 60dp-tall strip just warps
+   * its own copy. Tuned against a white screen, a busy photo, and scrolling
+   * text underneath.
+   */
+  toast: Object.freeze<GlassPresetProps>({
+    variant: 'regular',
+    intensity: 78,
+    thickness: 0.5,
+    edgeReflectionStrength: 0.5,
+    legibilityFloor: 0.4,
+    borderRadius: 18,
+  }),
+
+  /**
    * Thin, hard and deeply refracting. Decorative — a hero element rather than
    * something to put a paragraph of text on.
    */
