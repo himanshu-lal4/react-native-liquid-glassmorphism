@@ -1453,6 +1453,34 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         return d;
       }
 
+      // Distance plus the geometry of the NEAREST body: its corner radius and
+      // its smaller half-extent.
+      //
+      // The optics bands have to be per-body, not per-container and not one
+      // representative value. Merging a 132px circle (r=66) with a 168px
+      // squircle (r=22) and using the circle's radius for both gave the
+      // squircle a lens band four times too wide, which reads as gross
+      // over-magnification. Nearest-body wins, which is also the body whose
+      // surface the pixel actually belongs to.
+      float3 mergedProbe(float2 coord) {
+        float d = 1e9;
+        float best = 1e9;
+        float r = 0.0;
+        float halfMin = 0.0;
+        for (int i = 0; i < 8; i++) {
+          if (float(i) >= iBodyCount) break;
+          float4 b4 = iBodies[i];
+          float di = sdRoundRect(coord - b4.xy, b4.zw, iBodyR[i]);
+          d = (i == 0) ? di : smin(d, di, iMergeK);
+          if (di < best) {
+            best = di;
+            r = iBodyR[i];
+            halfMin = min(b4.z, b4.w);
+          }
+        }
+        return float3(d, r, halfMin);
+      }
+
       // Rotate the built-in light direction. `lightAngle` is an OFFSET, not an
       // absolute bearing, so 0 reproduces the tuned top-left key light exactly
       // and existing layouts are unaffected.
@@ -1493,11 +1521,20 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         float d;
         float rim;
         float edgeBand;
+        // Band widths scale with the surface the optics belong to. For a
+        // container that is the merged BODY, not the container's own bounds —
+        // an absoluteFill container was giving a 132px lens the mirror band of
+        // a 1080px surface, which reads as wild over-magnification.
+        // Defaults for the single-surface paths; the merged branch below
+        // overrides them per pixel from the nearest body.
         float lensW = max(28.0, iCorner * 1.4);
         float reflW = max(14.0, min(b.x, b.y) * 0.7);
         if (iBodyCount > 0.0) {
           // Analytic container merge — no SDF texture involved at all.
-          d = mergedDist(coord);
+          float3 probe = mergedProbe(coord);
+          d = probe.x;
+          lensW = max(28.0, probe.y * 1.4);
+          reflW = max(14.0, probe.z * 0.7);
           rim = 1.0 - clamp(-d / lensW, 0.0, 1.0);
           edgeBand = 1.0 - clamp(-d / reflW, 0.0, 1.0);
         } else if (iUseSdf > 0.5) {
