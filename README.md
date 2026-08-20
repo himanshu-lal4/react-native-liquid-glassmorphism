@@ -27,16 +27,21 @@ Bring **Liquid Glass** to React Native — on **Android and iOS** — with a sin
 
 <table align="center">
   <tr>
-    <td align="center">🍏&nbsp; <b>iOS 26</b> — native <code>UIGlassEffect</code></td>
-    <td align="center">🤖&nbsp; <b>Android</b> — real-time AGSL refraction</td>
+    <td align="center">🤖&nbsp; <b>Android</b> — AGSL smooth-min merge</td>
+    <td align="center">🍏&nbsp; <b>iOS 26</b> — <code>UIGlassContainerEffect</code></td>
   </tr>
   <tr>
-    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-ios-v2.gif" alt="React Native Liquid Glass demo reel running on iOS 26 with native UIGlassEffect" width="250" /></td>
-    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v0.1.0/reel-android-v2.gif" alt="React Native Liquid Glass demo reel running on Android with real-time AGSL refraction" width="250" /></td>
+    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v1.1.0/merge-android.gif" alt="Two glass views merging into one liquid body on Android, rendered with an AGSL smooth-min shader" width="250" /></td>
+    <td align="center"><img src="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/download/v1.1.0/merge-ios.gif" alt="Two glass views merging into one liquid body on iOS 26 via UIGlassContainerEffect" width="250" /></td>
   </tr>
 </table>
 
-<p align="center"><em>The same <a href="./example"><code>example/</code></a> reel on both platforms — one component, identical API. The dock at the bottom is a live <code>blurRadius</code> sweep on <code>clear</code> glass; the rest is presets, the non-glass materials, custom shapes &amp; drifting glass lenses.</em></p>
+<p align="center"><em><b>Glass that merges.</b> Two views fuse into a single liquid body as they approach — on <b>both</b> platforms. iOS hands this to Apple's <code>UIGlassContainerEffect</code>; Android has no OS equivalent, so the bodies are smooth-min merged per pixel in our own AGSL shader. The upper pair is animated through a <a href="#glass-that-merges"><code>&lt;LiquidGlassContainer&gt;</code></a>; the lower one is a static <code>secondaryShape</code>.</em></p>
+
+<p align="center">
+  <em>The full <a href="./example"><code>example/</code></a> reel — presets, non-glass materials, custom shapes and drifting lenses — is on the
+  <a href="https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/releases/tag/v0.1.0">v0.1.0 release</a>.</em>
+</p>
 
 On iOS 26 it renders Apple's native `UIGlassEffect`. On Android, where there is no system Liquid Glass, it reproduces the same optics in a real-time **AGSL refractive-lens shader**: it captures the backdrop, bends and magnifies it through a rounded-glass lozenge (edge refraction + chromatic dispersion + a mirrored edge reflection), and finishes with a Fresnel rim and tilt/touch-driven specular highlights.
 
