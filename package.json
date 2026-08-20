@@ -1,7 +1,7 @@
 {
   "name": "react-native-liquid-glassmorphism",
-  "version": "1.1.0",
-  "description": "Liquid Glass for React Native on Android AND iOS — not an iOS-only wrapper. Apple's native UIGlassEffect on iOS 26, real-time AGSL refraction shader on Android 13+, from one <LiquidGlassView>. Glassmorphism, frosted glass, glass blur, custom shapes. Expo config plugin, New Architecture, TypeScript.",
+  "version": "1.2.0",
+  "description": "Liquid Glass for React Native on Android AND iOS \u2014 not an iOS-only wrapper. Apple's native UIGlassEffect on iOS 26, real-time AGSL refraction shader on Android 13+, from one <LiquidGlassView>. Glassmorphism, frosted glass, glass blur, custom shapes. Expo config plugin, New Architecture, TypeScript.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
