@@ -115,11 +115,13 @@ unconditionally — they simply do nothing on iOS:
 - 🔷 **Custom shapes** — circle, squircle, polygon, star, points, or arbitrary/concave SVG paths
 - 🧊 `regular` (frosted) and `clear` (transparent) materials
 - 🪟 **Also a blur view** — switch the glass layers off for a plain blur, a scrim, or a dimmed modal backdrop
+- 🌫️ **Progressive edge blur** — `<ScrollEdgeBlurView>` fades scrolling content out under a header or tab bar, on both platforms
 - 🎚️ **Presets** — six tuned materials (`navigationBar`, `floatingTabBar`, `cardOverMedia`, …) you can override per-prop
 - 🔍 **Capability detection** — `useGlassSupport()` tells you which tier a device can render, without mounting anything
+- ♿ **Accessibility-aware** — `accessibilityMode` honours Reduce Transparency and Reduce Motion on both platforms, and updates live
 - 🛟 **Dev-time warnings** for the mistakes that otherwise fail silently, stripped from production builds
 - ⚡ New Architecture (Fabric) **and** old architecture
-- 🟦 First-class TypeScript types · 📦 Expo config plugin
+- 🟦 First-class TypeScript types · 📦 Expo config plugin · 🧬 **zero runtime dependencies**
 
 ## Installation
 
