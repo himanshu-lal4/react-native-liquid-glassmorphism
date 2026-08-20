@@ -53,7 +53,7 @@ import kotlin.math.min
  * Degrades gracefully: API 31–32 → blur + Canvas tint/specular; < API 31 →
  * translucent tint + rim only.
  */
-class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
+open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   ViewTreeObserver.OnPreDrawListener, SensorEventListener {
 
   // --- Props ---
@@ -83,6 +83,9 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
    *
    * Half the shorter side IS the pill, so clamping loses nothing.
    */
+  /** The clamped corner radius, exposed so a container can merge our shape. */
+  fun effectiveCornerRadiusPx(w: Int, h: Int): Float = cornerFor(w, h)
+
   private fun cornerFor(w: Int, h: Int): Float =
     GlassParams.effectiveCornerPx(cornerRadiusPx, w, h)
   // Edge-reflection band strength (#5), 0 (off) → 1 (default). Independent of
@@ -143,6 +146,18 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   // cling and fuse as they approach.
   private var secondaryShapePathData: String = ""
   private var shapeSmoothing = 0f
+
+  // #Container — analytic multi-body merge. Each body is a rounded rect in this
+  // view's pixel space (cx, cy, halfW, halfH) with a matching corner radius.
+  // Folded with smooth-min IN THE SHADER, so a body moving costs a uniform
+  // upload rather than a distance-field rebuild — which is the whole reason
+  // this exists alongside `secondaryShape`.
+  private var bodyCount = 0
+  private val bodyRects = FloatArray(MAX_BODIES * 4)
+  private val bodyRadii = FloatArray(MAX_BODIES)
+  private var mergeSpacingPx = 0f
+  /** Set by a container on its children: draw content, but no glass. */
+  private var glassSuppressed = false
   // The path scaled into this view's pixel space (null = plain rounded rect).
   private var scaledShapePath: Path? = null
   // SDF texture of the silhouette, bound to the shader as `uniform shader sdf`.
@@ -438,6 +453,31 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       sdfKey = ""
       invalidate()
     }
+  }
+
+  /**
+   * Replace the silhouette with N analytic rounded rects, smooth-min merged.
+   *
+   * Coordinates are this view's pixel space. Passing a count of 0 restores the
+   * ordinary single-shape behaviour.
+   */
+  fun setMergedBodies(rects: FloatArray, radii: FloatArray, count: Int, spacingPx: Float) {
+    val n = count.coerceIn(0, MAX_BODIES)
+    var changed = bodyCount != n || mergeSpacingPx != spacingPx
+    bodyCount = n
+    mergeSpacingPx = spacingPx
+    for (i in 0 until n * 4) {
+      if (bodyRects[i] != rects[i]) { bodyRects[i] = rects[i]; changed = true }
+    }
+    for (i in 0 until n) {
+      if (bodyRadii[i] != radii[i]) { bodyRadii[i] = radii[i]; changed = true }
+    }
+    if (changed) invalidate()
+  }
+
+  /** A container renders the merged glass; its children must not draw their own. */
+  fun setGlassSuppressed(value: Boolean) {
+    if (glassSuppressed != value) { glassSuppressed = value; invalidate() }
   }
 
   fun setRimValue(value: Boolean) {
@@ -946,6 +986,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   // ---- Glass rendering (under children) ----
 
   override fun onDraw(canvas: Canvas) {
+    // A container renders the merged glass for all of us; drawing our own on
+    // top would double the material and defeat the merge.
+    if (glassSuppressed) return
+
     val w = width.toFloat()
     val h = height.toFloat()
     if (w <= 0 || h <= 0) return
@@ -1180,6 +1224,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       shader.setFloatUniform("iSpecSharp", specularSharpness)
       shader.setFloatUniform("iBright", brightness)
       shader.setFloatUniform("iMag", magnification)
+      shader.setFloatUniform("iBodyCount", bodyCount.toFloat())
+      shader.setFloatUniform("iMergeK", max(1f, mergeSpacingPx))
+      shader.setFloatUniform("iBodies", bodyRects)
+      shader.setFloatUniform("iBodyR", bodyRadii)
       setTintUniform(shader)
       val material = RenderEffect.createRuntimeShaderEffect(shader, "content")
       shaderActive = true
@@ -1282,6 +1330,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
      * frames is generous enough to cover a slow first layout without leaving a
      * genuinely-failing view unreported for a visible length of time.
      */
+    /**
+     * Bodies a container can merge. Matches the AGSL uniform array size — SkSL
+     * needs a compile-time bound, so this is a hard cap rather than a hint.
+     */
+    const val MAX_BODIES = 8
+
     private const val MAX_TIER_REPORT_DEFERRALS = 5
 
     private fun supportsBlur(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -1325,10 +1379,35 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       uniform float iSpecSharp;
       uniform float iBright;
       uniform float iMag;
+      uniform float iBodyCount;
+      uniform float iMergeK;
+      uniform float4 iBodies[8];
+      uniform float iBodyR[8];
 
       float sdRoundRect(float2 p, float2 b, float r) {
         float2 q = abs(p) - b + r;
         return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+      }
+
+      // Polynomial smooth minimum (IQ). Identical to GlassSdf.smin, so the
+      // analytic container merge and the baked secondaryShape merge agree.
+      float smin(float a, float b, float k) {
+        float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+        return mix(b, a, h) - k * h * (1.0 - h);
+      }
+
+      // Fold every body's rounded-rect distance together. Analytic, so this is
+      // a handful of ALU per pixel rather than a texture fetch into a field
+      // that had to be rebuilt on the CPU.
+      float mergedDist(float2 coord) {
+        float d = 1e9;
+        for (int i = 0; i < 8; i++) {
+          if (float(i) >= iBodyCount) break;
+          float4 b4 = iBodies[i];
+          float di = sdRoundRect(coord - b4.xy, b4.zw, iBodyR[i]);
+          d = (i == 0) ? di : smin(d, di, iMergeK);
+        }
+        return d;
       }
 
       // Rotate the built-in light direction. `lightAngle` is an OFFSET, not an
@@ -1373,7 +1452,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         float edgeBand;
         float lensW = max(28.0, iCorner * 1.4);
         float reflW = max(14.0, min(b.x, b.y) * 0.7);
-        if (iUseSdf > 0.5) {
+        if (iBodyCount > 0.0) {
+          // Analytic container merge — no SDF texture involved at all.
+          d = mergedDist(coord);
+          rim = 1.0 - clamp(-d / lensW, 0.0, 1.0);
+          edgeBand = 1.0 - clamp(-d / reflW, 0.0, 1.0);
+        } else if (iUseSdf > 0.5) {
           half4 s = sdf.eval(coord);
           // Square-law decode, matching GlassSdf's encoding: the codes are
           // packed densely near the edge, where `rimLine` and `edgeGuard` need
@@ -1395,7 +1479,16 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         // rounded-rect differentiates its exact SDF.
         float2 g;
         float conf;
-        if (iUseSdf > 0.5) {
+        if (iBodyCount > 0.0) {
+          // Same wide central difference the analytic rounded-rect uses: the
+          // merged field is exact, so |grad| collapses only near the medial
+          // axis, and a narrow epsilon would turn that into a hard seam.
+          float e = clamp(lensW * 0.3, 1.0, 16.0);
+          float gx = mergedDist(coord + float2(e, 0.0)) - mergedDist(coord - float2(e, 0.0));
+          float gy = mergedDist(coord + float2(0.0, e)) - mergedDist(coord - float2(0.0, e));
+          g = float2(gx, gy);
+          conf = length(g) / (2.0 * e);
+        } else if (iUseSdf > 0.5) {
           float3 gv = sdfGrad(coord);
           g = gv.xy;
           conf = gv.z;
@@ -1608,7 +1701,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         // stays fully opaque — its outline clip defines the silhouette. AGSL
         // blends with PREMULTIPLIED alpha, so scale the color too (straight
         // alpha here reads as a bright fog halo around the silhouette).
-        float aa = iUseSdf > 0.5 ? mask.eval(coord).a : 1.0;
+        // Merged bodies get their alpha from the analytic field: the container
+        // view is larger than the bodies, so unlike the plain rounded-rect it
+        // cannot just be opaque everywhere.
+        float aa = iBodyCount > 0.0
+          ? clamp(0.5 - d, 0.0, 1.0)
+          : (iUseSdf > 0.5 ? float(mask.eval(coord).a) : 1.0);
         return half4(col * half(aa), half(aa));
       }
     """

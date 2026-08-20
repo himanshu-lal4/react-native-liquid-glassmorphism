@@ -8,7 +8,11 @@ import com.facebook.react.uimanager.ViewManager
 
 class LiquidGlassmorphismViewPackage : BaseReactPackage() {
   override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
-    return listOf(LiquidGlassmorphismViewManager(), ScrollEdgeBlurViewManager())
+    return listOf(
+      LiquidGlassmorphismViewManager(),
+      ScrollEdgeBlurViewManager(),
+      LiquidGlassContainerManager()
+    )
   }
 
   override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? = null

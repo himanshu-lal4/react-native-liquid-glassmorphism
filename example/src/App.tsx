@@ -23,6 +23,7 @@ import { CurvedDock, DOCK_H, createDockPath } from './CurvedDock';
 import DemoReel from './DemoReel';
 import CardGallery from './CardGallery';
 import MercuryDemo from './MercuryDemo';
+import MergingOrbs from './MergingOrbs';
 
 // Full PHYSICAL screen size (includes the system status/navigation bars).
 // React Native applies the bottom system inset as padding on the root view, so
@@ -129,6 +130,9 @@ export default function App() {
             onShowMercury={() => setMode('mercury')}
           />
         )}
+
+        {/* Outside the scene switch: the merge floats over every page. */}
+        <MergingOrbs top={96} />
       </View>
     </SafeAreaProvider>
   );
