@@ -15,15 +15,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Detects whether any non-docs files changed. The native build jobs below are
-  # required status checks, so we can't skip them with `on.paths` (that would
-  # leave the required check pending forever and block the PR). Instead we gate
-  # them with a job-level `if:` — a skipped required job counts as passed, so
-  # docs-only PRs stay mergeable without spending native-build minutes.
+  # Classifies the diff so the expensive jobs only run when they can actually
+  # tell us something.
+  #
+  # Two outputs, because "changed" is not one question:
+  #   code   — anything that isn't docs. Gates lint/typecheck and the library build.
+  #   native — something that can change the compiled app: native sources, the
+  #            codegen spec, dependencies, the example app, or CI itself.
+  #
+  # The native build jobs are required status checks, so we can't skip them with
+  # `on.paths` — that leaves the required check pending forever and blocks the
+  # PR. A job-level `if:` works instead: a skipped required job counts as passed.
   changes:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      native: ${{ steps.filter.outputs.native }}
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -43,16 +50,18 @@ jobs:
 
           # If we can't resolve a diff range, build to be safe.
           if [ -z "$BASE" ] || [ -z "$HEAD" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "No base ref — running builds."
+            echo "code=true"   >> "$GITHUB_OUTPUT"
+            echo "native=true" >> "$GITHUB_OUTPUT"
+            echo "No base ref — running everything."
             exit 0
           fi
 
           git cat-file -e "$BASE" 2>/dev/null || git fetch --no-tags --depth=100 origin "$BASE" 2>/dev/null || true
 
           if ! CHANGED=$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null); then
-            echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "Diff failed — running builds."
+            echo "code=true"   >> "$GITHUB_OUTPUT"
+            echo "native=true" >> "$GITHUB_OUTPUT"
+            echo "Diff failed — running everything."
             exit 0
           fi
 
@@ -62,13 +71,35 @@ jobs:
           # "code" = anything that isn't docs, the growth kit, markdown, or LICENSE.
           if printf '%s\n' "$CHANGED" | grep -vE '^(docs/|growth/|LICENSE$|.*\.md$)' | grep -q .; then
             echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "Code changed — running builds."
+            echo "Code changed — running lint and the library build."
           else
             echo "code=false" >> "$GITHUB_OUTPUT"
-            echo "Docs-only change — skipping native builds."
+            echo "Docs-only change."
+          fi
+
+          # "native" = anything that can change the compiled app.
+          #
+          # Deliberately NOT all of src/: a pure TypeScript change cannot alter
+          # the native binaries, and lint, typecheck, jest and the library build
+          # already cover it. The one exception is the codegen spec, which
+          # generates the native view-manager interface — a change there breaks
+          # the Kotlin/ObjC++ build and must be caught here.
+          NATIVE_RE='^(android/|ios/|cpp/|example/|plugin/|\.github/)'
+          NATIVE_RE="$NATIVE_RE"'|^(package\.json|yarn\.lock|react-native\.config\.js|app\.plugin\.js|babel\.config\.js)$'
+          NATIVE_RE="$NATIVE_RE"'|\.podspec$'
+          NATIVE_RE="$NATIVE_RE"'|^src/LiquidGlassmorphismViewNativeComponent\.ts$'
+
+          if printf '%s\n' "$CHANGED" | grep -qE "$NATIVE_RE"; then
+            echo "native=true" >> "$GITHUB_OUTPUT"
+            echo "Native-affecting change — running the Android and iOS builds."
+          else
+            echo "native=false" >> "$GITHUB_OUTPUT"
+            echo "No native-affecting change — skipping the Android and iOS builds."
           fi
 
   lint:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -102,7 +133,7 @@ jobs:
 
   build-android:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.native == 'true'
     runs-on: ubuntu-latest
 
     env:
@@ -167,7 +198,7 @@ jobs:
 
   build-ios:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.native == 'true'
     runs-on: macos-latest
 
     env:
