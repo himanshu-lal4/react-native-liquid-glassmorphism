@@ -22,6 +22,7 @@ import {
 import { CurvedDock, DOCK_H, createDockPath } from './CurvedDock';
 import DemoReel from './DemoReel';
 import CardGallery from './CardGallery';
+import GlassTabBar from './GlassTabBar';
 import MercuryDemo from './MercuryDemo';
 import MergingOrbs from './MergingOrbs';
 import StressTest from './StressTest';
@@ -111,9 +112,9 @@ function starPoints(
  * chip goes back.
  */
 export default function App() {
-  const [mode, setMode] = useState<'reel' | 'gallery' | 'cards' | 'mercury' | 'stress'>(
-    'reel'
-  );
+  const [mode, setMode] = useState<
+    'reel' | 'gallery' | 'cards' | 'mercury' | 'stress' | 'tabbar'
+  >('reel');
   return (
     <SafeAreaProvider>
       <View style={styles.root}>
@@ -122,6 +123,8 @@ export default function App() {
           <DemoReel onExit={() => setMode('gallery')} />
         ) : mode === 'cards' ? (
           <CardGallery onBack={() => setMode('gallery')} />
+        ) : mode === 'tabbar' ? (
+          <GlassTabBar onBack={() => setMode('gallery')} />
         ) : mode === 'mercury' ? (
           <MercuryDemo onBack={() => setMode('gallery')} />
         ) : mode === 'stress' ? (
@@ -130,6 +133,7 @@ export default function App() {
           <Gallery
             onShowReel={() => setMode('reel')}
             onShowCards={() => setMode('cards')}
+            onShowTabBar={() => setMode('tabbar')}
             onShowMercury={() => setMode('mercury')}
             onShowStress={() => setMode('stress')}
           />
@@ -145,11 +149,13 @@ export default function App() {
 function Gallery({
   onShowReel,
   onShowCards,
+  onShowTabBar,
   onShowMercury,
   onShowStress,
 }: {
   onShowReel: () => void;
   onShowCards: () => void;
+  onShowTabBar: () => void;
   onShowMercury: () => void;
   onShowStress: () => void;
 }) {
@@ -175,6 +181,15 @@ function Gallery({
                 style={styles.demoChip}
               >
                 <Text style={styles.demoChipText}>▦ Cards</Text>
+              </LiquidGlassView>
+            </Pressable>
+            <Pressable onPress={onShowTabBar}>
+              <LiquidGlassView
+                tintColor="rgba(255,255,255,0.18)"
+                borderRadius={16}
+                style={styles.demoChip}
+              >
+                <Text style={styles.demoChipText}>▬ Tab bar</Text>
               </LiquidGlassView>
             </Pressable>
             <Pressable onPress={onShowStress}>
