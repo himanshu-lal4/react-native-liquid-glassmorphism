@@ -56,6 +56,8 @@ nav_links:
     url: /api/
   - label: Recipes
     url: /recipes/
+  - label: Merging
+    url: /react-native-glass-merging/
   - label: Tab Bar
     url: /react-native-glass-tab-bar/
   - label: Android

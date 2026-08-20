@@ -19,6 +19,7 @@ Requires React Native 0.83+. Fabric (New Architecture) and the old architecture 
 - [Presets](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/api/#presets): The six tuned materials — navigationBar, floatingTabBar, cardOverMedia, compactControl, frosted, crystal.
 - [How to add Liquid Glass in React Native](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/react-native-liquid-glass/): The main step-by-step guide for iOS and Android.
 - [iOS 26 Liquid Glass / UIGlassEffect](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/ios-26-liquid-glass/): Native Apple glass, interactive glass, and the pre-26 fallback.
+- [Glass merging / LiquidGlassContainer](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/react-native-glass-merging/): Make glass views fuse into one liquid body on contact — UIGlassContainerEffect on iOS 26, smooth-min AGSL shader on Android, plus the 8-body cap and rounded-rect limits.
 - [Android Liquid Glass / AGSL](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/android-liquid-glass/): How the refraction shader works and how it degrades below API 33.
 - [Expo setup](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/expo-liquid-glass/): Dev builds, prebuild, the config plugin, and why Expo Go cannot work.
 - [Glassmorphism / frosted glass](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/react-native-glassmorphism/): CSS-style glassmorphism versus true refractive Liquid Glass.
