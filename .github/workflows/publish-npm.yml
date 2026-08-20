@@ -26,6 +26,14 @@ on:
   release:
     types: [published]
 
+# A publish must never be cancelled midway — a half-finished publish can consume
+# the version number without producing an artifact, and that number can never be
+# reused. So these queue behind each other rather than superseding, which is the
+# opposite of CI's cancel-the-stale-run behaviour and deliberately so.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   id-token: write # required for provenance / trusted publishing
