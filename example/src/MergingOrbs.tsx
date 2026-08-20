@@ -6,8 +6,8 @@ import {
 } from 'react-native-liquid-glassmorphism';
 
 const W = 400;
-const H = 190;
-const D = 116;
+const H = 170;
+const D = 104;
 const MIN_GAP = 4;
 const MAX_GAP = 250;
 
@@ -42,7 +42,7 @@ export default function MergingOrbs({ top }: { top: number }) {
 
   return (
     <View pointerEvents="none" style={[styles.wrap, { top }]}>
-      <LiquidGlassContainer spacing={54} style={{ width: W, height: H }}>
+      <LiquidGlassContainer spacing={50} style={{ width: W, height: H }}>
         <LiquidGlassView
           variant="clear"
           blurRadius={0}

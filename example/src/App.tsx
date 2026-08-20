@@ -136,7 +136,7 @@ export default function App() {
         )}
 
         {/* Outside the scene switch: the merge floats over every page. */}
-        <MergingOrbs top={96} />
+        <MergingOrbs top={330} />
       </View>
     </SafeAreaProvider>
   );
