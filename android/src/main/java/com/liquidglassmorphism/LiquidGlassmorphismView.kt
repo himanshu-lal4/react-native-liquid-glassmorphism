@@ -475,6 +475,49 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     if (changed) invalidate()
   }
 
+  /**
+   * Adopt another glass view's MATERIAL — everything about how the surface
+   * looks, and nothing about where it is.
+   *
+   * A container draws the merged body itself and suppresses its children, so
+   * without this the merged surface would render with the container's own
+   * defaults and the children's `variant`, `tint` and `thickness` would be
+   * silently discarded. Wrapping four `clear` lenses in a container turned
+   * them all frosted, which is exactly the bug this prevents.
+   *
+   * Same-class private access, so the field list stays in one place: adding a
+   * material prop above without adding it here is the failure mode to watch.
+   */
+  fun adoptMaterialFrom(src: LiquidGlassmorphismView) {
+    var changed = false
+    fun <T> take(cur: T, next: T, set: (T) -> Unit) {
+      if (cur != next) { set(next); changed = true }
+    }
+    take(variantClear, src.variantClear) { variantClear = it }
+    take(intensity, src.intensity) { intensity = it }
+    take(blurRadiusDp, src.blurRadiusDp) { blurRadiusDp = it }
+    take(tintColor, src.tintColor) { tintColor = it }
+    take(thickness, src.thickness) { thickness = it }
+    take(refractionEnabled, src.refractionEnabled) { refractionEnabled = it }
+    take(rimEnabled, src.rimEnabled) { rimEnabled = it }
+    take(specularEnabled, src.specularEnabled) { specularEnabled = it }
+    take(dim, src.dim) { dim = it }
+    take(edgeReflectionStrength, src.edgeReflectionStrength) { edgeReflectionStrength = it }
+    take(legibilityFloor, src.legibilityFloor) { legibilityFloor = it }
+    take(iridescence, src.iridescence) { iridescence = it }
+    take(grain, src.grain) { grain = it }
+    take(lightAngle, src.lightAngle) { lightAngle = it }
+    take(specularSharpness, src.specularSharpness) { specularSharpness = it }
+    take(saturation, src.saturation) { saturation = it }
+    take(brightness, src.brightness) { brightness = it }
+    take(magnification, src.magnification) { magnification = it }
+    take(ior, src.ior) { ior = it }
+    if (changed) {
+      refreshPaints()
+      invalidate()
+    }
+  }
+
   /** A container renders the merged glass; its children must not draw their own. */
   fun setGlassSuppressed(value: Boolean) {
     if (glassSuppressed != value) { glassSuppressed = value; invalidate() }

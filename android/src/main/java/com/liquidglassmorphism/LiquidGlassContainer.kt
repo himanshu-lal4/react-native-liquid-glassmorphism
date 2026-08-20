@@ -1,6 +1,8 @@
 package com.liquidglassmorphism
 
 import android.content.Context
+import android.view.View
+import android.view.ViewGroup
 
 /**
  * Cross-view glass merging on Android (the counterpart to iOS 26's
@@ -63,36 +65,78 @@ class LiquidGlassContainer(context: Context) : LiquidGlassmorphismView(context) 
    * triggers layout anyway, and reading the view tree every frame would be the
    * cost this design exists to avoid.
    */
+  private val locSelf = IntArray(2)
+  private val locChild = IntArray(2)
+
+  /**
+   * Collect every glass DESCENDANT's on-screen geometry and hand it to the
+   * shader.
+   *
+   * Two things this deliberately does not do, both learned the hard way:
+   *
+   * It does not stop at direct children. Real layouts wrap a glass view in an
+   * `Animated.View`, a `Pressable`, or both, so a direct-children-only walk
+   * finds the wrappers and merges nothing.
+   *
+   * It does not read `left`/`top`. A view animated by TRANSFORM never changes
+   * its layout bounds — `left` is wherever it was laid out, forever — so
+   * reading them merges bodies that are visibly somewhere else, or worse,
+   * freezes them while everything around them moves.
+   * `getLocationInWindow` reports where the view actually is, transforms of
+   * every ancestor included, which is the only thing the shader can use.
+   */
   private fun syncBodies() {
-    var n = 0
-    for (i in 0 until childCount) {
-      if (n >= MAX_BODIES) break
-      val child = getChildAt(i) as? LiquidGlassmorphismView ?: continue
-      if (child.width <= 0 || child.height <= 0) continue
-
-      // Centre + half-extents in OUR pixel space, which is what the shader's
-      // sdRoundRect expects.
-      rects[n * 4] = child.left + child.width * 0.5f
-      rects[n * 4 + 1] = child.top + child.height * 0.5f
-      rects[n * 4 + 2] = child.width * 0.5f
-      rects[n * 4 + 3] = child.height * 0.5f
-      radii[n] = child.effectiveCornerRadiusPx(child.width, child.height)
-
-      // The merged surface is ours to draw; theirs would double it.
-      child.setGlassSuppressed(spacingDp > 0f)
-      n++
-    }
-
-    // Merging off: give the children back their own glass rather than leaving
-    // a container that renders nothing over invisible children.
     if (spacingDp <= 0f) {
-      for (i in 0 until childCount) {
-        (getChildAt(i) as? LiquidGlassmorphismView)?.setGlassSuppressed(false)
-      }
+      forEachGlassDescendant { it.setGlassSuppressed(false) }
       setMergedBodies(rects, radii, 0, 0f)
       return
     }
 
+    getLocationInWindow(locSelf)
+    var n = 0
+    // The merged surface is ours to draw, so it has to LOOK like the bodies it
+    // replaced. Taken from the first glass descendant: a merged blob is one
+    // material by definition, and the first child is the least surprising
+    // choice when they differ.
+    var adopted = false
+    forEachGlassDescendant { child ->
+      if (n >= MAX_BODIES || child.width <= 0 || child.height <= 0) return@forEachGlassDescendant
+      child.getLocationInWindow(locChild)
+
+      // Scale from the ancestor chain shows up as a difference between the
+      // laid-out size and the on-screen size, so take it from the view's own
+      // scale rather than assuming 1.
+      val w = child.width * child.scaleX
+      val h = child.height * child.scaleY
+
+      rects[n * 4] = (locChild[0] - locSelf[0]) + w * 0.5f
+      rects[n * 4 + 1] = (locChild[1] - locSelf[1]) + h * 0.5f
+      rects[n * 4 + 2] = w * 0.5f
+      rects[n * 4 + 3] = h * 0.5f
+      radii[n] = child.effectiveCornerRadiusPx(child.width, child.height) * child.scaleX
+
+      if (!adopted) { adoptMaterialFrom(child); adopted = true }
+      child.setGlassSuppressed(true)
+      n++
+    }
+
     setMergedBodies(rects, radii, n, spacingDp * resources.displayMetrics.density)
   }
+
+  /** Depth-first walk, skipping our own merged surface. */
+  private fun forEachGlassDescendant(action: (LiquidGlassmorphismView) -> Unit) {
+    fun walk(v: View) {
+      if (v !== this && v is LiquidGlassmorphismView) {
+        action(v)
+        // Do not descend into a glass view: its children are content, and a
+        // nested container owns its own merge.
+        return
+      }
+      if (v is ViewGroup) {
+        for (i in 0 until v.childCount) walk(v.getChildAt(i))
+      }
+    }
+    for (i in 0 until childCount) walk(getChildAt(i))
+  }
+
 }
