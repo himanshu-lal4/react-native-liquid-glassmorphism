@@ -1,3 +1,27 @@
+## Submission status — check this before acting on anything below
+
+| Target | State |
+| --- | --- |
+| `jondot/awesome-react-native` | **PR [#1217](https://github.com/jondot/awesome-react-native/pull/1217) open since 2026-07-12**, description updated 2026-08-21. Do NOT open another. |
+| reactnative.directory | **Done** — both `react-native-liquid-glassmorphism` and `@wrack/react-native-tour-guide` are listed. |
+| GitHub repo topics | **Done** — 13 topics set. |
+
+**`jondot/awesome-react-native` is effectively dead.** 35.7k stars, but its master
+branch has not moved since 2021-04-25 and **111 PRs are open**. #1217 will most
+likely never merge. It cost nothing and leaves a public link; treat it as filed
+and forgotten, not as a channel.
+
+The one large list that is alive is `enaqx/awesome-react` (74k stars, merging PRs
+this week) — but its contribution note says *"kindly refrain from using this list
+as an advertisement board or a space to promote your experiments"*, and its five
+React Native entries are all giants (react-navigation, realm-js, react-native-maps).
+Submitting there is worth doing only once the library has real traction, and even
+then expect a no.
+
+**The channel that actually worked was reactnative.directory, and it is already done.**
+
+---
+
 > **Claim discipline.** Do not write "the only library with real glass on Android" —
 > `@uginy/react-native-liquid-glass` and `react-native-android-liquid-glass` both ship
 > AGSL on Android, and a reviewer who knows that will discount everything else you say.
