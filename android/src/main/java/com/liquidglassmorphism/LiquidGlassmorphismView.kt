@@ -165,9 +165,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   }
 
   // --- Backdrop capture (software bitmap → GPU effect) ---
-  private var captured: Bitmap? = null
-  private var captureCanvas: Canvas? = null
-  private var isCapturing = false
+  // The backdrop is now owned per-ROOT and shared by every glass view under it
+  // (#38). This view holds a reference and a sub-rectangle into it; it no
+  // longer allocates or draws a bitmap of its own.
+  private var shared: SharedBackdrop? = null
+  private var sharedRoot: View? = null
+  private val captured: Bitmap? get() = shared?.bitmap
   private var shaderActive = false
   // Dirty-tracking (fix #1): a cheap sampled hash of the last captured backdrop
   // plus a "have we ever drawn a good frame" flag. We only re-draw the glass
@@ -189,6 +192,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private val locRoot = IntArray(2)
   private val effectNode = if (supportsBlur()) RenderNode("liquidGlass") else null
   private val srcRect = Rect()
+  private val hashRect = Rect()
   private val dstRect = Rect()
 
   // Downscale for the captured backdrop: cheaper to draw and pre-softens the
@@ -568,6 +572,13 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
+    // Join (or start) this root's shared backdrop. Ref-counted, so the bitmap
+    // outlives individual views but not the last one.
+    val root = rootView
+    if (root != null) {
+      sharedRoot = root
+      shared = SharedBackdrop.acquire(root, captureScale)
+    }
     viewTreeObserver.addOnPreDrawListener(this)
     if (tilt) registerSensor()
     maybeWarnNoChildren()
@@ -602,6 +613,9 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private fun resumeCapture() {
     haveGoodCapture = false
     lastBackdropHash = 0
+    // The shared holder may already have "captured" this frame for a sibling
+    // before we resumed; drop that so we get a genuinely fresh backdrop.
+    shared?.invalidateFrame()
     postInvalidateOnAnimation()
   }
 
@@ -731,9 +745,11 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     super.onDetachedFromWindow()
     viewTreeObserver.removeOnPreDrawListener(this)
     unregisterSensor()
-    captured?.recycle()
-    captured = null
-    captureCanvas = null
+    // The bitmap belongs to the root, not to us — hand back our reference and
+    // let the holder free it if we were the last glass view under it.
+    SharedBackdrop.release(sharedRoot, shared)
+    shared = null
+    sharedRoot = null
     // Force a fresh capture + repaint on the next attach (fix #1).
     haveGoodCapture = false
     lastBackdropHash = 0
@@ -752,7 +768,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   // ---- Backdrop capture (once per frame, before drawing) ----
 
   override fun onPreDraw(): Boolean {
-    if (isCapturing || width == 0 || height == 0) return true
+    if (SharedBackdrop.capturing || width == 0 || height == 0) return true
     // A paused or off-screen view keeps its last frame and stops doing the one
     // expensive thing here: a full software `root.draw()` into our bitmap, every
     // frame, for as long as the view exists.
@@ -786,70 +802,80 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
   // A sparse sampled hash of the captured backdrop — enough to notice a scroll
   // or content change without the cost of comparing every pixel each frame.
+  /**
+   * A cheap sampled hash of *this view's* region of the shared backdrop.
+   *
+   * Deliberately not a hash of the whole shared bitmap: that would repaint
+   * every glass view whenever anything anywhere moved, throwing away the
+   * per-view dirty detection that stopped the self-sustaining 60fps loop.
+   */
   private fun backdropHash(): Int {
     val bmp = captured ?: return 0
-    val w = bmp.width
-    val h = bmp.height
-    if (w <= 0 || h <= 0) return 0
+    if (!sharedSrcRect(bmp, hashRect)) return 0
     var hash = 1
     val cols = 6
     val rows = 5
     for (r in 0 until rows) {
-      val y = if (rows == 1) 0 else (h - 1) * r / (rows - 1)
+      val y = hashRect.top + if (rows == 1) 0 else (hashRect.height() - 1) * r / (rows - 1)
       for (c in 0 until cols) {
-        val x = if (cols == 1) 0 else (w - 1) * c / (cols - 1)
-        hash = hash * 31 + bmp.getPixel(x, y)
+        val x = hashRect.left + if (cols == 1) 0 else (hashRect.width() - 1) * c / (cols - 1)
+        hash = hash * 31 + bmp.getPixel(
+          x.coerceIn(0, bmp.width - 1),
+          y.coerceIn(0, bmp.height - 1)
+        )
       }
     }
     return hash
   }
 
   private fun captureBackdrop() {
-    val w = width / captureScale
-    val h = height / captureScale
-    if (w <= 0 || h <= 0) return
-
-    var bmp = captured
-    if (bmp == null || bmp.width != w || bmp.height != h) {
-      bmp?.recycle()
-      bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-      captured = bmp
-      captureCanvas = Canvas(bmp)
-    }
-    val canvas = captureCanvas ?: return
     val root = rootView ?: return
+    val cap = shared ?: return
+    if (width <= 0 || height <= 0) return
 
-    bmp.eraseColor(Color.TRANSPARENT)
-    getLocationInWindow(locThis)
-    root.getLocationInWindow(locRoot)
-
-    canvas.save()
-    val scale = 1f / captureScale
-    canvas.scale(scale, scale)
-    canvas.translate(-(locThis[0] - locRoot[0]).toFloat(), -(locThis[1] - locRoot[1]).toFloat())
-    // draw() short-circuits while capturing so we never record ourselves.
-    isCapturing = true
-    try {
-      root.draw(canvas)
-    } catch (t: Throwable) {
-      // A child that refuses software draw → keep the previous backdrop. This
-      // used to be swallowed entirely, which made "the glass froze on one
-      // frame" impossible to explain from the JS side.
+    // getDrawingTime() is identical for every view drawn in the same frame, so
+    // the first glass view to arrive does the work and the rest no-op.
+    val failure = cap.captureIfNeeded(root, root.drawingTime)
+    if (failure != null) {
       emitError(
         GlassErrorEvent.BACKDROP_CAPTURE_FAILED,
         "A view behind the glass could not be drawn to a software canvas " +
-          "(${t.javaClass.simpleName}), so the previous backdrop is being " +
+          "(${failure.javaClass.simpleName}), so the previous backdrop is being " +
           "reused. SurfaceView, TextureView and some video/map views cannot " +
           "be captured this way."
       )
-    } finally {
-      isCapturing = false
     }
-    canvas.restore()
+  }
+
+  /**
+   * This view's rectangle inside the shared, root-sized backdrop bitmap.
+   *
+   * Replaces the per-view canvas translation the old capture did: instead of
+   * every view drawing the root at its own offset, everyone reads one bitmap
+   * and differs only in where they read from.
+   */
+  private fun sharedSrcRect(bmp: Bitmap, out: Rect): Boolean {
+    val root = rootView ?: return false
+    getLocationInWindow(locThis)
+    root.getLocationInWindow(locRoot)
+    val left = (locThis[0] - locRoot[0]) / captureScale
+    val top = (locThis[1] - locRoot[1]) / captureScale
+    val right = left + width / captureScale
+    val bottom = top + height / captureScale
+    if (right <= 0 || bottom <= 0 || left >= bmp.width || top >= bmp.height) return false
+    out.set(
+      left.coerceIn(0, bmp.width),
+      top.coerceIn(0, bmp.height),
+      right.coerceIn(0, bmp.width),
+      bottom.coerceIn(0, bmp.height)
+    )
+    return out.width() > 0 && out.height() > 0
   }
 
   override fun draw(canvas: Canvas) {
-    if (isCapturing) return
+    // Skipped for ANY shared capture, not just one this view triggered. The
+    // bitmap is shared, so it must contain no glass at all — see SharedBackdrop.
+    if (SharedBackdrop.capturing) return
     super.draw(canvas)
   }
 
@@ -914,7 +940,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     if (bmp != null && !bmp.isRecycled && node != null && canvas.isHardwareAccelerated) {
       node.setPosition(0, 0, width, height)
       val rec = node.beginRecording()
-      srcRect.set(0, 0, bmp.width, bmp.height)
+      if (!sharedSrcRect(bmp, srcRect)) srcRect.set(0, 0, bmp.width, bmp.height)
       dstRect.set(0, 0, width, height)
       rec.drawBitmap(bmp, srcRect, dstRect, null)
       node.endRecording()
