@@ -22,6 +22,18 @@ const GRID = 112;
 type Pt = readonly [number, number];
 
 /**
+ * Indexed access that satisfies `noUncheckedIndexedAccess` without a non-null
+ * assertion (which this repo's lint config forbids, rightly). Every call site
+ * here is in-range by construction, so the throw is a programming-error guard,
+ * not control flow.
+ */
+function at<T>(arr: ArrayLike<T>, i: number): T {
+  const v = arr[i];
+  if (v === undefined) throw new RangeError(`mergePaths: index ${i} out of range`);
+  return v;
+}
+
+/**
  * Parse an SVG path into flattened polylines, one per subpath.
  *
  * Supports the same command set as the native parsers — M/L/H/V/C/S/Q/T/Z,
@@ -44,7 +56,7 @@ export function flattenPath(d: string): Pt[][] {
   let cmd = '';
   let i = 0;
 
-  const num = () => Number(tokens[i++]);
+  const num = () => Number(at(tokens, i++));
   const push = (px: number, py: number) => cur.push([px, py] as Pt);
   const endSub = () => {
     if (cur.length > 1) subpaths.push(cur);
@@ -83,7 +95,7 @@ export function flattenPath(d: string): Pt[][] {
   };
 
   while (i < tokens.length) {
-    const tok = tokens[i]!;
+    const tok = at(tokens, i);
     if (/[a-zA-Z]/.test(tok)) {
       cmd = tok;
       i++;
@@ -167,8 +179,8 @@ function signedDistance(polys: Pt[][], px: number, py: number): number {
   let inside = false;
   for (const poly of polys) {
     for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-      const [ax, ay] = poly[i]!;
-      const [bx, by] = poly[j]!;
+      const [ax, ay] = at(poly, i);
+      const [bx, by] = at(poly, j);
       // Even-odd crossing test.
       if (ay > py !== by > py && px < ((bx - ax) * (py - ay)) / (by - ay) + ax) {
         inside = !inside;
@@ -190,6 +202,60 @@ function signedDistance(polys: Pt[][], px: number, py: number): number {
 function smin(a: number, b: number, k: number): number {
   const h = Math.max(0, Math.min(1, 0.5 + (0.5 * (b - a)) / k));
   return b * (1 - h) + a * h - k * h * (1 - h);
+}
+
+/**
+ * Marching squares on the zero iso-line, one line segment per crossed cell.
+ *
+ * Extracted from [mergePathOutline] to keep that function under the complexity
+ * budget — it is a self-contained step with no shared state.
+ */
+function contourSegments(
+  field: Float32Array,
+  gw: number,
+  gh: number,
+  sx: number,
+  sy: number
+): Array<[Pt, Pt]> {
+  const segs: Array<[Pt, Pt]> = [];
+  const lerp = (p1: Pt, v1: number, p2: Pt, v2: number): Pt => {
+    const t = v1 === v2 ? 0.5 : v1 / (v1 - v2);
+    return [p1[0] + (p2[0] - p1[0]) * t, p1[1] + (p2[1] - p1[1]) * t];
+  };
+
+  for (let gy = 0; gy < gh - 1; gy++) {
+    for (let gx = 0; gx < gw - 1; gx++) {
+      const i0 = gy * gw + gx;
+      const v: number[] = [
+        at(field, i0),
+        at(field, i0 + 1),
+        at(field, i0 + gw + 1),
+        at(field, i0 + gw),
+      ];
+      let mask = 0;
+      for (let n = 0; n < 4; n++) if (at(v, n) < 0) mask |= 1 << n;
+      if (mask === 0 || mask === 15) continue;
+
+      const p: Pt[] = [
+        [gx * sx, gy * sy],
+        [(gx + 1) * sx, gy * sy],
+        [(gx + 1) * sx, (gy + 1) * sy],
+        [gx * sx, (gy + 1) * sy],
+      ];
+      const crossings: Pt[] = [];
+      for (let n = 0; n < 4; n++) {
+        const a = at(v, n);
+        const b = at(v, (n + 1) % 4);
+        if (a < 0 !== b < 0) crossings.push(lerp(at(p, n), a, at(p, (n + 1) % 4), b));
+      }
+      // 2 crossings is the ordinary case; 4 is a saddle, where joining them
+      // pairwise in order is good enough at this grid density.
+      for (let n = 0; n + 1 < crossings.length; n += 2) {
+        segs.push([at(crossings, n), at(crossings, n + 1)]);
+      }
+    }
+  }
+  return segs;
 }
 
 /**
@@ -227,41 +293,8 @@ export function mergePathOutline(
     }
   }
 
-  // Marching squares on the zero iso-line, emitting one line segment per cell.
-  // Segments are stitched into loops afterwards; a merged blob is a single
-  // closed contour, but two bodies still far apart produce two.
-  const segs: Array<[Pt, Pt]> = [];
-  const lerp = (p1: Pt, v1: number, p2: Pt, v2: number): Pt => {
-    const t = v1 === v2 ? 0.5 : v1 / (v1 - v2);
-    return [p1[0] + (p2[0] - p1[0]) * t, p1[1] + (p2[1] - p1[1]) * t];
-  };
+  const segs = contourSegments(field, gw, gh, sx, sy);
 
-  for (let gy = 0; gy < gh - 1; gy++) {
-    for (let gx = 0; gx < gw - 1; gx++) {
-      const i0 = gy * gw + gx;
-      const v = [field[i0]!, field[i0 + 1]!, field[i0 + gw + 1]!, field[i0 + gw]!];
-      const p: Pt[] = [
-        [gx * sx, gy * sy],
-        [(gx + 1) * sx, gy * sy],
-        [(gx + 1) * sx, (gy + 1) * sy],
-        [gx * sx, (gy + 1) * sy],
-      ];
-      let mask = 0;
-      for (let n = 0; n < 4; n++) if (v[n]! < 0) mask |= 1 << n;
-      if (mask === 0 || mask === 15) continue;
-
-      const edge = (n: number): Pt => lerp(p[n]!, v[n]!, p[(n + 1) % 4]!, v[(n + 1) % 4]!);
-      const crossings: Pt[] = [];
-      for (let n = 0; n < 4; n++) {
-        if (v[n]! < 0 !== v[(n + 1) % 4]! < 0) crossings.push(edge(n));
-      }
-      // 2 crossings is the ordinary case; 4 is a saddle, where joining them
-      // pairwise in order is good enough at this grid density.
-      for (let n = 0; n + 1 < crossings.length; n += 2) {
-        segs.push([crossings[n]!, crossings[n + 1]!]);
-      }
-    }
-  }
   if (!segs.length) return null;
 
   // Stitch segments into closed loops by nearest endpoint.
@@ -273,7 +306,8 @@ export function mergePathOutline(
     for (const pt of sg) {
       const kk2 = key(pt);
       if (!byStart.has(kk2)) byStart.set(kk2, []);
-      byStart.get(kk2)!.push(idx);
+      const bucket = byStart.get(kk2);
+      if (bucket) bucket.push(idx);
     }
   });
 
@@ -283,10 +317,11 @@ export function mergePathOutline(
   for (let s = 0; s < segs.length; s++) {
     if (used[s]) continue;
     used[s] = true;
-    const loop: Pt[] = [segs[s]![0], segs[s]![1]];
+    const seg = at(segs, s);
+    const loop: Pt[] = [seg[0], seg[1]];
     let guard = 0;
     while (guard++ < segs.length * 2) {
-      const tail = loop[loop.length - 1]!;
+      const tail = at(loop, loop.length - 1);
       const cands = byStart.get(key(tail)) ?? [];
       let next = -1;
       for (const c of cands) {
@@ -297,12 +332,12 @@ export function mergePathOutline(
       }
       if (next < 0) break;
       used[next] = true;
-      const [p0, p1] = segs[next]!;
+      const [p0, p1] = at(segs, next);
       loop.push(key(p0) === key(tail) ? p1 : p0);
     }
     if (loop.length < 3) continue;
     parts.push(
-      `M ${fmt(loop[0]![0])} ${fmt(loop[0]![1])} ${loop
+      `M ${fmt(at(loop, 0)[0])} ${fmt(at(loop, 0)[1])} ${loop
         .slice(1)
         .map((pt) => `L ${fmt(pt[0])} ${fmt(pt[1])}`)
         .join(' ')} Z`

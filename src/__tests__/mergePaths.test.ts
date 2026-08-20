@@ -8,21 +8,21 @@ describe('flattenPath', () => {
   it('flattens a closed rectangle to a polyline', () => {
     const polys = flattenPath(rect(0, 0, 10, 10));
     expect(polys).toHaveLength(1);
-    expect(polys[0]!.length).toBeGreaterThanOrEqual(4);
+    expect(polys[0]?.length ?? 0).toBeGreaterThanOrEqual(4);
   });
 
   it('handles relative commands and H/V', () => {
     const polys = flattenPath('M 0 0 h 10 v 10 h -10 Z');
     expect(polys).toHaveLength(1);
-    const xs = polys[0]!.map((p) => p[0]);
+    const xs = (polys[0] ?? []).map((pt) => pt[0]);
     expect(Math.max(...xs)).toBeCloseTo(10);
   });
 
   it('subdivides cubic and quadratic curves', () => {
     const cubic = flattenPath('M 0 0 C 5 0 10 5 10 10 Z');
     const quad = flattenPath('M 0 0 Q 10 0 10 10 Z');
-    expect(cubic[0]!.length).toBeGreaterThan(8);
-    expect(quad[0]!.length).toBeGreaterThan(8);
+    expect(cubic[0]?.length ?? 0).toBeGreaterThan(8);
+    expect(quad[0]?.length ?? 0).toBeGreaterThan(8);
   });
 
   it('bails on an elliptic arc rather than emitting a wrong outline', () => {
@@ -39,18 +39,18 @@ describe('mergePathOutline', () => {
     // 22 correctly leaves them separate, which the next case covers.
     const out = mergePathOutline(rect(10, 30, 40, 40), rect(70, 30, 40, 40), 120, 100, 56);
     expect(out).toBeTruthy();
-    expect(out!.match(/M /g)).toHaveLength(1);
+    expect(out?.match(/M /g)).toHaveLength(1);
   });
 
   it('leaves them separate when smoothing is too small to bridge the gap', () => {
     const out = mergePathOutline(rect(10, 30, 40, 40), rect(70, 30, 40, 40), 120, 100, 22);
-    expect(out!.match(/M /g)!.length).toBeGreaterThanOrEqual(2);
+    expect(out?.match(/M /g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
   it('leaves two far-apart bodies as separate loops', () => {
     const out = mergePathOutline(rect(0, 40, 20, 20), rect(100, 40, 20, 20), 120, 100, 4);
     expect(out).toBeTruthy();
-    expect(out!.match(/M /g)!.length).toBeGreaterThanOrEqual(2);
+    expect(out?.match(/M /g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
   it('returns null when a path cannot be flattened', () => {
