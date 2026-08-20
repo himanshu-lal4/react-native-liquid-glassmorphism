@@ -56,6 +56,7 @@ Most React Native "glass" is just a blur. This library actually **refracts** the
 
 | Capability | react-native-liquid-glassmorphism | expo-blur / react-native-blur | expo-glass-effect / @callstack/liquid-glass | @uginy · react-native-android-liquid-glass |
 |---|---|---|---|---|
+| **Cross-view merging** (glass fuses on contact) | ✅ **both platforms** | ❌ | ⚠️ iOS only (`UIGlassContainerEffect`) | ❌ |
 | Native iOS 26 Liquid Glass (`UIGlassEffect`) | ✅ | ❌ blur only | ✅ | ❌ own impl / Android-only |
 | Liquid Glass optics on **Android** | ✅ AGSL refraction shader | ❌ blur only | ❌ iOS-only | ✅ |
 | Real refraction / edge lensing (not just blur) | ✅ | ❌ | ✅ (iOS, OS-rendered) | ✅ |
@@ -101,6 +102,7 @@ unconditionally — they simply do nothing on iOS:
 
 ## Features
 
+- 🫧 **Glass that merges** — two or more glass views fuse into one liquid body as they approach, **on both platforms**. iOS uses `UIGlassContainerEffect`; Android has no OS equivalent, so we smooth-min the bodies analytically in the shader
 - 🍏 **Native Liquid Glass on iOS** (`UIGlassEffect` on iOS 26), with a `UIBlurEffect` fallback below iOS 26
 - 🤖 **Android parity** via a per-frame AGSL refractive-lens shader (API 33+), graceful fallbacks below
 - 🎛️ Declarative API — `variant`, `tintColor`, `intensity`, `borderRadius`, `interactive`, `refraction`, `thickness`
@@ -383,6 +385,9 @@ than three days into an integration.
   OS applying a radius.
 - **Web is a non-glass fallback.** The tier reports `none`. This library is
   mobile-focused.
+- **Merging caps at 8 bodies per container on Android**, and merges rounded
+  rectangles rather than arbitrary `shape` silhouettes. iOS has neither limit,
+  because the OS does the merge.
 - **Android has no Reduce Transparency setting.** The accessibility degradation
   below uses high-contrast text as the closest available signal there, which is
   a proxy rather than the real preference.
@@ -460,6 +465,53 @@ normally the dominant term, and it scales with `capturedWidth × capturedHeight`
 **This is a development HUD. Ship it off.** The reporting is throttled and
 cheap, but timing every frame is not free. The dev build warns once while it is
 enabled.
+
+## Glass that merges
+
+Two or more glass views fuse into a single liquid body as they come close,
+instead of stacking as separate panes. Wrap them and set `spacing`:
+
+```tsx
+import { LiquidGlassContainer, LiquidGlassView } from 'react-native-liquid-glassmorphism';
+
+<LiquidGlassContainer spacing={40}>
+  <LiquidGlassView style={{ width: 96, height: 96, borderRadius: 48 }} />
+  <LiquidGlassView style={{ width: 96, height: 96, borderRadius: 48 }} />
+</LiquidGlassContainer>
+```
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `spacing` | `number` (dp) | `0` | The distance at which children begin to merge. `0` disables merging — children render as ordinary separate glass. |
+
+Any `<LiquidGlassView>` merges just by being a descendant; there is no per-child
+prop and no special child component. Merging is a **relationship between
+siblings**, so something has to define the group and the distance — that is what
+the container is for.
+
+**Move the children however you like.** Position, `transform`, layout animation —
+the container reads each child's real on-screen geometry every frame, so an
+animated merge costs a uniform upload rather than a rebuild. This is the
+difference between it and `secondaryShape`, which bakes a distance field and is
+therefore **static only**.
+
+**iOS** hands this to `UIGlassContainerEffect` and gets out of the way — the OS
+merges the children's glass itself. Below iOS 26 there is no such effect, so
+children render as ordinary separate glass.
+
+**Android** has no OS equivalent. The container renders one glass surface and
+smooth-mins the children's rounded rectangles per pixel in AGSL, which is
+analytic and therefore free to animate. Two limits follow from that:
+
+- Bodies are **rounded rectangles**, taken from each child's size and
+  `borderRadius`. A child using a custom `shape` is not merged.
+- **At most 8** children merge, because the shader's uniform array needs a
+  compile-time bound. Beyond that they render as ordinary glass and the dev
+  build warns once — they never silently disappear.
+
+The merged surface adopts the **material of the first body it merges**, since a
+fused blob is one material by definition. Give the children the same `variant`
+and `tintColor` unless you want to find out which one wins.
 
 ## Scroll edge blur
 
