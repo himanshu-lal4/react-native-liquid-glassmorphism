@@ -88,6 +88,27 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   // Edge-reflection band strength (#5), 0 (off) → 1 (default). Independent of
   // `thickness` so the upside-down rim echo can be calmed over text.
   private var edgeReflectionStrength = 1f
+  // Look-shaping uniforms (#45). All default to "no change", so an untouched
+  // view renders exactly as before and the shader branches stay cold.
+  private var iridescence = 0f
+  private var grain = 0f
+  private var lightAngle = 0f
+  private var specularSharpness = 1f
+  private var saturation = 1f
+  private var brightness = 1f
+
+  // Frame-timing HUD (#47). `frameStatsInterval` is a PERMISSION, not a switch:
+  // at 0 (the default) nothing is timed, accumulated or dispatched at all, so a
+  // shipped app pays literally nothing for this existing.
+  private var frameStatsInterval = 0
+  private var statsFrames = 0
+  private var statsWindowStartNs = 0L
+  private var statsCaptureNs = 0L
+  private var statsShaderNs = 0L
+  private var statsTotalNs = 0L
+  private var statsMaxTotalNs = 0L
+  // Carries the capture cost from onPreDraw into the draw pass that consumes it.
+  private var statsPendingCaptureNs = 0L
   // Legibility floor (#2), 0 → 1: an adaptive surface drawn UNDER the foreground
   // children so chrome (icons/labels) stays readable over clear glass.
   private var legibilityFloor = 0f
@@ -259,6 +280,107 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   fun setEdgeReflectionStrengthValue(value: Float) {
     val v = value.coerceIn(0f, 1f)
     if (edgeReflectionStrength != v) { edgeReflectionStrength = v; invalidate() }
+  }
+
+  /** Rim iridescence (#45), 0 (off) → 1, clamped. */
+  fun setIridescenceValue(value: Float) {
+    val v = value.coerceIn(0f, 1f)
+    if (iridescence != v) { iridescence = v; invalidate() }
+  }
+
+  /** Film grain (#45), 0 (off) → 0.15, clamped. */
+  fun setGrainValue(value: Float) {
+    val v = value.coerceIn(0f, 0.15f)
+    if (grain != v) { grain = v; invalidate() }
+  }
+
+  /** Light-direction rotation (#45), in radians. Unclamped — angles wrap. */
+  fun setLightAngleValue(value: Float) {
+    val v = if (value.isFinite()) value else 0f
+    if (lightAngle != v) { lightAngle = v; invalidate() }
+  }
+
+  /** Specular exponent multiplier (#45); 1 is the default hotspot. */
+  fun setSpecularSharpnessValue(value: Float) {
+    val v = value.coerceIn(0.25f, 4f)
+    if (specularSharpness != v) { specularSharpness = v; invalidate() }
+  }
+
+  /** Backdrop vibrancy multiplier (#45); 1 is the default over-saturation. */
+  fun setSaturationValue(value: Float) {
+    val v = value.coerceIn(0f, 2f)
+    if (saturation != v) { saturation = v; invalidate() }
+  }
+
+  /** Backdrop luminance multiplier (#45); 1 is unchanged. */
+  fun setBrightnessValue(value: Float) {
+    val v = value.coerceIn(0.5f, 1.5f)
+    if (brightness != v) { brightness = v; invalidate() }
+  }
+
+  /**
+   * Frame-stats reporting window in ms (#47). 0 (default) disables it entirely.
+   *
+   * Changing it resets the window rather than folding old samples into a new
+   * cadence, which would make the first report after a change meaningless.
+   */
+  fun setFrameStatsIntervalValue(value: Int) {
+    val v = if (value > 0) value else 0
+    if (frameStatsInterval == v) return
+    frameStatsInterval = v
+    resetFrameStats()
+  }
+
+  private fun resetFrameStats() {
+    statsFrames = 0
+    statsWindowStartNs = 0L
+    statsCaptureNs = 0L
+    statsShaderNs = 0L
+    statsTotalNs = 0L
+    statsMaxTotalNs = 0L
+    statsPendingCaptureNs = 0L
+  }
+
+  /**
+   * Fold one frame into the window, and emit if the window has elapsed.
+   *
+   * Averages within the window rather than sampling one frame in N, so a spike
+   * between reports still shows up — in [statsMaxTotalNs], which is why the
+   * payload carries a max alongside the mean.
+   */
+  private fun recordFrameStats(shaderNs: Long) {
+    val now = System.nanoTime()
+    if (statsWindowStartNs == 0L) statsWindowStartNs = now
+
+    val total = statsPendingCaptureNs + shaderNs
+    statsFrames++
+    statsCaptureNs += statsPendingCaptureNs
+    statsShaderNs += shaderNs
+    statsTotalNs += total
+    if (total > statsMaxTotalNs) statsMaxTotalNs = total
+    statsPendingCaptureNs = 0L
+
+    val elapsedNs = now - statsWindowStartNs
+    if (elapsedNs < frameStatsInterval * 1_000_000L) return
+
+    val frames = statsFrames
+    val bmp = captured
+    dispatch(
+      GlassFrameStatsEvent(
+        UIManagerHelper.getSurfaceId(this),
+        id,
+        frames * 1_000_000_000.0 / elapsedNs,
+        statsTotalNs / frames / 1_000_000.0,
+        statsMaxTotalNs / 1_000_000.0,
+        statsCaptureNs / frames / 1_000_000.0,
+        statsShaderNs / frames / 1_000_000.0,
+        currentTier(),
+        bmp?.width ?: 0,
+        bmp?.height ?: 0
+      )
+    )
+    resetFrameStats()
+    statsWindowStartNs = now
   }
 
   /** Legibility floor (#2), 0 (off) → 1 (max), clamped. */
@@ -513,15 +635,18 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
    * the RenderNode path — a report that only arrives on capable devices is the
    * opposite of what this is for.
    */
+  /** The tier this view is actually rendering right now. */
+  private fun currentTier(): String = when {
+    shaderActive -> "refraction"
+    supportsBlur() -> "blur"
+    else -> "tint"
+  }
+
   private fun emitPipelineReady() {
     if (reportedTier) return
     reportedTier = true
 
-    val tier = when {
-      shaderActive -> "refraction"
-      supportsBlur() -> "blur"
-      else -> "tint"
-    }
+    val tier = currentTier()
     val compiled = glassShader != null
 
     // Kept alongside the event: QA can confirm the tier from a device build
@@ -583,7 +708,15 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     // expensive thing here: a full software `root.draw()` into our bitmap, every
     // frame, for as long as the view exists.
     if (captureSuspended) return true
-    captureBackdrop()
+    // Timed only when someone asked for stats — System.nanoTime() twice a frame
+    // is cheap, but "cheap" is not "free" and this runs on every glass view.
+    if (frameStatsInterval > 0) {
+      val t0 = System.nanoTime()
+      captureBackdrop()
+      statsPendingCaptureNs = System.nanoTime() - t0
+    } else {
+      captureBackdrop()
+    }
     // Only repaint when the backdrop actually changed (fix #1). Comparing a
     // cheap sampled hash breaks the old self-sustaining 60fps capture→invalidate
     // loop: on a static screen the hash settles and we stop; when content
@@ -728,6 +861,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
     val bmp = captured
     val node = effectNode
+    val statsT0 = if (frameStatsInterval > 0) System.nanoTime() else 0L
     if (bmp != null && !bmp.isRecycled && node != null && canvas.isHardwareAccelerated) {
       node.setPosition(0, 0, width, height)
       val rec = node.beginRecording()
@@ -754,6 +888,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       } else {
         canvas.drawRenderNode(node)
       }
+      // Folded here rather than at the end of onDraw: this block is the work
+      // the stats are about — recording the node and re-uploading uniforms.
+      // Note this is CPU time; the GPU's shader execution is not visible to us.
+      if (frameStatsInterval > 0) recordFrameStats(System.nanoTime() - statsT0)
     }
 
     if (!shaderActive) {
@@ -897,7 +1035,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       // matched, clear glass was holding sat 0.721x its backdrop where iOS
       // holds 0.656x. The old 1.55 only looked right while the heavier blur
       // was washing saturation out for it.
-      shader.setFloatUniform("iSat", if (variantClear) 1.32f else 1.3f)
+      shader.setFloatUniform("iSat", (if (variantClear) 1.32f else 1.3f) * saturation)
       shader.setFloatUniform("iLift", GlassParams.frostFloorAlpha(variantClear))
       shader.setFloatUniform("iAdapt", GlassParams.adaptiveLift(variantClear))
       shader.setFloatUniform("iSpecular", if (specularEnabled) GlassParams.specularAlpha(variantClear) else 0f)
@@ -910,6 +1048,11 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       shader.setFloatUniform("iTouch", touchX, touchY)
       shader.setFloatUniform("iTouchAmt", if (interactive) touchAmt else 0f)
       shader.setFloatUniform("iRefl", edgeReflectionStrength)
+      shader.setFloatUniform("iIrid", iridescence)
+      shader.setFloatUniform("iGrain", grain)
+      shader.setFloatUniform("iLightAngle", lightAngle)
+      shader.setFloatUniform("iSpecSharp", specularSharpness)
+      shader.setFloatUniform("iBright", brightness)
       setTintUniform(shader)
       val material = RenderEffect.createRuntimeShaderEffect(shader, "content")
       shaderActive = true
@@ -1022,10 +1165,30 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       uniform float iRefl;
       uniform float iRim;
       uniform float iDim;
+      uniform float iIrid;
+      uniform float iGrain;
+      uniform float iLightAngle;
+      uniform float iSpecSharp;
+      uniform float iBright;
 
       float sdRoundRect(float2 p, float2 b, float r) {
         float2 q = abs(p) - b + r;
         return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+      }
+
+      // Rotate the built-in light direction. `lightAngle` is an OFFSET, not an
+      // absolute bearing, so 0 reproduces the tuned top-left key light exactly
+      // and existing layouts are unaffected.
+      float2 rotate2(float2 v, float a) {
+        float c = cos(a);
+        float s = sin(a);
+        return float2(v.x * c - v.y * s, v.x * s + v.y * c);
+      }
+
+      // Cheap per-pixel hash for the grain. Deterministic in screen space, so
+      // the grain sits still on a static surface instead of crawling.
+      float hash21(float2 p) {
+        return fract(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453);
       }
 
       // Surface normal + medial-axis confidence for the custom-shape path,
@@ -1178,6 +1341,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         float luma = dot(src, half3(0.2126, 0.7152, 0.0722));
         half3 col = half3(luma) + (src - half3(luma)) * iSat;
 
+        // Backdrop luminance grade, before the tint so it changes what the
+        // glass transmits rather than the tint itself. `adapt` below still
+        // reads the ungraded luma on purpose: the legibility lift should track
+        // the real backdrop, not a darkened copy of it.
+        col = col * half(iBright);
+
         // Thin adaptive frost: see-through, lifting only dark backdrop toward a
         // neutral frost so text stays legible. Never a milky fill.
         float adapt = clamp(iLift + (1.0 - luma) * iAdapt, 0.0, 0.5);
@@ -1216,11 +1385,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         // Gentle Fresnel + a small moving specular hotspot — kept subtle so the
         // rim reads as a clean outline, not a glossy bubble.
         float fres = pow(1.0 - N.z, 3.0);
-        float3 L = normalize(float3(-0.5 + iTilt.x * 1.5, -0.7 + iTilt.y * 1.5, 0.8));
-        float spec = pow(clamp(dot(N, L), 0.0, 1.0), 10.0);
+        float2 Lxy = rotate2(float2(-0.5, -0.7), iLightAngle) + iTilt * 1.5;
+        float3 L = normalize(float3(Lxy, 0.8));
+        float spec = pow(clamp(dot(N, L), 0.0, 1.0), 10.0 * iSpecSharp);
 
         // Soft inner shadow on the edge opposite the light → real depth.
-        float2 lightDir = normalize(float2(-0.6 + iTilt.x, -0.8 + iTilt.y));
+        float2 lightDir = normalize(rotate2(float2(-0.6, -0.8), iLightAngle) + iTilt);
         float facing = clamp(dot(n2, lightDir), 0.0, 1.0);
         float edgeShade = rim * rim * (1.0 - facing) * 0.12;
 
@@ -1244,6 +1414,27 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         // 6%. At 0.2 this term alone was lifting ours by ~50% — a flash,
         // not a press.
         col = col + hi * (touch * 0.035);
+
+        // Rim iridescence: hue swept by the angle to the centre, riding the
+        // same `bend` ramp as the lens so the colour appears where the light is
+        // actually being split — at the edge — rather than as a flat overlay.
+        if (iIrid > 0.0) {
+          float ang = atan(p.y, p.x);
+          float phase = ang * 0.9549 + rim * 2.0;
+          half3 irid = half3(
+            half(0.5 + 0.5 * cos(phase)),
+            half(0.5 + 0.5 * cos(phase + 2.0944)),
+            half(0.5 + 0.5 * cos(phase + 4.1888))
+          );
+          col = col + irid * half(iIrid * bend * 0.6);
+        }
+
+        // Film grain. A heavy blur flattens the backdrop into a smooth
+        // gradient; a little noise is what sells it as etched glass. Signed
+        // around zero so it textures rather than brightens.
+        if (iGrain > 0.0) {
+          col = col + half3(half((hash21(coord) - 0.5) * iGrain));
+        }
 
         col = clamp(col, 0.0, 1.0);
 

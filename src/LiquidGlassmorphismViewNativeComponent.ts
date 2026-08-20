@@ -1,6 +1,7 @@
 import { codegenNativeComponent, type ColorValue, type ViewProps } from 'react-native';
 import type {
   DirectEventHandler,
+  Double,
   Float,
   Int32,
   WithDefault,
@@ -20,6 +21,17 @@ export type PipelineReadyEvent = Readonly<{
 }>;
 
 /** Payload of `onError` — see `GlassErrorCode` in `types.ts` for the codes. */
+export type GlassFrameStatsEvent = Readonly<{
+  drawFps: Double;
+  totalMs: Double;
+  maxTotalMs: Double;
+  captureMs: Double;
+  shaderMs: Double;
+  tier: string;
+  capturedWidth: Int32;
+  capturedHeight: Int32;
+}>;
+
 export type GlassErrorEvent = Readonly<{
   code: string;
   message: string;
@@ -127,6 +139,42 @@ export interface NativeProps extends ViewProps {
   legibilityFloor?: WithDefault<Float, 0>;
 
   /**
+   * Android only: 0–1 rainbow shimmer at the rim, phase driven by the angle to
+   * the centre. 0 = off. No-op on iOS.
+   */
+  iridescence?: WithDefault<Float, 0>;
+
+  /**
+   * Android only: 0–~0.15 film grain over the whole surface. 0 = off.
+   * No-op on iOS.
+   */
+  grain?: WithDefault<Float, 0>;
+
+  /**
+   * Android only: rotates the built-in light direction, in radians. 0 keeps the
+   * default top-left key light. No-op on iOS.
+   */
+  lightAngle?: WithDefault<Float, 0>;
+
+  /**
+   * Android only: multiplier on the specular exponent. 1 = default; higher is a
+   * tighter, harder hotspot. No-op on iOS.
+   */
+  specularSharpness?: WithDefault<Float, 1.0>;
+
+  /**
+   * Android only: multiplier on the backdrop vibrancy, applied before the tint.
+   * 1 = default. No-op on iOS.
+   */
+  saturation?: WithDefault<Float, 1.0>;
+
+  /**
+   * Android only: multiplier on backdrop luminance, applied before the tint.
+   * 1 = default. No-op on iOS.
+   */
+  brightness?: WithDefault<Float, 1.0>;
+
+  /**
    * Android only: suspend the per-frame backdrop capture without unmounting.
    * The glass holds its last frame. Resuming re-captures immediately.
    */
@@ -137,6 +185,12 @@ export interface NativeProps extends ViewProps {
    * rendered. Not a device capability check — an explicit prop or an OS-level
    * fallback can hold a capable device to a lower tier.
    */
+  /**
+   * Android only: frame-stats reporting window in ms. 0 (default) attaches no
+   * listener and does no timing at all.
+   */
+  frameStatsInterval?: WithDefault<Int32, 0>;
+
   onPipelineReady?: DirectEventHandler<PipelineReadyEvent>;
 
   /**
@@ -146,6 +200,12 @@ export interface NativeProps extends ViewProps {
    * the bridge.
    */
   onError?: DirectEventHandler<GlassErrorEvent>;
+
+  /**
+   * Android only: natively throttled frame-timing report. Only fires when
+   * `frameStatsInterval` is greater than 0.
+   */
+  onFrameStats?: DirectEventHandler<GlassFrameStatsEvent>;
 }
 
 export default codegenNativeComponent<NativeProps>('LiquidGlassmorphismView');

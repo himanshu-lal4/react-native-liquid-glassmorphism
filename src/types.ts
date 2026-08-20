@@ -63,6 +63,36 @@ export type GlassErrorInfo = Readonly<{
  */
 export type GlassVariant = 'regular' | 'clear';
 
+/**
+ * What `onFrameStats` reports, aggregated over one `frameStatsInterval` window.
+ *
+ * The timings are **CPU-side** — the backdrop capture and the render-node /
+ * uniform work. GPU shader execution is not visible from the view, so this
+ * measures the cost the library controls, not total frame cost.
+ */
+export type GlassFrameStats = Readonly<{
+  /** Frames drawn per second across the window. */
+  drawFps: number;
+  /** Mean CPU cost per frame, in ms. */
+  totalMs: number;
+  /**
+   * Worst single frame in the window, in ms.
+   *
+   * Read this rather than {@link totalMs} when hunting jank: one 40ms spike
+   * vanishes into a 250ms average, which is exactly the frame you care about.
+   */
+  maxTotalMs: number;
+  /** Mean time in the backdrop capture, in ms. Usually the dominant cost. */
+  captureMs: number;
+  /** Mean time recording the render node and uploading uniforms, in ms. */
+  shaderMs: number;
+  /** The tier that rendered these frames. */
+  tier: GlassTier;
+  /** Backdrop bitmap dimensions — capture cost scales with these. */
+  capturedWidth: number;
+  capturedHeight: number;
+}>;
+
 export interface LiquidGlassViewProps extends ViewProps {
   /**
    * Start from a tuned material instead of dialling the individual knobs.
@@ -276,6 +306,79 @@ export interface LiquidGlassViewProps extends ViewProps {
   legibilityFloor?: number;
 
   /**
+   * Android only: how often, in ms, to report frame timings via
+   * {@link onFrameStats}. `0` (the default) disables it completely — nothing is
+   * timed, accumulated or dispatched.
+   *
+   * This is a **development HUD**. Ship it off: the reporting itself is cheap,
+   * but timing every frame is not free, and nothing in a released app should be
+   * reading it.
+   *
+   * @default 0
+   */
+  frameStatsInterval?: number;
+
+  /**
+   * Android only: rainbow shimmer at the rim, `0`–`1`.
+   *
+   * The hue is driven by the angle to the centre and rides the same edge ramp
+   * as the lens, so it reads as light splitting through the rim rather than a
+   * colour overlay. Subtle values do the most work — `0.3` is already visible.
+   * @default 0
+   */
+  iridescence?: number;
+
+  /**
+   * Android only: film grain over the surface, `0`–`~0.15`.
+   *
+   * Breaks up the flatness of a heavily blurred backdrop, which is what makes a
+   * frosted material read as etched glass rather than a gradient. Above ~0.15
+   * it stops looking like glass and starts looking like noise.
+   * @default 0
+   */
+  grain?: number;
+
+  /**
+   * Android only: rotates the built-in light direction, in **radians**.
+   *
+   * An offset rather than an absolute bearing, so `0` keeps the default
+   * top-left key light and existing layouts are unchanged. Drives the sheen
+   * band, the specular hotspot and the inner shadow together, so the surface
+   * stays internally consistent.
+   * @default 0
+   */
+  lightAngle?: number;
+
+  /**
+   * Android only: multiplier on the specular exponent.
+   *
+   * `1` is the default hotspot. Higher is tighter and harder — polished glass;
+   * lower is broader and softer — satin. Useful range roughly `0.25`–`4`.
+   * @default 1
+   */
+  specularSharpness?: number;
+
+  /**
+   * Android only: multiplier on the backdrop vibrancy, applied **before** the
+   * tint so it grades what the glass transmits rather than the tint itself.
+   *
+   * `1` is the default over-saturation glass already applies. `0` gives a
+   * greyscale backdrop. Useful range roughly `0`–`2`.
+   * @default 1
+   */
+  saturation?: number;
+
+  /**
+   * Android only: multiplier on backdrop luminance, applied **before** the tint.
+   *
+   * `1` is unchanged. Distinct from {@link dim}, which is a flat scrim over the
+   * top: this grades the transmitted content, so the glass edge and sheen keep
+   * their own brightness. Useful range roughly `0.5`–`1.5`.
+   * @default 1
+   */
+  brightness?: number;
+
+  /**
    * Android only: suspend the effect without unmounting. The glass holds its
    * last frame, and resuming re-captures immediately.
    *
@@ -315,4 +418,13 @@ export interface LiquidGlassViewProps extends ViewProps {
    * logged natively, so a handler is optional.
    */
   onError?: (event: NativeSyntheticEvent<GlassErrorInfo>) => void;
+
+  /**
+   * Android only: frame timings, aggregated over each {@link frameStatsInterval}
+   * window. Never fires while that is `0`.
+   *
+   * Frames inside a window are averaged rather than sampled, and the worst one
+   * is carried separately as `maxTotalMs` — read that when hunting jank.
+   */
+  onFrameStats?: (event: NativeSyntheticEvent<GlassFrameStats>) => void;
 }

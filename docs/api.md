@@ -70,6 +70,13 @@ It is honoured on both platforms including real Liquid Glass: UIKit exposes no b
 | --- | --- | --- | --- | --- |
 | `legibilityFloor` | `number` 0–1 | `0` | **Android** | Adaptive veil drawn *under the children only*, so icons and labels stay readable over `clear` glass without darkening the whole pane. Adapts to backdrop brightness, hued by `tintColor`. |
 | `paused` | `boolean` | `false` | **Android** | Suspend the effect without unmounting; the glass holds its last frame. Views Android already reports as off-screen pause automatically — use this for cases that signal cannot see. |
+| `frameStatsInterval` | `number` (ms) | `0` | **Android** | How often to report frame timings. `0` disables timing entirely — a permission, not a cadence. A development HUD; ship it off. |
+| `iridescence` | `number` 0–1 | `0` | **Android** | Rainbow shimmer at the rim, hue driven by the angle to the centre, riding the lens edge ramp. |
+| `grain` | `number` 0–~0.15 | `0` | **Android** | Film grain. Makes a heavily blurred backdrop read as etched glass rather than a gradient. |
+| `lightAngle` | `number` (radians) | `0` | **Android** | Rotates the built-in light direction. An offset, so `0` is the tuned default. Drives sheen, specular and inner shadow together. |
+| `specularSharpness` | `number` | `1` | **Android** | Multiplier on the specular exponent. Higher = tighter hotspot. ~`0.25`–`4`. |
+| `saturation` | `number` | `1` | **Android** | Multiplier on backdrop vibrancy, before the tint. ~`0`–`2`. |
+| `brightness` | `number` | `1` | **Android** | Multiplier on backdrop luminance, before the tint. ~`0.5`–`1.5`. |
 
 ## Events
 
@@ -77,6 +84,7 @@ It is honoured on both platforms including real Liquid Glass: UIKit exposes no b
 | --- | --- | --- |
 | `onPipelineReady` | `{ tier, osVersion, shaderCompiled, supportsNativeGlass }` | Fires once per view after the first frame, reporting the tier that **actually** rendered. Fires on every platform, including the web fallback with `tier: 'none'`. |
 | `onError` | `{ code, message, fatal }` | Fires when the view cannot do what the props asked. Each code fires at most once per view; most are non-fatal. |
+| `onFrameStats` | `{ drawFps, totalMs, maxTotalMs, captureMs, shaderMs, tier, capturedWidth, capturedHeight }` | **Android only.** Aggregated over each `frameStatsInterval` window; never fires at `0`. Read `maxTotalMs` rather than `totalMs` when hunting jank — a spike vanishes into an average. CPU-side timings only; GPU shader execution is not visible from the view. |
 
 To decide whether to mount a glass view *at all*, use `getGlassCapabilities()` — it answers before anything has committed. Use `onPipelineReady` to learn what a mounted view actually did.
 

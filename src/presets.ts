@@ -27,6 +27,8 @@ export type GlassPresetProps = Pick<
   | 'legibilityFloor'
   | 'borderRadius'
   | 'tilt'
+  | 'iridescence'
+  | 'grain'
 >;
 
 export const GlassPresets = Object.freeze({
@@ -101,6 +103,9 @@ export const GlassPresets = Object.freeze({
     edgeReflectionStrength: 0.3,
     legibilityFloor: 0,
     borderRadius: 20,
+    // A heavy blur flattens the backdrop into a gradient; a little grain is
+    // what makes the result read as etched glass rather than a smear.
+    grain: 0.05,
   }),
 
   /**
@@ -114,6 +119,9 @@ export const GlassPresets = Object.freeze({
     edgeReflectionStrength: 1,
     legibilityFloor: 0.1,
     borderRadius: 24,
+    // Decorative by definition, and a deep lens is exactly where splitting the
+    // light at the rim looks like an optical property rather than a filter.
+    iridescence: 0.45,
   }),
 });
 

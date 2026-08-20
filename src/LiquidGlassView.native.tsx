@@ -5,11 +5,17 @@ import { validateGlassProps } from './devValidate';
 import { GlassAccessibilityGate } from './GlassAccessibilityGate';
 import NativeLiquidGlass, {
   type GlassErrorEvent,
+  type GlassFrameStatsEvent,
   type PipelineReadyEvent,
 } from './LiquidGlassmorphismViewNativeComponent';
 import { resolvePreset } from './presets';
 import { normalizeShape } from './shapes';
-import type { GlassErrorInfo, GlassPipelineInfo, LiquidGlassViewProps } from './types';
+import type {
+  GlassErrorInfo,
+  GlassFrameStats,
+  GlassPipelineInfo,
+  LiquidGlassViewProps,
+} from './types';
 
 /**
  * Re-type a native event payload's string field as the union the public API
@@ -25,6 +31,63 @@ function narrowHandler<From, To>(
 ): ((event: NativeSyntheticEvent<From>) => void) | undefined {
   if (!handler) return undefined;
   return (event) => handler(event as unknown as NativeSyntheticEvent<To>);
+}
+
+/**
+ * Props that only exist on the Android shader path.
+ *
+ * Grouped rather than destructured inline for two reasons: every default is a
+ * branch, and `renderNativeGlass` was drifting well past the complexity budget;
+ * and they have to be stripped from `...rest` so they never reach the host
+ * component on iOS, which is easier to keep correct against one list.
+ */
+const ANDROID_ONLY_KEYS = [
+  'edgeReflectionStrength',
+  'legibilityFloor',
+  'paused',
+  'iridescence',
+  'grain',
+  'lightAngle',
+  'specularSharpness',
+  'saturation',
+  'brightness',
+  'frameStatsInterval',
+  'onFrameStats',
+] as const;
+
+function androidGlassProps(
+  resolved: LiquidGlassViewProps,
+  onFrameStats: ((event: NativeSyntheticEvent<GlassFrameStatsEvent>) => void) | undefined
+) {
+  const {
+    edgeReflectionStrength = 1,
+    legibilityFloor = 0,
+    paused = false,
+    iridescence = 0,
+    grain = 0,
+    lightAngle = 0,
+    specularSharpness = 1,
+    saturation = 1,
+    brightness = 1,
+    frameStatsInterval = 0,
+  } = resolved;
+
+  return {
+    edgeReflectionStrength,
+    legibilityFloor,
+    paused,
+    iridescence,
+    grain,
+    lightAngle,
+    specularSharpness,
+    saturation,
+    brightness,
+    // Only attach the handler when an interval was actually asked for. Passing
+    // it unconditionally would have native dispatching to a listener nobody
+    // reads — the exact cost this design exists to avoid.
+    frameStatsInterval,
+    ...(frameStatsInterval > 0 ? { onFrameStats } : null),
+  };
 }
 
 /**
@@ -61,6 +124,7 @@ export function renderNativeGlass(
     validateGlassProps(props);
   }
 
+  const resolved = resolvePreset(props);
   const {
     variant = 'regular',
     intensity = 60,
@@ -72,9 +136,6 @@ export function renderNativeGlass(
     tilt = false,
     refraction = true,
     thickness = 1,
-    edgeReflectionStrength = 1,
-    legibilityFloor = 0,
-    paused = false,
     borderRadius = 0,
     shape,
     tintColor,
@@ -88,7 +149,7 @@ export function renderNativeGlass(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     accessibilityMode: _accessibilityMode,
     ...rest
-  } = resolvePreset(props);
+  } = resolved;
 
   // Ambient, sensor-driven motion is the thing Reduce Motion is about, so the
   // tilt specular is dropped and — because this is the prop native gates the
@@ -100,6 +161,11 @@ export function renderNativeGlass(
 
   const handlePipelineReady = narrowHandler<PipelineReadyEvent, GlassPipelineInfo>(onPipelineReady);
   const handleError = narrowHandler<GlassErrorEvent, GlassErrorInfo>(onError);
+  // Read off `resolved` rather than destructured: it belongs to the Android-only
+  // group, which is scrubbed from `rest` by key rather than pulled out by name.
+  const handleFrameStats = narrowHandler<GlassFrameStatsEvent, GlassFrameStats>(
+    resolved.onFrameStats
+  );
 
   // Normalise any custom shape to a single SVG path + view-box for native. The
   // output string is deterministic, so native prop-diffing skips the work (and
@@ -131,10 +197,15 @@ export function renderNativeGlass(
       typeof blurRadius === 'number' && Number.isFinite(blurRadius) ? Math.max(0, blurRadius) : -1,
   };
 
-  // Genuinely Android-only optics: iOS glass fixes its own rim echo, and the
-  // system material manages its own contrast.
-  const platformProps =
-    Platform.OS === 'android' ? { edgeReflectionStrength, legibilityFloor, paused } : null;
+  // Genuinely Android-only: iOS glass fixes its own rim echo, the system
+  // material manages its own contrast, and UIGlassEffect exposes none of the
+  // look-shaping uniforms. On iOS they are dropped entirely rather than passed
+  // and ignored.
+  const isAndroid = Platform.OS === 'android';
+  const platformProps = isAndroid ? androidGlassProps(resolved, handleFrameStats) : null;
+
+  const hostRest: Record<string, unknown> = { ...rest };
+  for (const key of ANDROID_ONLY_KEYS) delete hostRest[key];
 
   return (
     <NativeLiquidGlass
@@ -154,7 +225,7 @@ export function renderNativeGlass(
       // A custom shape defines its own silhouette, so don't also round the
       // outer container — that would clip the shape's corners.
       style={[normalized ? null : { borderRadius }, style]}
-      {...rest}
+      {...(hostRest as object)}
     >
       {children}
     </NativeLiquidGlass>

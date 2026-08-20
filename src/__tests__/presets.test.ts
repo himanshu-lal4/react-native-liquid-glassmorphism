@@ -86,3 +86,22 @@ describe('resolvePreset', () => {
     expect(resolved).toStrictEqual({ intensity: 12 });
   });
 });
+
+describe('artistic preset values', () => {
+  it('frosted carries grain — a heavy blur needs texture to read as glass', () => {
+    expect(GlassPresets.frosted.grain).toBeGreaterThan(0);
+  });
+
+  it('crystal carries iridescence — it is the decorative preset', () => {
+    expect(GlassPresets.crystal.iridescence).toBeGreaterThan(0);
+  });
+
+  it('leaves the chrome presets free of decoration', () => {
+    // navigationBar and floatingTabBar sit under real content all day; grain
+    // and iridescence there would be noise behind text.
+    for (const name of ['navigationBar', 'floatingTabBar'] as const) {
+      expect(GlassPresets[name].grain ?? 0).toBe(0);
+      expect(GlassPresets[name].iridescence ?? 0).toBe(0);
+    }
+  });
+});

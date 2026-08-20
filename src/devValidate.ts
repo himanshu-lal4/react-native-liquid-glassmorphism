@@ -150,6 +150,64 @@ export function validateGlassProps(props: LiquidGlassViewProps): void {
     'It is a 0–1 veil opacity, where 0 disables it.'
   );
 
+  checkScale('iridescence', props.iridescence, '0-1');
+  checkRange(
+    'iridescence',
+    props.iridescence,
+    [0, 1],
+    'It is a 0–1 strength, where 0 is off. Subtle values read best.'
+  );
+
+  checkRange(
+    'grain',
+    props.grain,
+    [0, 0.15],
+    'Above ~0.15 it stops reading as etched glass and starts reading as noise.'
+  );
+
+  checkRange(
+    'specularSharpness',
+    props.specularSharpness,
+    [0.25, 4],
+    'It multiplies the specular exponent; 1 is the default hotspot.'
+  );
+
+  checkRange(
+    'saturation',
+    props.saturation,
+    [0, 2],
+    'It multiplies the backdrop vibrancy; 1 is the default over-saturation.'
+  );
+
+  checkRange(
+    'brightness',
+    props.brightness,
+    [0.5, 1.5],
+    'It multiplies backdrop luminance; 1 is unchanged.'
+  );
+
+  checkFinite('lightAngle', props.lightAngle);
+
+  // A handler with no interval is silent forever, which reads as a broken
+  // event rather than an unset permission.
+  if (props.onFrameStats && !props.frameStatsInterval) {
+    warnOnce(
+      'frameStats.noInterval',
+      `${C}: \`onFrameStats\` will never fire without \`frameStatsInterval\`. ` +
+        'The interval is a permission, not just a cadence — at 0 nothing is ' +
+        'timed or dispatched at all. Try `frameStatsInterval={250}`.'
+    );
+  }
+
+  if (props.frameStatsInterval !== undefined && props.frameStatsInterval > 0) {
+    warnOnce(
+      'frameStats.enabled',
+      `${C}: frame stats are on (\`frameStatsInterval=${props.frameStatsInterval}\`). ` +
+        'This is a development HUD — timing every frame is not free, so turn it ' +
+        'off before shipping.'
+    );
+  }
+
   if (props.borderRadius !== undefined && props.borderRadius < 0) {
     warnOnce(
       'borderRadius.negative',
@@ -215,6 +273,22 @@ function checkPlatformNoops(props: LiquidGlassViewProps): void {
     }
     if (props.paused === true) {
       warnPlatformNoop('paused', 'the OS owns the material’s refresh');
+    }
+    // Look-shaping uniforms live inside the AGSL shader; UIGlassEffect exposes
+    // no equivalent, so each is inert on iOS.
+    const artistic: ReadonlyArray<[string, number | undefined, number]> = [
+      ['iridescence', props.iridescence, 0],
+      ['grain', props.grain, 0],
+      ['lightAngle', props.lightAngle, 0],
+      ['specularSharpness', props.specularSharpness, 1],
+      ['saturation', props.saturation, 1],
+      ['brightness', props.brightness, 1],
+      ['frameStatsInterval', props.frameStatsInterval, 0],
+    ];
+    for (const [name, value, dflt] of artistic) {
+      if (value !== undefined && value !== dflt) {
+        warnPlatformNoop(name, 'UIGlassEffect renders the material itself');
+      }
     }
   }
 }

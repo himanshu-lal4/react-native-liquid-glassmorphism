@@ -66,6 +66,34 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
     view.setEdgeReflectionStrengthValue(value)
   }
 
+  override fun setIridescence(view: LiquidGlassmorphismView, value: Float) {
+    view.setIridescenceValue(value)
+  }
+
+  override fun setGrain(view: LiquidGlassmorphismView, value: Float) {
+    view.setGrainValue(value)
+  }
+
+  override fun setLightAngle(view: LiquidGlassmorphismView, value: Float) {
+    view.setLightAngleValue(value)
+  }
+
+  override fun setSpecularSharpness(view: LiquidGlassmorphismView, value: Float) {
+    view.setSpecularSharpnessValue(value)
+  }
+
+  override fun setSaturation(view: LiquidGlassmorphismView, value: Float) {
+    view.setSaturationValue(value)
+  }
+
+  override fun setBrightness(view: LiquidGlassmorphismView, value: Float) {
+    view.setBrightnessValue(value)
+  }
+
+  override fun setFrameStatsInterval(view: LiquidGlassmorphismView, value: Int) {
+    view.setFrameStatsIntervalValue(value)
+  }
+
   override fun setRim(view: LiquidGlassmorphismView, value: Boolean) {
     view.setRimValue(value)
   }

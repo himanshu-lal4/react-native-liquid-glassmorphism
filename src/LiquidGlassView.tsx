@@ -23,6 +23,16 @@ const NATIVE_ONLY_PROPS = [
   'edgeReflectionStrength',
   'legibilityFloor',
   'paused',
+  // Look-shaping uniforms — they exist only inside the AGSL shader, so there is
+  // nothing honest the fallback can do with them.
+  'iridescence',
+  'grain',
+  'lightAngle',
+  'specularSharpness',
+  'saturation',
+  'brightness',
+  'frameStatsInterval',
+  'onFrameStats',
   // A custom silhouette needs a real GPU pipeline; the fallback renders a
   // rounded translucent surface, so the shape is intentionally ignored.
   'shape',

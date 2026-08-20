@@ -128,6 +128,34 @@ describe('LiquidGlassView (native) prop mapping', () => {
     expect(props.legibilityFloor).toBeUndefined();
   });
 
+  it('keeps the look-shaping uniforms off iOS too', () => {
+    // UIGlassEffect renders the material itself and exposes none of these, so
+    // they must not reach the host component on iOS.
+    const { props } = render({
+      iridescence: 0.5,
+      grain: 0.1,
+      lightAngle: 1.2,
+      specularSharpness: 2,
+      saturation: 0.5,
+      brightness: 1.2,
+    });
+    expect(props.iridescence).toBeUndefined();
+    expect(props.grain).toBeUndefined();
+    expect(props.lightAngle).toBeUndefined();
+    expect(props.specularSharpness).toBeUndefined();
+    expect(props.saturation).toBeUndefined();
+    expect(props.brightness).toBeUndefined();
+  });
+
+  it('keeps frame stats off iOS, handler included', () => {
+    const { props } = render({
+      frameStatsInterval: 250,
+      onFrameStats: () => {},
+    });
+    expect(props.frameStatsInterval).toBeUndefined();
+    expect(props.onFrameStats).toBeUndefined();
+  });
+
   it('sends no shape by default', () => {
     const { props } = render();
     expect(props.shapePath).toBe('');
