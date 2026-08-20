@@ -87,3 +87,7 @@ nitrogen/
 
 # npm auth (never commit)
 .npmrc
+
+# Recorded demo media — attached to GitHub releases rather than tracked, so the
+# repo does not carry multi-megabyte GIFs for every reshoot.
+media/
