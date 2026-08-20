@@ -54,16 +54,18 @@ It renders a translucent **glass surface** whose backdrop is blurred, tinted, an
 
 Most React Native "glass" is just a blur. This library actually **refracts** the backdrop and works on Android too:
 
-| Capability | react-native-liquid-glassmorphism | expo-blur / react-native-blur | expo-glass-effect / @callstack/liquid-glass |
-|---|---|---|---|
-| Native iOS 26 Liquid Glass (`UIGlassEffect`) | ✅ | ❌ blur only | ✅ |
-| Liquid Glass optics on **Android** | ✅ AGSL refraction shader | ❌ blur only | ❌ iOS-only |
-| Real refraction / edge lensing (not just blur) | ✅ | ❌ | ✅ (iOS, OS-rendered) |
-| Chromatic dispersion + Fresnel rim | ✅ (Android shader) | ❌ | OS-managed |
-| Interactive (touch bloom + tilt specular) | ✅ | ❌ | Partial |
-| Custom shapes (concave SVG silhouette) | ✅ | ❌ | ❌ |
-| Graceful fallback on older OS | ✅ blur / tint | ✅ | ⚠️ iOS 26 only |
-| Expo config plugin · New Architecture · TypeScript | ✅ | ✅ | ✅ |
+| Capability | react-native-liquid-glassmorphism | expo-blur / react-native-blur | expo-glass-effect / @callstack/liquid-glass | @uginy · react-native-android-liquid-glass |
+|---|---|---|---|---|
+| Native iOS 26 Liquid Glass (`UIGlassEffect`) | ✅ | ❌ blur only | ✅ | ❌ own impl / Android-only |
+| Liquid Glass optics on **Android** | ✅ AGSL refraction shader | ❌ blur only | ❌ iOS-only | ✅ |
+| Real refraction / edge lensing (not just blur) | ✅ | ❌ | ✅ (iOS, OS-rendered) | ✅ |
+| Chromatic dispersion + Fresnel rim | ✅ (Android shader) | ❌ | OS-managed | ✅ |
+| Interactive (touch bloom + tilt specular) | ✅ | ❌ | Partial | Partial |
+| Custom shapes (concave SVG silhouette) | ✅ | ❌ | ❌ | ❌ corner radius only |
+| **No third-party native dependency** | ✅ own AGSL, any ABI | ✅ | ✅ | ⚠️ JitPack AAR, arm-only `.so` |
+| Android floor | ✅ `minSdk` 24, tiered fallback | ✅ | — | ⚠️ Android 13+ / RN 0.85+ |
+| Graceful fallback on older OS | ✅ blur / tint | ✅ | ⚠️ iOS 26 only | ⚠️ |
+| Expo config plugin · New Architecture · TypeScript | ✅ | ✅ | ✅ | Partial |
 
 See the [full comparison](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/react-native-blur-alternative/). *(Other libraries evolve quickly — check their current docs before deciding.)*
 

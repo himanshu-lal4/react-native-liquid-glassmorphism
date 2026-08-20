@@ -173,10 +173,17 @@ Honest positioning against the libraries it is usually weighed against:
 
 - **`expo-blur`, `@react-native-community/blur`** — blur the backdrop but never bend it. Straight lines behind the panel stay straight. This library refracts: edge lensing, chromatic dispersion, mirrored edge reflection, Fresnel rim, interactive touch/tilt specular. They are lighter and have wider OS support; use them if a blur is all you need.
 - **`expo-glass-effect`, `@callstack/liquid-glass`** — real Apple Liquid Glass, but **iOS only**. They are thinner wrappers over the OS material and excellent if you ship iOS-only. This library renders a matching glass effect on Android too.
-- **`@uginy/react-native-liquid-glass`** — also does AGSL glass on Android, but uses `UIVisualEffectView` (a blur) on iOS. This library uses Apple's actual `UIGlassEffect` on iOS 26, so the iOS side is the real system material rather than an approximation.
+- **`@uginy/react-native-liquid-glass`** — also does AGSL glass on Android. It renders its own glass on iOS rather than calling Apple's `UIGlassEffect`; this library uses the system material on iOS 26, so the iOS side is Apple's real glass rather than a reproduction of it. It also requires Android 13+, where this library falls back cleanly to API 24.
+- **`react-native-android-liquid-glass`** — Android only, and a Fabric bridge over a third-party JitPack AAR rather than its own shader. That brings a JitPack repository declaration (which breaks under `FAIL_ON_PROJECT_REPOS`), an arm-only native binary (so blur kernels degrade on x86 emulators), a React Native 0.85+ floor, and no way to ship fixes that live upstream in the AAR.
 - **`react-native-skia`** — maximum control if you want to write the effect yourself; this library is the batteries-included component.
 
-Distinctive to this library: native `UIGlassEffect` on iOS 26 **and** an AGSL refraction shader on Android from one API, plus signed-distance-field custom shapes including concave SVG silhouettes, documented per-tier fallbacks, and capability detection.
+Distinctive to this library:
+
+- Native `UIGlassEffect` on iOS 26 **and** an AGSL refraction shader on Android, from one API.
+- **No third-party native dependency.** The AGSL is written in this repo — no JitPack repository to declare, no prebuilt AAR, no arm-only `.so`. It works on any ABI, including x86 emulators.
+- **`minSdk` 24**, with a documented fallback ladder (refraction on API 33+, `RenderEffect` blur on 31–32, translucent tint below) rather than a hard Android 13 requirement.
+- Signed-distance-field custom shapes including concave SVG silhouettes — no other option here has shape support beyond a corner radius.
+- An Expo config plugin, runtime capability detection, and a web fallback.
 
 ## FAQ
 
