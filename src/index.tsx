@@ -1,4 +1,5 @@
 export { LiquidGlassView } from './LiquidGlassView';
+export { ScrollEdgeBlurView } from './ScrollEdgeBlurView';
 
 export { getGlassCapabilities, isLiquidGlassSupported, useGlassSupport } from './capabilities';
 export { GLASS_PRESET_NAMES, GlassPresets } from './presets';
@@ -15,3 +16,4 @@ export type {
 } from './types';
 export type { GlassCapabilities, GlassTier } from './capabilities';
 export type { GlassPresetName, GlassPresetProps } from './presets';
+export type { ScrollEdge, ScrollEdgeBlurViewProps } from './ScrollEdgeBlurView';

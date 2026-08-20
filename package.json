@@ -250,6 +250,9 @@
       "components": {
         "LiquidGlassmorphismView": {
           "className": "LiquidGlassmorphismView"
+        },
+        "ScrollEdgeBlurView": {
+          "className": "ScrollEdgeBlurView"
         }
       }
     }

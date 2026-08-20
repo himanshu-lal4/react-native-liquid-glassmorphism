@@ -454,6 +454,45 @@ normally the dominant term, and it scales with `capturedWidth × capturedHeight`
 cheap, but timing every frame is not free. The dev build warns once while it is
 enabled.
 
+## Scroll edge blur
+
+Content scrolling under a translucent header wants a *progressive* blur pinned
+to the edge — strongest at the edge, dissolving into the content — not a
+uniform pane. That is a different component, because it takes no children, has
+no silhouette, tint or interaction, and never intercepts touches:
+
+```tsx
+import { ScrollEdgeBlurView } from 'react-native-liquid-glassmorphism';
+
+<ScrollEdgeBlurView
+  edge="top"
+  maxBlurRadius={32}
+  falloff={0.8}
+  style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120 }}
+/>
+```
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `edge` | `'top' \| 'bottom' \| 'left' \| 'right'` | `'top'` | The edge the blur is anchored to. |
+| `maxBlurRadius` | `number` (dp) | `24` | Blur radius at the anchored edge. **dp, not pixels** — a radius that means different things on different densities is a bug waiting to be filed. |
+| `falloff` | `number` (0–1) | `1` | How far across the view the blur has fully dissolved. `1` ramps across the whole view. |
+
+**On Android** it reads the same per-root backdrop capture the glass views
+share, so adding one to a screen that already has glass costs no extra capture.
+The ramp is an **opacity** ramp over a single blurred layer rather than a
+per-pixel radius ramp — stacking N blurs at N radii would be closer to what iOS
+does natively, at N times the cost, and at these radii the difference is not
+visible against real content. Needs API 31+; below that it renders nothing.
+
+**On iOS** it is a `UIVisualEffectView` masked by a `CAGradientLayer`. UIKit
+exposes no continuous blur radius, so `maxBlurRadius` selects the nearest
+discrete material — the closest equivalent, not a literal radius.
+
+**On web** it renders an inert transparent view that holds its layout. There is
+no honest way to fake a backdrop blur, and a translucent scrim over a header
+that already has a background would look worse than nothing.
+
 ## Events
 
 ```tsx
