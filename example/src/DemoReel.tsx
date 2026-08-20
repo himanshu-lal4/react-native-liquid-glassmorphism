@@ -21,6 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   GLASS_PRESET_NAMES,
+  LiquidGlassContainer,
   LiquidGlassView,
   type LiquidGlassShape,
 } from 'react-native-liquid-glassmorphism';
@@ -260,12 +261,20 @@ function LensBall({
 }
 
 function DriftingLenses() {
+  // Wrapped in a container so the lenses FUSE when they drift into each other
+  // instead of stacking as separate panes. Their motion is untouched — the
+  // container only changes how overlap is rendered, and it reads each lens's
+  // real on-screen position, so transform-driven movement is picked up.
   return (
-    <>
+    <LiquidGlassContainer
+      spacing={44}
+      pointerEvents="none"
+      style={StyleSheet.absoluteFill}
+    >
       {LENS_BALLS.map((b, i) => (
         <LensBall key={i} {...b} />
       ))}
-    </>
+    </LiquidGlassContainer>
   );
 }
 

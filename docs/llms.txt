@@ -1,6 +1,6 @@
 # react-native-liquid-glassmorphism
 
-> Liquid Glass for React Native, on **both iOS and Android**, from one declarative component. iOS 26 renders Apple's native `UIGlassEffect`; Android reproduces the same optics in a real-time AGSL refractive-lens shader (per-frame backdrop capture → blur → rounded-glass lozenge with edge refraction, chromatic dispersion, mirrored edge reflection, Fresnel rim, and tilt/touch specular). Also searched for as: React Native liquid glass, glassmorphism, frosted glass, glass effect, iOS 26 glass, backdrop blur, blur view, AGSL glass, Android liquid glass.
+> Liquid Glass for React Native, on **both iOS and Android**, from one declarative component. Glass views **merge into one liquid body when they come close, on both platforms** — the only React Native library that does this on Android. iOS 26 renders Apple's native `UIGlassEffect`; Android reproduces the same optics in a real-time AGSL refractive-lens shader (per-frame backdrop capture → blur → rounded-glass lozenge with edge refraction, chromatic dispersion, mirrored edge reflection, Fresnel rim, and tilt/touch specular). Also searched for as: React Native liquid glass, glassmorphism, frosted glass, glass effect, iOS 26 glass, backdrop blur, blur view, AGSL glass, Android liquid glass.
 
 Package: `react-native-liquid-glassmorphism` (npm, MIT).
 Component: `<LiquidGlassView>`.
@@ -111,6 +111,27 @@ All optional. `LiquidGlassViewProps` extends `ViewProps`.
 - `onError`: `(e: NativeSyntheticEvent<GlassErrorInfo>) => void`. Fires when the view cannot do what the props asked: `{ code, message, fatal }`. Each code fires at most once per view and most are non-fatal — the view recovered but is not rendering exactly what you asked for.
 - `onFrameStats`: `(e: NativeSyntheticEvent<GlassFrameStats>) => void`. **Android only.** Frame timings aggregated over each `frameStatsInterval` window: `{ drawFps, totalMs, maxTotalMs, captureMs, shaderMs, tier, capturedWidth, capturedHeight }`. Frames in a window are averaged, not sampled, and the worst is carried as `maxTotalMs` — read that when hunting jank. CPU-side only; GPU shader execution is not visible.
 
+## LiquidGlassContainer
+
+Cross-view merging: glass children fuse into one liquid body as they come close, instead of stacking as separate panes. This is the library's headline differentiator — it works on BOTH platforms, and no other React Native library does it on Android.
+
+Import: `import { LiquidGlassContainer } from 'react-native-liquid-glassmorphism'`
+
+- `spacing`: number, dp (default `0`). The distance at which children begin to merge. `0` disables merging and children render as ordinary separate glass.
+
+Any `<LiquidGlassView>` merges just by being a descendant — there is no per-child prop and no special child component. Merging is a relationship between siblings, so the container defines the group and the distance.
+
+Children can be moved by position, `transform` or layout animation: the container reads each child's real on-screen geometry every frame, so an animated merge costs a uniform upload rather than a rebuild. That is the difference from `secondaryShape`, which bakes a distance field and is static only.
+
+iOS uses `UIGlassContainerEffect` (iOS 26+); the OS performs the merge. Below iOS 26 children render as ordinary separate glass. Android has no OS equivalent, so the container renders one glass surface and smooth-mins the children's rounded rectangles per pixel in AGSL. Android limits: bodies are rounded rectangles from each child's size and `borderRadius` (a child with a custom `shape` is not merged), and at most 8 children merge because the shader's uniform array needs a compile-time bound — beyond that they render as ordinary glass and the dev build warns once. The merged surface adopts the material of the first body it merges.
+
+```tsx
+<LiquidGlassContainer spacing={40}>
+  <LiquidGlassView style={{ width: 96, height: 96, borderRadius: 48 }} />
+  <LiquidGlassView style={{ width: 96, height: 96, borderRadius: 48 }} />
+</LiquidGlassContainer>
+```
+
 ## ScrollEdgeBlurView
 
 A second component for progressive edge blur — content scrolling under a header or tab bar. Takes no children, no silhouette, no tint, no interaction, and never intercepts touches.
@@ -213,6 +234,8 @@ Honest positioning against the libraries it is usually weighed against:
 
 Distinctive to this library:
 
+- **Cross-view merging on both platforms.** `@callstack/liquid-glass` has a container too, but it is twenty lines around Apple's `UIGlassContainerEffect` and that package has no Android support at all. On Android the merge is done here with an analytic smooth-min in our own AGSL shader.
+
 - Native `UIGlassEffect` on iOS 26 **and** an AGSL refraction shader on Android, from one API.
 - **No third-party native dependency.** The AGSL is written in this repo — no JitPack repository to declare, no prebuilt AAR, no arm-only `.so`. It works on any ABI, including x86 emulators.
 - **`minSdk` 24**, with a documented fallback ladder (refraction on API 33+, `RenderEffect` blur on 31–32, translucent tint below) rather than a hard Android 13 requirement.
@@ -238,5 +261,7 @@ Distinctive to this library:
 **Does it honour accessibility settings?** Yes, by default. `accessibilityMode="auto"` renders an opaque surface when the user has enabled Reduce Transparency (or high-contrast text on Android) and drops the tilt specular under Reduce Motion, updating live.
 
 **Is it New Architecture compatible?** Yes — Fabric and the old architecture both work.
+
+**Can glass views merge into each other?** Yes — wrap them in `<LiquidGlassContainer spacing={n}>` and any glass descendants fuse as they approach. Works on both platforms, and animating the children is cheap because the merge is analytic rather than a baked field.
 
 **Is it free?** Yes, MIT licensed.

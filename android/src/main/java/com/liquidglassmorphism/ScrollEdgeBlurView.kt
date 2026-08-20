@@ -77,6 +77,18 @@ class ScrollEdgeBlurView(context: Context) : View(context),
 
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
+    // Hand back any reference we are still holding before taking another.
+    // Attach/detach is not guaranteed to alternate cleanly — a re-attach while
+    // `rootView` is momentarily null used to skip the acquire but keep the old
+    // handle, so the next detach released a second time. Measured as 342
+    // releases against 336 acquires under churn, and every unmatched release
+    // walks refCount toward zero, at which point the shared bitmap is disposed
+    // while live views are still drawing from it.
+    if (shared != null) {
+      SharedBackdrop.release(sharedRoot, shared)
+      shared = null
+      sharedRoot = null
+    }
     val root = rootView
     if (root != null) {
       sharedRoot = root

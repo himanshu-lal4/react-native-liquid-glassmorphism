@@ -23,6 +23,8 @@ import { CurvedDock, DOCK_H, createDockPath } from './CurvedDock';
 import DemoReel from './DemoReel';
 import CardGallery from './CardGallery';
 import MercuryDemo from './MercuryDemo';
+import MergingOrbs from './MergingOrbs';
+import StressTest from './StressTest';
 
 // Full PHYSICAL screen size (includes the system status/navigation bars).
 // React Native applies the bottom system inset as padding on the root view, so
@@ -109,7 +111,7 @@ function starPoints(
  * chip goes back.
  */
 export default function App() {
-  const [mode, setMode] = useState<'reel' | 'gallery' | 'cards' | 'mercury'>(
+  const [mode, setMode] = useState<'reel' | 'gallery' | 'cards' | 'mercury' | 'stress'>(
     'reel'
   );
   return (
@@ -122,13 +124,19 @@ export default function App() {
           <CardGallery onBack={() => setMode('gallery')} />
         ) : mode === 'mercury' ? (
           <MercuryDemo onBack={() => setMode('gallery')} />
+        ) : mode === 'stress' ? (
+          <StressTest onBack={() => setMode('gallery')} />
         ) : (
           <Gallery
             onShowReel={() => setMode('reel')}
             onShowCards={() => setMode('cards')}
             onShowMercury={() => setMode('mercury')}
+            onShowStress={() => setMode('stress')}
           />
         )}
+
+        {/* Outside the scene switch: the merge floats over every page. */}
+        <MergingOrbs top={96} />
       </View>
     </SafeAreaProvider>
   );
@@ -138,10 +146,12 @@ function Gallery({
   onShowReel,
   onShowCards,
   onShowMercury,
+  onShowStress,
 }: {
   onShowReel: () => void;
   onShowCards: () => void;
   onShowMercury: () => void;
+  onShowStress: () => void;
 }) {
   const [interactive, setInteractive] = useState(true);
   const [refraction, setRefraction] = useState(true);
@@ -165,6 +175,15 @@ function Gallery({
                 style={styles.demoChip}
               >
                 <Text style={styles.demoChipText}>▦ Cards</Text>
+              </LiquidGlassView>
+            </Pressable>
+            <Pressable onPress={onShowStress}>
+              <LiquidGlassView
+                tintColor="rgba(255,255,255,0.18)"
+                borderRadius={16}
+                style={styles.demoChip}
+              >
+                <Text style={styles.demoChipText}>⚠ Stress</Text>
               </LiquidGlassView>
             </Pressable>
             <Pressable onPress={onShowMercury}>
