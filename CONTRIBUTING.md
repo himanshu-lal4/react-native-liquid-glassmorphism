@@ -21,8 +21,9 @@ The public component is `<LiquidGlassView>`; the internal codegen name is `Liqui
 **Before changing anything native, read [ARCHITECTURE.md](./ARCHITECTURE.md).** It
 covers the decisions that are not obvious from the code — why the Android repaint
 is scheduled with `postInvalidateOnAnimation()` rather than `invalidate()`, why the
-per-frame capture is deliberately not throttled, why the SDF carries a 16-bit
-distance with CPU-computed normals, and the iOS 26 `cornerConfiguration` segfault.
+per-frame capture is deliberately not throttled, why the SDF distance is a
+single 8-bit square-law channel rather than the 16-bit split you would reach for
+first, and the iOS 26 `cornerConfiguration` segfault.
 Each of those has a wrong-but-plausible alternative that was tried first.
 
 ## Local setup

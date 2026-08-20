@@ -109,16 +109,25 @@ the coverage, and packs the result.
 
 Four decisions here exist because the obvious version produced *shattered glass*:
 
-**Distance is 16-bit, not 8.** It spans red (high byte) and green (low byte):
+**Distance is a single 8-bit channel, with a square-law encoding.**
 
 ```
-encoded = 0.5 + d / (2 · range)      (clamped 0..1, 16-bit)
-d       = (decode(sample) − 0.5) · (2 · range)
+u       = sign(d) · sqrt(min(1, |d| / range))
+encoded = 0.5 + u · 0.5          (R channel)
+d       = u · |u| · range        (decode, in-shader)
 ```
 
-An 8-bit field quantises the distance coarsely enough that the derived normal
-steps between texels, and the ~100px mirror displacement turns each step into a
-visible streak.
+The obvious improvement — a 16-bit fixed-point distance split across red and
+green — was tried and **tears** wherever the low byte wraps, because hardware
+bilinear blends the two bytes independently and `FILTER_MODE_NEAREST` is not
+reliably honoured through `RenderEffect` child sampling. `RGBA_F16` fares no
+better: emulator and driver translation layers quantise it back to 8-bit.
+
+A monotone 8-bit ramp interpolates cleanly under *any* filtering, and the square
+law buys back the precision where it matters — the first 3px from the edge span
+~15 codes instead of 2, while the far field, which only feeds broad band masks,
+gives up precision it never needed. G and B carry the lens rim and mirror band
+ramps, precomputed in float and dithered.
 
 **Normals are computed on the CPU, in float, from the smoothed field** — not by
 differentiating the packed texture in the shader. Differentiating an 8-bit-ish

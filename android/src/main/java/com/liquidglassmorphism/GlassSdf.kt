@@ -20,16 +20,25 @@ import kotlin.math.sqrt
  * The silhouette is rasterised (anti-aliased) at a capped resolution, seeded
  * with sub-pixel contour offsets from the coverage, run through an exact
  * Euclidean distance transform (Felzenszwalb & Huttenlocher's O(n) 1-D DT, once
- * per axis), signed by the coverage, and packed as a bitmap where a **16-bit
- * fixed-point** distance spans the red (high byte) and green (low byte)
- * channels:
+ * per axis), signed by the coverage, and packed into a plain ARGB_8888 bitmap:
  *
- *   encoded = 0.5 + d / (2 · range)          (clamped to 0..1, 16-bit)
- *   d       = (decode(sample) − 0.5) · (2 · range)
+ *   R = signed distance, **8-bit, square-law**:
+ *         u = sign(d) · sqrt(min(1, |d| / range))
+ *         encoded = 0.5 + u · 0.5
+ *         d       = u · |u| · range
+ *   G = lens rim ramp     (precomputed in float, dithered)
+ *   B = mirror band ramp  (precomputed in float, dithered)
  *
  * `d < 0` inside the shape, `0` on the edge, `> 0` outside — matching the
  * shader's convention. Distances beyond ±`range` saturate, which is harmless
  * because every glass effect acts within a thin band of the edge.
+ *
+ * The distance really is a single 8-bit channel, deliberately: see the encoding
+ * comment further down. A 16-bit high/low split was tried and TEARS wherever
+ * the low byte wraps, because hardware bilinear blends the two bytes
+ * independently. The square law buys back the precision that matters by
+ * concentrating codes near the edge, and the precision-hungry consumer — the
+ * surface normal — ships separately in [Result.grad], computed in float here.
  */
 object GlassSdf {
 
