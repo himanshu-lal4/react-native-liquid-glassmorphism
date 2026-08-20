@@ -18,6 +18,13 @@ docs/                # Jekyll docs site (GitHub Pages)
 
 The public component is `<LiquidGlassView>`; the internal codegen name is `LiquidGlassmorphismView`.
 
+**Before changing anything native, read [ARCHITECTURE.md](./ARCHITECTURE.md).** It
+covers the decisions that are not obvious from the code — why the Android repaint
+is scheduled with `postInvalidateOnAnimation()` rather than `invalidate()`, why the
+per-frame capture is deliberately not throttled, why the SDF carries a 16-bit
+distance with CPU-computed normals, and the iOS 26 `cornerConfiguration` segfault.
+Each of those has a wrong-but-plausible alternative that was tried first.
+
 ## Local setup
 
 This repo uses **Yarn 4** (pinned via `packageManager`). Enable Corepack once, then install:
