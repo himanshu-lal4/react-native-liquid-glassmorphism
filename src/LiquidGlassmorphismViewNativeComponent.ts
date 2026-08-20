@@ -104,6 +104,18 @@ export interface NativeProps extends ViewProps {
    */
   shapePath?: WithDefault<string, ''>;
 
+  /**
+   * Android only: a second silhouette, in the SAME view-box as `shapePath`,
+   * smooth-min merged with it. Empty disables the merge.
+   */
+  secondaryShapePath?: WithDefault<string, ''>;
+
+  /**
+   * Android only: smooth-min blend radius in dp between `shapePath` and
+   * `secondaryShapePath`. 0 is a hard union.
+   */
+  shapeSmoothing?: WithDefault<Float, 0>;
+
   /** Width of the coordinate space `shapePath` is authored in. `0` = no shape. */
   shapeViewBoxWidth?: WithDefault<Float, 0>;
 

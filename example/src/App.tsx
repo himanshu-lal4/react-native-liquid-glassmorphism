@@ -22,6 +22,7 @@ import {
 import { CurvedDock, DOCK_H, createDockPath } from './CurvedDock';
 import DemoReel from './DemoReel';
 import CardGallery from './CardGallery';
+import MercuryDemo from './MercuryDemo';
 
 // Full PHYSICAL screen size (includes the system status/navigation bars).
 // React Native applies the bottom system inset as padding on the root view, so
@@ -108,7 +109,9 @@ function starPoints(
  * chip goes back.
  */
 export default function App() {
-  const [mode, setMode] = useState<'reel' | 'gallery' | 'cards'>('reel');
+  const [mode, setMode] = useState<'reel' | 'gallery' | 'cards' | 'mercury'>(
+    'reel'
+  );
   return (
     <SafeAreaProvider>
       <View style={styles.root}>
@@ -117,10 +120,13 @@ export default function App() {
           <DemoReel onExit={() => setMode('gallery')} />
         ) : mode === 'cards' ? (
           <CardGallery onBack={() => setMode('gallery')} />
+        ) : mode === 'mercury' ? (
+          <MercuryDemo onBack={() => setMode('gallery')} />
         ) : (
           <Gallery
             onShowReel={() => setMode('reel')}
             onShowCards={() => setMode('cards')}
+            onShowMercury={() => setMode('mercury')}
           />
         )}
       </View>
@@ -131,9 +137,11 @@ export default function App() {
 function Gallery({
   onShowReel,
   onShowCards,
+  onShowMercury,
 }: {
   onShowReel: () => void;
   onShowCards: () => void;
+  onShowMercury: () => void;
 }) {
   const [interactive, setInteractive] = useState(true);
   const [refraction, setRefraction] = useState(true);
@@ -157,6 +165,15 @@ function Gallery({
                 style={styles.demoChip}
               >
                 <Text style={styles.demoChipText}>▦ Cards</Text>
+              </LiquidGlassView>
+            </Pressable>
+            <Pressable onPress={onShowMercury}>
+              <LiquidGlassView
+                tintColor="rgba(255,255,255,0.18)"
+                borderRadius={16}
+                style={styles.demoChip}
+              >
+                <Text style={styles.demoChipText}>⬮ Merge</Text>
               </LiquidGlassView>
             </Pressable>
             <Pressable onPress={onShowReel}>
