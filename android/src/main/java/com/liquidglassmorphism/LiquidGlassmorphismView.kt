@@ -177,6 +177,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   // logcat which path actually ran on a given device (agsl / blur / tint) —
   // "flat because fallback" vs "flat because misconfigured".
   private var reportedTier = false
+  // Draws waited so far for the effect path to settle before reporting a tier.
+  // See [emitPipelineReady] — the first draw usually precedes the first
+  // backdrop capture, so `shaderActive` is not yet meaningful there.
+  private var tierReportDeferrals = 0
   private val locThis = IntArray(2)
   private val locRoot = IntArray(2)
   private val effectNode = if (supportsBlur()) RenderNode("liquidGlass") else null
@@ -644,6 +648,35 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
   private fun emitPipelineReady() {
     if (reportedTier) return
+
+    // `shaderActive` is only assigned inside `buildEffect`, which is called from
+    // the render-node branch of `onDraw` — and that branch needs a captured
+    // backdrop. The FIRST draw almost never has one: the first `onPreDraw` bails
+    // out while width/height are still 0, so nothing has been captured yet, the
+    // branch is skipped, and `shaderActive` is still its initial `false`.
+    //
+    // Reporting there latched `blur` on devices that render `refraction` on
+    // every subsequent frame, permanently — the report is the library's
+    // observability contract, so it was lying about the one thing it exists to
+    // answer, and it disagreed with `onFrameStats`, which computes the tier live.
+    //
+    // The caller already guarantees this is a hardware draw. Even so, the first
+    // one can land before the first backdrop capture, so wait a few frames for
+    // the effect path to run. Bounded, because a shader that genuinely never
+    // applies must still report rather than going silent forever.
+    if (
+      !shaderActive &&
+      glassShader != null &&
+      tierReportDeferrals < MAX_TIER_REPORT_DEFERRALS
+    ) {
+      tierReportDeferrals++
+      // Guarantee there IS a next draw. On a static screen the capture loop
+      // settles and stops invalidating, so without this a deferred report could
+      // wait for a frame that never comes.
+      postInvalidateOnAnimation()
+      return
+    }
+
     reportedTier = true
 
     val tier = currentTier()
@@ -943,7 +976,12 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     // Last thing in the first draw: `shaderActive` is settled by now, and every
     // tier reaches this point — the previous report sat inside the RenderNode
     // branch, so a device on the tint tier never reported at all.
-    emitPipelineReady()
+    // ONLY from a hardware draw. `captureBackdrop` renders the whole root into a
+    // software canvas, and that traversal re-enters every OTHER glass view's
+    // `onDraw` — where the render-node branch is skipped and `shaderActive` is
+    // false. Reporting from one of those passes is what latched `blur` on
+    // devices that refract on every real frame (#74).
+    if (canvas.isHardwareAccelerated) emitPipelineReady()
   }
 
   // Colour of the legibility veil: a dark scrim whose opacity scales with
@@ -1057,8 +1095,26 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       val material = RenderEffect.createRuntimeShaderEffect(shader, "content")
       shaderActive = true
       RenderEffect.createChainEffect(material, blur)
-    } catch (_: Throwable) {
+    } catch (t: Throwable) {
+      // Was swallowed entirely. If applying the RenderEffect throws, the view
+      // loses the whole refraction tier while `shaderCompiled` still reports
+      // true (the shader object exists) — so the only outward sign was the tier
+      // quietly reading `blur`, with nothing in logcat to explain it. Every
+      // other degradation in this file is reported; this one is now too.
       shaderActive = false
+      android.util.Log.w(
+        "LiquidGlass",
+        "The AGSL shader compiled but could not be applied as a RenderEffect on " +
+          "API ${Build.VERSION.SDK_INT} (${t.javaClass.simpleName}: ${t.message}); " +
+          "falling back to blur.",
+        t
+      )
+      emitError(
+        GlassErrorEvent.SHADER_COMPILE_FAILED,
+        "The AGSL glass shader compiled but could not be applied as a " +
+          "RenderEffect on API ${Build.VERSION.SDK_INT} " +
+          "(${t.javaClass.simpleName}); falling back to blur + tint."
+      )
       blur
     }
   }
@@ -1129,6 +1185,15 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     // be 2*sqrt(K) ~ 32, so C = 26 settles fast with a small overshoot.
     private const val SPRING_K = 260f
     private const val SPRING_C = 26f
+
+    /**
+     * Draws to wait for `shaderActive` to settle before reporting a tier.
+     *
+     * In practice the effect path is reached on the second draw; a handful of
+     * frames is generous enough to cover a slow first layout without leaving a
+     * genuinely-failing view unreported for a visible length of time.
+     */
+    private const val MAX_TIER_REPORT_DEFERRALS = 5
 
     private fun supportsBlur(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
