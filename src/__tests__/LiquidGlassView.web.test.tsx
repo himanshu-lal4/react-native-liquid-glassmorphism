@@ -10,9 +10,9 @@ import { View } from 'react-native';
 // Force the web fallback file explicitly. A bare '../LiquidGlassView' import is
 // platform-resolved by the react-native jest preset to '.native.tsx'; requiring
 // the exact '.tsx' extension bypasses that and loads the web fallback.
-const { LiquidGlassView } = require('../LiquidGlassView.tsx');
+const { renderWebGlass } = require('../LiquidGlassView.tsx');
 
-const render = (props = {}) => LiquidGlassView(props as any) as any;
+const render = (props = {}) => renderWebGlass(props as any) as any;
 // Flatten the style array the fallback builds into a single object.
 const flatStyle = (el: any) => Object.assign({}, ...el.props.style);
 

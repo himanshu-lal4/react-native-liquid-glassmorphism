@@ -64,6 +64,7 @@ All optional. `LiquidGlassViewProps` extends `ViewProps`.
 **Material**
 
 - `preset`: `'navigationBar' | 'floatingTabBar' | 'cardOverMedia' | 'compactControl' | 'frosted' | 'crystal'`. A tuned starting point, resolved as `{ ...preset, ...yourProps }` — any prop you pass explicitly wins.
+- `accessibilityMode`: `'auto' | 'forceGlass' | 'forceOpaque'` (default `'auto'`). **Both platforms.** `auto` renders an opaque surface instead of glass when the platform asks for reduced transparency (iOS Reduce Transparency; Android high-contrast text, the closest available signal), and drops `tilt` under Reduce Motion. `forceGlass` overrides the transparency preference but still honours Reduce Motion. `forceOpaque` always renders opaque. Read live — change events plus a re-read when the app returns to the foreground, so no imperative refresh is needed. `interactive` is deliberately not suppressed, since it answers a touch the user just made.
 - `variant`: `'regular' | 'clear'` (default `'regular'`). `regular` = adaptive frosted glass that lightens dark backdrops to keep text legible; `clear` = lighter, largely transparent refractive glass for use over photos and video.
 - `tintColor`: `ColorValue`. Tint layered over the blurred backdrop. Use `rgba()` or 8-digit hex to control strength.
 - `intensity`: number `0`–`100` (default `60`). Blur / material strength. On iOS 26 the OS manages the material, so this only drives the pre-26 `UIBlurEffect` fallback; on Android it scales the RenderEffect blur radius.
@@ -200,6 +201,8 @@ Distinctive to this library:
 **Can I use it as a plain blur view?** Yes — `rim={false} specular={false} thickness={0} blurRadius={20}`.
 
 **Can the glass be a non-rectangular shape?** Yes — circle, squircle, polygon, star, explicit points, or an arbitrary concave SVG path. The backdrop is lensed through the silhouette, not clipped to it.
+
+**Does it honour accessibility settings?** Yes, by default. `accessibilityMode="auto"` renders an opaque surface when the user has enabled Reduce Transparency (or high-contrast text on Android) and drops the tilt specular under Reduce Motion, updating live.
 
 **Is it New Architecture compatible?** Yes — Fabric and the old architecture both work.
 
