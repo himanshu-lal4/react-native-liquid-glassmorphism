@@ -261,6 +261,38 @@ export interface LiquidGlassViewProps extends ViewProps {
   shape?: LiquidGlassShape;
 
   /**
+   * Android only: a second glass body, smooth-min merged with {@link shape} so
+   * the two cling and fuse as they approach — the mercury effect.
+   *
+   * Both shapes are stretched onto the same view bounds, so two bounds-filling
+   * primitives (a circle and a hexagon, say) merge concentrically. To place two
+   * separate bodies, author both as `path` or `points` shapes sharing one
+   * view-box and position them within it — that is what produces the
+   * two-blobs-touching look.
+   *
+   * The merge happens on the distance field, before normals are derived, so the
+   * neck between the bodies is real glass with correct lensing rather than two
+   * overlapping silhouettes.
+   *
+   * No-op on iOS, where the silhouette is a `CAShapeLayer` mask and there is no
+   * field to blend — see the README.
+   */
+  secondaryShape?: LiquidGlassShape;
+
+  /**
+   * Android only: blend radius between {@link shape} and
+   * {@link secondaryShape}, in dp.
+   *
+   * `0` is a hard union with a visible crease. Larger values pull a wider,
+   * softer neck, and start bridging the two bodies from further apart. Roughly
+   * the distance over which the merge is felt, so scale it to the bodies —
+   * `16`–`48` reads well for shapes ~100dp across.
+   *
+   * @default 0
+   */
+  shapeSmoothing?: number;
+
+  /**
    * Android only (API 33+). Dials the edge-refraction lens strength up (~1.35×).
    * Lensing is intrinsic to the glass material and is never fully off — set
    * `thickness={0}` for a genuinely flat pane. No effect on iOS, where

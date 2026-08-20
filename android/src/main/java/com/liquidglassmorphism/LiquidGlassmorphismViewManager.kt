@@ -122,6 +122,14 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
     view.setPausedValue(value)
   }
 
+  override fun setSecondaryShapePath(view: LiquidGlassmorphismView, value: String?) {
+    view.setSecondaryShapePathValue(value)
+  }
+
+  override fun setShapeSmoothing(view: LiquidGlassmorphismView, value: Float) {
+    view.setShapeSmoothingValue(value)
+  }
+
   override fun setShapePath(view: LiquidGlassmorphismView, value: String?) {
     view.setShapePathData(value)
   }

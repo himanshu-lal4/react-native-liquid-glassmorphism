@@ -80,7 +80,13 @@ object GlassSdf {
    * Generate the SDF for [path] (already scaled into the view's pixel space).
    * Returns null if the size is degenerate.
    */
-  fun build(path: Path, viewW: Int, viewH: Int): Result? {
+  fun build(
+    path: Path,
+    viewW: Int,
+    viewH: Int,
+    secondary: Path? = null,
+    smoothingPx: Float = 0f,
+  ): Result? {
     if (viewW <= 0 || viewH <= 0) return null
 
     val maxDim = max(viewW, viewH)
@@ -88,72 +94,31 @@ object GlassSdf {
     val w = max(1, (viewW * scale).toInt())
     val h = max(1, (viewH * scale).toInt())
 
-    // Rasterise the coverage mask at working resolution.
-    val cov = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(cov)
-    val sx = w.toFloat() / viewW
-    val sy = h.toFloat() / viewH
-    canvas.scale(sx, sy)
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-      color = Color.WHITE
-      style = Paint.Style.FILL
-    }
-    canvas.drawPath(path, paint)
-
-    val px = IntArray(w * h)
-    cov.getPixels(px, 0, w, 0, 0, w, h)
-    cov.recycle()
-
-    // ANTI-ALIASED distance seeding (Gustavson & Strand). Seeding the EDT from
-    // a binarised mask bakes a pixel staircase into the field: the surface
-    // normal then wobbles a few degrees along the edge, and the shader's
-    // edge-reflection displacement (tens of px) amplifies that into visible
-    // ripples — glass that reads as shattered. Instead, seed every pixel the
-    // contour actually passes through with its SUB-PIXEL offset |a − 0.5| (for
-    // a locally straight edge the contour sits that far from the pixel centre),
-    // run ONE distance transform to the contour, and take the sign from the
-    // coverage. Hard (non-partial) staircase steps are seeded at 0.5px.
     val n = w * h
-    val alpha = FloatArray(n)
-    val seed = FloatArray(n) { INF }
-    for (i in 0 until n) alpha[i] = ((px[i] ushr 24) and 0xFF) / 255f
-    for (y in 0 until h) {
-      for (x in 0 until w) {
-        val i = y * w + x
-        val a = alpha[i]
-        if (a > 0f && a < 1f) {
-          val o = a - 0.5f
-          seed[i] = o * o
-        } else {
-          // Fully-covered/empty pixel right on a hard binarised step — the
-          // contour is ~0.5px away between the two pixel centres.
-          val here = a >= 0.5f
-          val stepped =
-            (x > 0 && (alpha[i - 1] >= 0.5f) != here) ||
-              (x < w - 1 && (alpha[i + 1] >= 0.5f) != here) ||
-              (y > 0 && (alpha[i - w] >= 0.5f) != here) ||
-              (y < h - 1 && (alpha[i + w] >= 0.5f) != here)
-          if (stepped) seed[i] = 0.25f
-        }
-      }
+
+    val (distA, alphaA) = signedField(path, w, h, viewW, viewH)
+
+    var dist = distA
+    var alpha = alphaA
+
+    // #49 — smooth-min merge. Two glass bodies that cling and fuse as they
+    // approach, the way mercury does. The blend happens on the FIELD, on the
+    // CPU, before normals and ramps are derived: doing it in the shader would
+    // mean shipping two SDF textures and re-deriving normals per pixel from
+    // quantised data, which is exactly what produces the shattered look the
+    // existing design goes to some trouble to avoid.
+    if (secondary != null) {
+      val (distB, alphaB) = signedField(secondary, w, h, viewW, viewH)
+      // Smoothing arrives in view px; the field is at working resolution.
+      val k = max(1e-4f, smoothingPx * scale)
+      val merged = FloatArray(n)
+      for (i in 0 until n) merged[i] = smin(distA[i], distB[i], k)
+      dist = merged
+      // Union coverage. Only used for the inradius probe below — the real
+      // silhouette alpha comes from the full-res mask.
+      alpha = FloatArray(n) { max(alphaA[it], alphaB[it]) }
     }
 
-    val distSq = edt(seed, w, h) // squared distance to the (sub-pixel) contour
-
-    // Smooth the SIGNED distance with a small separable Gaussian. The EDT's
-    // coverage-derived seeds carry sub-pixel ripples (the AA staircase phase
-    // beats against the pixel grid), and the EDT propagates those ripples to
-    // every interior iso-line. Downstream the shader folds the backdrop at the
-    // ring where the mirror displacement peaks — a stationary point, so even
-    // ±0.2px of ripple wanders the fold wildly and the lens reads as
-    // shattered "petals" (the analytic rounded-rect, with its exact SDF, has
-    // none of this). Smoothing costs nothing visually: the silhouette's crisp
-    // edge comes from the separate full-res mask, not this field.
-    val dist = FloatArray(n)
-    for (i in 0 until n) {
-      val mag = sqrt(distSq[i])
-      dist[i] = if (alpha[i] >= 0.5f) -mag else mag
-    }
     gaussianBlur(dist, w, h)
 
     // View-pixels-per-working-pixel (uniform scale, so x and y agree).
@@ -307,14 +272,128 @@ object GlassSdf {
     val gradBmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
     gradBmp.setPixels(gradPx, 0, w, 0, 0, w, h)
 
-    return Result(bmp, range, buildMask(path, viewW, viewH), gradBmp)
+    return Result(
+      bmp,
+      range,
+      buildMask(path, secondary, dist, w, h, scale, viewW, viewH),
+      gradBmp
+    )
   }
 
   // Full-resolution (capped) anti-aliased coverage of the path — the shader's
   // silhouette alpha. ALPHA_8 keeps it a single channel.
   private const val MASK_MAX_DIM = 2048
 
-  private fun buildMask(path: Path, viewW: Int, viewH: Int): Bitmap {
+  /**
+   * Rasterise one path and turn it into a signed distance field at working
+   * resolution, plus the coverage alpha the sign came from.
+   *
+   * Split out of [build] so two shapes can be fielded independently and then
+   * smooth-min merged (#49). For a single shape the path through here is
+   * byte-identical to what [build] used to do inline.
+   */
+  private fun signedField(
+    path: Path,
+    w: Int,
+    h: Int,
+    viewW: Int,
+    viewH: Int,
+  ): Pair<FloatArray, FloatArray> {
+    // Rasterise the coverage mask at working resolution.
+    val cov = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(cov)
+    val sx = w.toFloat() / viewW
+    val sy = h.toFloat() / viewH
+    canvas.scale(sx, sy)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      color = Color.WHITE
+      style = Paint.Style.FILL
+    }
+    canvas.drawPath(path, paint)
+
+    val px = IntArray(w * h)
+    cov.getPixels(px, 0, w, 0, 0, w, h)
+    cov.recycle()
+
+    // ANTI-ALIASED distance seeding (Gustavson & Strand). Seeding the EDT from
+    // a binarised mask bakes a pixel staircase into the field: the surface
+    // normal then wobbles a few degrees along the edge, and the shader's
+    // edge-reflection displacement (tens of px) amplifies that into visible
+    // ripples — glass that reads as shattered. Instead, seed every pixel the
+    // contour actually passes through with its SUB-PIXEL offset |a − 0.5| (for
+    // a locally straight edge the contour sits that far from the pixel centre),
+    // run ONE distance transform to the contour, and take the sign from the
+    // coverage. Hard (non-partial) staircase steps are seeded at 0.5px.
+    val n = w * h
+    val alpha = FloatArray(n)
+    val seed = FloatArray(n) { INF }
+    for (i in 0 until n) alpha[i] = ((px[i] ushr 24) and 0xFF) / 255f
+    for (y in 0 until h) {
+      for (x in 0 until w) {
+        val i = y * w + x
+        val a = alpha[i]
+        if (a > 0f && a < 1f) {
+          val o = a - 0.5f
+          seed[i] = o * o
+        } else {
+          // Fully-covered/empty pixel right on a hard binarised step — the
+          // contour is ~0.5px away between the two pixel centres.
+          val here = a >= 0.5f
+          val stepped =
+            (x > 0 && (alpha[i - 1] >= 0.5f) != here) ||
+              (x < w - 1 && (alpha[i + 1] >= 0.5f) != here) ||
+              (y > 0 && (alpha[i - w] >= 0.5f) != here) ||
+              (y < h - 1 && (alpha[i + w] >= 0.5f) != here)
+          if (stepped) seed[i] = 0.25f
+        }
+      }
+    }
+
+    val distSq = edt(seed, w, h) // squared distance to the (sub-pixel) contour
+
+    // Smooth the SIGNED distance with a small separable Gaussian. The EDT's
+    // coverage-derived seeds carry sub-pixel ripples (the AA staircase phase
+    // beats against the pixel grid), and the EDT propagates those ripples to
+    // every interior iso-line. Downstream the shader folds the backdrop at the
+    // ring where the mirror displacement peaks — a stationary point, so even
+    // ±0.2px of ripple wanders the fold wildly and the lens reads as
+    // shattered "petals" (the analytic rounded-rect, with its exact SDF, has
+    // none of this). Smoothing costs nothing visually: the silhouette's crisp
+    // edge comes from the separate full-res mask, not this field.
+    val dist = FloatArray(n)
+    for (i in 0 until n) {
+      val mag = sqrt(distSq[i])
+      dist[i] = if (alpha[i] >= 0.5f) -mag else mag
+    }
+    return Pair(dist, alpha)
+  }
+
+  /**
+   * The silhouette alpha the shader samples — Skia's anti-aliased rasterisation
+   * at (near) full resolution, which is what keeps custom-shape edges crisp
+   * rather than serrated.
+   *
+   * With a [secondary] shape the union of the two paths is not enough: the
+   * smooth-min NECK between two nearby bodies is covered by neither path, so a
+   * pure union would draw the merged field's optics into a region with zero
+   * alpha and the bridge would simply not appear. So the union is drawn first —
+   * keeping both bodies' own edges Skia-crisp — and the neck is then filled in
+   * from the merged field.
+   *
+   * Only the neck pays for the field-derived edge, and a smooth-min neck is a
+   * broad soft curve by construction, so the coarser resolution there is
+   * invisible. The parts that need crispness keep it.
+   */
+  private fun buildMask(
+    path: Path,
+    secondary: Path?,
+    dist: FloatArray,
+    fw: Int,
+    fh: Int,
+    fieldScale: Float,
+    viewW: Int,
+    viewH: Int,
+  ): Bitmap {
     val maxDim = max(viewW, viewH)
     val s = if (maxDim > MASK_MAX_DIM) MASK_MAX_DIM.toFloat() / maxDim else 1f
     val mw = max(1, (viewW * s).toInt())
@@ -322,11 +401,58 @@ object GlassSdf {
     val mask = Bitmap.createBitmap(mw, mh, Bitmap.Config.ALPHA_8)
     val canvas = Canvas(mask)
     canvas.scale(mw.toFloat() / viewW, mh.toFloat() / viewH)
-    canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
       color = Color.WHITE
       style = Paint.Style.FILL
-    })
-    return mask
+    }
+    canvas.drawPath(path, paint)
+    if (secondary == null) return mask
+    canvas.drawPath(secondary, paint)
+
+    // Fill the neck. Runs once per shape change, never per frame.
+    val px = IntArray(mw * mh)
+    val argb = Bitmap.createBitmap(mw, mh, Bitmap.Config.ARGB_8888)
+    val ac = Canvas(argb)
+    ac.scale(mw.toFloat() / viewW, mh.toFloat() / viewH)
+    ac.drawPath(path, paint)
+    ac.drawPath(secondary, paint)
+    argb.getPixels(px, 0, mw, 0, 0, mw, mh)
+
+    // Working-res texels -> view px, so the 0.5px antialias band is right.
+    val toView = 1f / fieldScale
+    val fxs = fw.toFloat() / mw
+    val fys = fh.toFloat() / mh
+    for (my in 0 until mh) {
+      val fy = (my + 0.5f) * fys - 0.5f
+      val y0 = fy.toInt().coerceIn(0, fh - 1)
+      val y1 = (y0 + 1).coerceAtMost(fh - 1)
+      val ty = (fy - y0).coerceIn(0f, 1f)
+      for (mx in 0 until mw) {
+        val i = my * mw + mx
+        val have = (px[i] ushr 24) and 0xFF
+        if (have == 255) continue
+        val fx = (mx + 0.5f) * fxs - 0.5f
+        val x0 = fx.toInt().coerceIn(0, fw - 1)
+        val x1 = (x0 + 1).coerceAtMost(fw - 1)
+        val tx = (fx - x0).coerceIn(0f, 1f)
+        val d00 = dist[y0 * fw + x0]
+        val d10 = dist[y0 * fw + x1]
+        val d01 = dist[y1 * fw + x0]
+        val d11 = dist[y1 * fw + x1]
+        val d = (d00 * (1 - tx) + d10 * tx) * (1 - ty) + (d01 * (1 - tx) + d11 * tx) * ty
+        val cover = (0.5f - d * toView).coerceIn(0f, 1f)
+        val a = max(have, (cover * 255f + 0.5f).toInt())
+        px[i] = (a shl 24)
+      }
+    }
+    argb.recycle()
+
+    val merged = Bitmap.createBitmap(mw, mh, Bitmap.Config.ALPHA_8)
+    val alphaOnly = ByteArray(mw * mh)
+    for (i in px.indices) alphaOnly[i] = (((px[i] ushr 24) and 0xFF)).toByte()
+    merged.copyPixelsFromBuffer(java.nio.ByteBuffer.wrap(alphaOnly))
+    mask.recycle()
+    return merged
   }
 
   // Per-texel dither in [-0.5, 0.5) codes (cheap integer hash). 8-bit
@@ -336,6 +462,16 @@ object GlassSdf {
   // magnifies into visible ripple. Dithering trades that structured error for
   // sub-code white noise, which the bilinear filter + broad band masks render
   // invisibly.
+  /**
+   * Polynomial smooth minimum (IQ). `k` is the blend radius in working-res
+   * texels: at k=0 this is a hard union, and larger values pull a wider,
+   * softer neck between the two bodies.
+   */
+  private fun smin(a: Float, b: Float, k: Float): Float {
+    val hh = (0.5f + 0.5f * (b - a) / k).coerceIn(0f, 1f)
+    return (b * (1f - hh) + a * hh) - k * hh * (1f - hh)
+  }
+
   private fun dither(seed: Int): Float {
     var h = seed * -0x61c88647
     h = h xor (h ushr 13)

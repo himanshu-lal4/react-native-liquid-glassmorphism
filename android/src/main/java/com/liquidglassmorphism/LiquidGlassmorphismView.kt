@@ -139,6 +139,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private var shapePathData: String = ""
   private var shapeVBWidth = 0f
   private var shapeVBHeight = 0f
+  // #49 — an optional second body, smooth-min merged with the first so the two
+  // cling and fuse as they approach.
+  private var secondaryShapePathData: String = ""
+  private var shapeSmoothing = 0f
   // The path scaled into this view's pixel space (null = plain rounded rect).
   private var scaledShapePath: Path? = null
   // SDF texture of the silhouette, bound to the shader as `uniform shader sdf`.
@@ -416,6 +420,26 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     if (!captureSuspended) resumeCapture()
   }
 
+  /** #49 — the second body's SVG path, in the same view-box as `shape`. */
+  fun setSecondaryShapePathValue(value: String?) {
+    val v = value ?: ""
+    if (secondaryShapePathData != v) {
+      secondaryShapePathData = v
+      sdfKey = ""
+      invalidate()
+    }
+  }
+
+  /** #49 — smooth-min blend radius in dp. 0 is a hard union. */
+  fun setShapeSmoothingValue(value: Float) {
+    val v = (value * density).coerceAtLeast(0f)
+    if (shapeSmoothing != v) {
+      shapeSmoothing = v
+      sdfKey = ""
+      invalidate()
+    }
+  }
+
   fun setRimValue(value: Boolean) {
     if (rimEnabled != value) { rimEnabled = value; refreshPaints(); invalidate() }
   }
@@ -486,7 +510,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     val hasShape = shapePathData.isNotEmpty() && shapeVBWidth > 0f && shapeVBHeight > 0f
     if (!hasShape || w <= 0 || h <= 0) return
 
-    val key = "$shapePathData@${w}x$h"
+    val key = "$shapePathData|$secondaryShapePathData|$shapeSmoothing@${w}x$h"
     if (key == sdfKey && scaledShapePath != null) return
 
     val path = try {
@@ -521,8 +545,23 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       )
     }
 
+    val secondaryPath = if (secondaryShapePathData.isEmpty()) null else {
+      val sp = try {
+        PathParser.createPathFromPathData(secondaryShapePathData)
+      } catch (_: Throwable) {
+        emitError(
+          GlassErrorEvent.INVALID_SHAPE,
+          "The `secondaryShape` path could not be parsed, so only the primary " +
+            "shape is drawn. Elliptic arcs (A) are not supported — express " +
+            "curves as béziers."
+        )
+        null
+      }
+      sp?.also { it.transform(m) }
+    }
+
     if (glassShader != null) {
-      val result = GlassSdf.build(path, w, h)
+      val result = GlassSdf.build(path, w, h, secondaryPath, shapeSmoothing)
       if (result != null) {
         sdfBitmap?.recycle()
         sdfBitmap = result.bitmap

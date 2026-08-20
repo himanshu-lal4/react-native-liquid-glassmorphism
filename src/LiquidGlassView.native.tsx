@@ -50,6 +50,8 @@ const ANDROID_ONLY_KEYS = [
   'lightAngle',
   'specularSharpness',
   'saturation',
+  'secondaryShape',
+  'shapeSmoothing',
   'brightness',
   'magnification',
   'ior',
@@ -59,6 +61,8 @@ const ANDROID_ONLY_KEYS = [
 
 function androidGlassProps(
   resolved: LiquidGlassViewProps,
+  /** Already normalised to an SVG path — derived, not a raw prop. */
+  secondaryShapePath: string,
   onFrameStats: ((event: NativeSyntheticEvent<GlassFrameStatsEvent>) => void) | undefined
 ) {
   const {
@@ -73,6 +77,7 @@ function androidGlassProps(
     brightness = 1,
     magnification = 1,
     ior = 1.5,
+    shapeSmoothing = 0,
     frameStatsInterval = 0,
   } = resolved;
 
@@ -88,6 +93,8 @@ function androidGlassProps(
     brightness,
     magnification,
     ior,
+    secondaryShapePath,
+    shapeSmoothing,
     // Only attach the handler when an interval was actually asked for. Passing
     // it unconditionally would have native dispatching to a listener nobody
     // reads — the exact cost this design exists to avoid.
@@ -144,6 +151,7 @@ export function renderNativeGlass(
     thickness = 1,
     borderRadius = 0,
     shape,
+    secondaryShape,
     tintColor,
     style,
     children,
@@ -185,6 +193,11 @@ export function renderNativeGlass(
       }
     : { shapePath: '', shapeViewBoxWidth: 0, shapeViewBoxHeight: 0 };
 
+  // The secondary rides the PRIMARY's view-box: native stretches one matrix
+  // onto the bounds and applies it to both, which is what keeps the two bodies
+  // in a shared coordinate space instead of each filling the view separately.
+  const normalizedSecondary = normalized && secondaryShape ? normalizeShape(secondaryShape) : null;
+
   // The composition primitives go to BOTH platforms. iOS cannot dial the glass
   // optics — those belong to the system material — but it can answer the one
   // question that matters for a non-glass surface: with every layer switched
@@ -208,7 +221,9 @@ export function renderNativeGlass(
   // look-shaping uniforms. On iOS they are dropped entirely rather than passed
   // and ignored.
   const isAndroid = Platform.OS === 'android';
-  const platformProps = isAndroid ? androidGlassProps(resolved, handleFrameStats) : null;
+  const platformProps = isAndroid
+    ? androidGlassProps(resolved, normalizedSecondary?.path ?? '', handleFrameStats)
+    : null;
 
   const hostRest: Record<string, unknown> = { ...rest };
   for (const key of ANDROID_ONLY_KEYS) delete hostRest[key];

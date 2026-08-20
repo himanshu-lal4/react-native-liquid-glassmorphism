@@ -54,6 +54,8 @@ It is honoured on both platforms including real Liquid Glass: UIKit exposes no b
 | --- | --- | --- | --- | --- |
 | `borderRadius` | `number` (dp) | `0` | both | Ignored when `shape` is set. |
 | `shape` | `LiquidGlassShape` | — | both | Custom silhouette. The backdrop is **lensed through** the shape, not clipped to it. |
+| `secondaryShape` | `LiquidGlassShape` | — | **Android** | A second body, smooth-min merged with `shape`. Shares the primary's view-box. |
+| `shapeSmoothing` | `number` (dp) | `0` | **Android** | Blend radius for the merge. `0` = hard union. `16`–`48` for bodies ~100dp across. |
 | `thickness` | `number` 0–2 | `1` | both (`0`), **Android** (in between) | "Liquid volume" — scales refraction and lensing depth. `0` = flat pane, `1` = default, `~2` = deep lens. |
 | `refraction` | `boolean` | `true` | **Android** (API 33+) | Dials the edge-refraction lens up (~1.35×). Lensing is intrinsic and never fully off — use `thickness={0}` for a flat pane. |
 
