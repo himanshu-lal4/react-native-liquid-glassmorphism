@@ -1,7 +1,7 @@
 ---
 layout: page
 title: "Best React Native Liquid Glass Library (2026) — iOS and Android Compared"
-description: "An honest comparison of every React Native Liquid Glass and glassmorphism library in 2026: react-native-liquid-glassmorphism, @callstack/liquid-glass, expo-glass-effect, @uginy/react-native-liquid-glass, expo-blur and react-native-skia. Which support Android, which are iOS-only, and which to pick for your app."
+description: "An honest comparison of every React Native Liquid Glass and glassmorphism library in 2026: react-native-liquid-glassmorphism, @callstack/liquid-glass, expo-glass-effect, @uginy/react-native-liquid-glass, react-native-android-liquid-glass, expo-blur and react-native-skia. Which support Android, which are iOS-only, and which to pick for your app."
 permalink: /best-react-native-liquid-glass-library/
 ---
 
@@ -28,7 +28,8 @@ This page compares the real options honestly, including the ones that compete wi
 | **react-native-liquid-glassmorphism** | ✅ AGSL shader (API 33+) | ✅ iOS 26 | Native `UIGlassEffect` | ✅ both platforms | ✅ concave SVG paths |
 | `@callstack/liquid-glass` | ❌ | ✅ iOS 26 | Native `UIGlassEffect` | ✅ iOS (OS-rendered) | ❌ |
 | `expo-glass-effect` | ❌ | ✅ iOS 26 | Native `UIGlassEffect` | ✅ iOS (OS-rendered) | ❌ |
-| `@uginy/react-native-liquid-glass` | ✅ AGSL shader | ⚠️ blur only | `UIVisualEffectView` | ✅ Android only | ❌ |
+| `@uginy/react-native-liquid-glass` | ✅ AGSL shader (13+ only) | ⚠️ own implementation | not `UIGlassEffect` | ✅ Android only | ❌ |
+| `react-native-android-liquid-glass` | ✅ via third-party AAR | ❌ | — | ✅ Android only | ❌ |
 | `react-native-liquid-glass-kit` | ✅ AGSL shader | ❌ | — | ✅ Android only | ❌ |
 | `expo-blur` | ⚠️ blur only | ⚠️ blur only | `UIVisualEffectView` | ❌ | ❌ |
 | `@react-native-community/blur` | ⚠️ blur only | ⚠️ blur only | `UIVisualEffectView` | ❌ | ❌ |
@@ -40,7 +41,7 @@ This page compares the real options honestly, including the ones that compete wi
 
 This is where the field thins out. Android has **no system Liquid Glass material** — there is no `UIGlassEffect` equivalent to call. Anything that renders glass on Android has to reproduce the optics manually, in a GPU shader written in **AGSL** (Android Graphics Shader Language, `RuntimeShader`, Android 13 / API 33+).
 
-Three libraries do that: this one, `@uginy/react-native-liquid-glass`, and `react-native-liquid-glass-kit`. The iOS-only wrappers (`@callstack/liquid-glass`, `expo-glass-effect`) render nothing on Android and fall back to a plain view or a blur.
+A few libraries do that: this one, `@uginy/react-native-liquid-glass`, `react-native-liquid-glass-kit`, and `react-native-android-liquid-glass` (which bridges a third-party AAR rather than shipping its own shader). The iOS-only wrappers (`@callstack/liquid-glass`, `expo-glass-effect`) render nothing on Android and fall back to a plain view or a blur.
 
 If you have been searching *"liquid glass android react native"* and finding only iOS libraries, that is why.
 
@@ -52,7 +53,11 @@ Two things, both checkable:
 
 **2. Custom shapes are lensed, not clipped.** The glass refracts the backdrop *through* the silhouette — circle, squircle, polygon, star, arbitrary points, or a raw SVG path including concave ones like a tab-bar notch. On Android this is a signed-distance-field texture the shader samples; on iOS a `CAShapeLayer` mask. Clipping a rectangle to a shape looks wrong at the rim; lensing through it does not.
 
-Beyond that: an Expo config plugin, TypeScript types, Fabric and old-architecture support, documented per-tier fallbacks, and runtime capability detection.
+**3. No third-party native dependency.** The AGSL is written in this repo. Some Android options are Fabric bridges over a prebuilt JitPack AAR, which means a JitPack repository declaration in your Gradle config (this breaks under `FAIL_ON_PROJECT_REPOS`), an arm-only native binary (so blur degrades on x86 emulators), a React Native 0.85+ floor, and no way to ship a fix that lives upstream in someone else's artifact. None of that applies here — any ABI, emulators included.
+
+**4. It goes lower than Android 13.** `minSdk` is 24, with a documented ladder: AGSL refraction on API 33+, `RenderEffect` blur on 31–32, translucent tint below. Several alternatives hard-require Android 13.
+
+Beyond that: an Expo config plugin, TypeScript types, Fabric and old-architecture support, and runtime capability detection.
 
 ## What are the trade-offs?
 
@@ -90,7 +95,7 @@ If you need both platforms, `react-native-liquid-glassmorphism` — it renders A
 
 ### Which React Native Liquid Glass library works on Android?
 
-`react-native-liquid-glassmorphism`, `@uginy/react-native-liquid-glass` and `react-native-liquid-glass-kit` all render glass on Android using an AGSL shader on Android 13+. `@callstack/liquid-glass` and `expo-glass-effect` are iOS-only. Of the Android-capable options, only `react-native-liquid-glassmorphism` also uses Apple's real `UIGlassEffect` on iOS rather than a blur.
+`react-native-liquid-glassmorphism`, `@uginy/react-native-liquid-glass` and `react-native-liquid-glass-kit` all render glass on Android using an AGSL shader on Android 13+. `@callstack/liquid-glass` and `expo-glass-effect` are iOS-only. Of the Android-capable options, only `react-native-liquid-glassmorphism` also uses Apple's real `UIGlassEffect` on iOS, writes its own AGSL rather than bridging a third-party AAR, and supports `minSdk` 24 rather than requiring Android 13.
 
 ### Is there a Liquid Glass npm package that works on both iOS and Android?
 
@@ -124,7 +129,7 @@ No. `expo-blur` blurs the backdrop but does not bend it — straight lines behin
     { "@type": "Question", "name": "What is the best React Native library for Liquid Glass?",
       "acceptedAnswer": { "@type": "Answer", "text": "If you need both platforms, react-native-liquid-glassmorphism renders Apple's native UIGlassEffect on iOS 26 and a real-time AGSL refraction shader on Android 13 or later from one component. If you ship iOS only, expo-glass-effect for Expo apps or @callstack/liquid-glass for bare React Native are thinner and excellent." } },
     { "@type": "Question", "name": "Which React Native Liquid Glass library works on Android?",
-      "acceptedAnswer": { "@type": "Answer", "text": "react-native-liquid-glassmorphism, @uginy/react-native-liquid-glass and react-native-liquid-glass-kit all render glass on Android using an AGSL shader on Android 13 or later. @callstack/liquid-glass and expo-glass-effect are iOS-only. Of the Android-capable options, only react-native-liquid-glassmorphism also uses Apple's real UIGlassEffect on iOS rather than a blur." } },
+      "acceptedAnswer": { "@type": "Answer", "text": "react-native-liquid-glassmorphism, @uginy/react-native-liquid-glass and react-native-liquid-glass-kit all render glass on Android using an AGSL shader on Android 13 or later. @callstack/liquid-glass and expo-glass-effect are iOS-only. Of the Android-capable options, only react-native-liquid-glassmorphism also uses Apple's real UIGlassEffect on iOS, writes its own AGSL rather than bridging a third-party AAR, and supports minSdk 24 rather than requiring Android 13." } },
     { "@type": "Question", "name": "Is there a Liquid Glass npm package that works on both iOS and Android?",
       "acceptedAnswer": { "@type": "Answer", "text": "Yes. react-native-liquid-glassmorphism renders on both platforms from a single LiquidGlassView component with the same props, using the native iOS 26 material on iOS and an AGSL refraction shader on Android, with automatic fallbacks on older OS versions." } },
     { "@type": "Question", "name": "Do I need iOS 26 for Liquid Glass in React Native?",
@@ -148,7 +153,7 @@ No. `expo-blur` blurs the backdrop but does not bend it — straight lines behin
     { "@type": "ListItem", "position": 1, "name": "react-native-liquid-glassmorphism", "description": "Liquid Glass on both iOS and Android: native UIGlassEffect on iOS 26, AGSL refraction shader on Android 13+, custom concave shapes.", "url": "https://www.npmjs.com/package/react-native-liquid-glassmorphism" },
     { "@type": "ListItem", "position": 2, "name": "expo-glass-effect", "description": "iOS-only Liquid Glass maintained by Expo, mirroring SwiftUI glass modifiers.", "url": "https://www.npmjs.com/package/expo-glass-effect" },
     { "@type": "ListItem", "position": 3, "name": "@callstack/liquid-glass", "description": "iOS-only Liquid Glass for bare React Native, built on Fabric and TurboModules.", "url": "https://www.npmjs.com/package/@callstack/liquid-glass" },
-    { "@type": "ListItem", "position": 4, "name": "@uginy/react-native-liquid-glass", "description": "AGSL glass shader on Android with a UIVisualEffectView blur on iOS.", "url": "https://www.npmjs.com/package/@uginy/react-native-liquid-glass" },
+    { "@type": "ListItem", "position": 4, "name": "@uginy/react-native-liquid-glass", "description": "AGSL glass shader on Android 13+, with its own iOS implementation rather than Apple's UIGlassEffect.", "url": "https://www.npmjs.com/package/@uginy/react-native-liquid-glass" },
     { "@type": "ListItem", "position": 5, "name": "expo-blur", "description": "Backdrop blur for iOS and Android without refraction; lighter and with wider OS support.", "url": "https://www.npmjs.com/package/expo-blur" }
   ]
 }
