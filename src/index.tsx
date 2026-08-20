@@ -5,6 +5,7 @@ export { GLASS_PRESET_NAMES, GlassPresets } from './presets';
 
 export type {
   LiquidGlassViewProps,
+  GlassAccessibilityMode,
   GlassVariant,
   LiquidGlassShape,
   GlassErrorCode,

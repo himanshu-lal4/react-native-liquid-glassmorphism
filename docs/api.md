@@ -27,6 +27,7 @@ import {
 | Prop | Type | Default | Platforms | Notes |
 | --- | --- | --- | --- | --- |
 | `preset` | `GlassPresetName` | — | both | A tuned starting point. Resolved as `{ ...preset, ...yourProps }`, so anything you pass explicitly wins. |
+| `accessibilityMode` | `'auto' \| 'forceGlass' \| 'forceOpaque'` | `'auto'` | both | How the view honours Reduce Transparency / Reduce Motion. See [Accessibility](#accessibility). |
 | `variant` | `'regular' \| 'clear'` | `'regular'` | both | `regular` is adaptive frosted glass that lightens dark backdrops to keep text legible. `clear` is lighter and largely transparent — for use over photos and video. |
 | `tintColor` | `ColorValue` | — | both | Tint layered over the blurred backdrop. Use `rgba()` or 8-digit hex to control strength. |
 | `intensity` | `number` 0–100 | `60` | both | Blur / material strength. On iOS 26 the OS manages the material, so this only drives the pre-26 fallback; on Android it scales the blur radius. |
@@ -142,6 +143,34 @@ const live = useGlassSupport();       // the hook form, for components
 {% endraw %}
 
 `GlassTier` is `'glass' | 'refraction' | 'blur' | 'tint' | 'none'`.
+
+## Accessibility
+{: #accessibility }
+
+The glass is translucent, refracting and — with `tilt` — moving, which is what a
+user who enabled **Reduce Transparency** or **Reduce Motion** has asked not to
+see. `accessibilityMode` honours both, and defaults to doing so.
+
+| Mode | Behaviour |
+| --- | --- |
+| `auto` *(default)* | Opaque surface when the platform asks for reduced transparency; `tilt` dropped under Reduce Motion. |
+| `forceGlass` | Always glass, overriding the transparency preference. Still honours Reduce Motion. |
+| `forceOpaque` | Always the opaque surface. |
+
+**Signals per platform.** iOS reads Reduce Transparency directly. Android has no
+equivalent setting, so high-contrast text is used as the closest honest proxy.
+Reduce Motion is read on both.
+
+**Live.** Re-read on change events and whenever the app returns to the
+foreground — the case that matters, since these are toggled in Settings, which
+backgrounds the app. No imperative refresh call exists or is needed.
+
+**`interactive` is not suppressed** under Reduce Motion: it answers a touch the
+user just made, rather than moving unbidden. `tilt` is suppressed, and since
+that prop gates native sensor registration, no motion sensor is registered.
+
+Use `forceGlass` only where the glass is decorative and something else already
+carries the meaning. The dev build warns once when you do.
 
 ## Platform behaviour
 

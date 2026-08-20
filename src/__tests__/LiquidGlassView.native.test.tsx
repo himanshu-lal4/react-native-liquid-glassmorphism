@@ -14,11 +14,13 @@ jest.mock('../LiquidGlassmorphismViewNativeComponent', () => ({
   default: 'LiquidGlassmorphismView',
 }));
 
-import { LiquidGlassView } from '../LiquidGlassView.native';
+import { renderNativeGlass } from '../LiquidGlassView.native';
 import NativeLiquidGlass from '../LiquidGlassmorphismViewNativeComponent';
 import { GlassPresets } from '../presets';
 
-const render = (props = {}) => LiquidGlassView(props as any) as any;
+// `renderNativeGlass` is the hook-free prop mapping; `LiquidGlassView` now
+// wraps it in the accessibility gate, which needs a renderer.
+const render = (props = {}) => renderNativeGlass(props as any) as any;
 
 // One case below passes `refraction={false}`, which the dev validator
 // correctly flags as inert under the jest preset's default 'ios' platform.
