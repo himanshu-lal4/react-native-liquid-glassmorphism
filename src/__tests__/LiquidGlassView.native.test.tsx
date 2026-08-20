@@ -147,6 +147,15 @@ describe('LiquidGlassView (native) prop mapping', () => {
     expect(props.brightness).toBeUndefined();
   });
 
+  it('keeps frame stats off iOS, handler included', () => {
+    const { props } = render({
+      frameStatsInterval: 250,
+      onFrameStats: () => {},
+    });
+    expect(props.frameStatsInterval).toBeUndefined();
+    expect(props.onFrameStats).toBeUndefined();
+  });
+
   it('sends no shape by default', () => {
     const { props } = render();
     expect(props.shapePath).toBe('');

@@ -90,6 +90,10 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
     view.setBrightnessValue(value)
   }
 
+  override fun setFrameStatsInterval(view: LiquidGlassmorphismView, value: Int) {
+    view.setFrameStatsIntervalValue(value)
+  }
+
   override fun setRim(view: LiquidGlassmorphismView, value: Boolean) {
     view.setRimValue(value)
   }

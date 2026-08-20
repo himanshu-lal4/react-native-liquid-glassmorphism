@@ -98,12 +98,14 @@ All optional. `LiquidGlassViewProps` extends `ViewProps`.
 - `specularSharpness`: number (default `1`). **Android only.** Multiplier on the specular exponent; higher is a tighter, harder hotspot. Useful range `0.25`–`4`.
 - `saturation`: number (default `1`). **Android only.** Multiplier on backdrop vibrancy, applied before the tint. `0` is greyscale. Useful range `0`–`2`.
 - `brightness`: number (default `1`). **Android only.** Multiplier on backdrop luminance, before the tint. Unlike `dim` (a flat scrim on top) this grades what the glass transmits, so the edge and sheen keep their own brightness. Useful range `0.5`–`1.5`.
+- `frameStatsInterval`: number, ms (default `0`). **Android only.** How often `onFrameStats` reports. `0` disables timing entirely — it is a permission, not just a cadence. A development HUD; ship it off.
 - `paused`: boolean (default `false`). **Android only.** Suspend the effect without unmounting; the glass holds its last frame and re-captures on resume. Views Android already reports as off-screen pause automatically — use this for cases that signal cannot see, such as a screen kept alive in a navigator stack or an off-screen carousel page. No-op on iOS.
 
 **Events**
 
 - `onPipelineReady`: `(e: NativeSyntheticEvent<GlassPipelineInfo>) => void`. Fires once per view after the first frame, reporting the tier that *actually* rendered: `{ tier, osVersion, shaderCompiled, supportsNativeGlass }`. Fires on every platform, including the web fallback with `tier: 'none'`.
 - `onError`: `(e: NativeSyntheticEvent<GlassErrorInfo>) => void`. Fires when the view cannot do what the props asked: `{ code, message, fatal }`. Each code fires at most once per view and most are non-fatal — the view recovered but is not rendering exactly what you asked for.
+- `onFrameStats`: `(e: NativeSyntheticEvent<GlassFrameStats>) => void`. **Android only.** Frame timings aggregated over each `frameStatsInterval` window: `{ drawFps, totalMs, maxTotalMs, captureMs, shaderMs, tier, capturedWidth, capturedHeight }`. Frames in a window are averaged, not sampled, and the worst is carried as `maxTotalMs` — read that when hunting jank. CPU-side only; GPU shader execution is not visible.
 
 ## Plain blur mode
 

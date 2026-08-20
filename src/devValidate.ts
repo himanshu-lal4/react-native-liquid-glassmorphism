@@ -188,6 +188,26 @@ export function validateGlassProps(props: LiquidGlassViewProps): void {
 
   checkFinite('lightAngle', props.lightAngle);
 
+  // A handler with no interval is silent forever, which reads as a broken
+  // event rather than an unset permission.
+  if (props.onFrameStats && !props.frameStatsInterval) {
+    warnOnce(
+      'frameStats.noInterval',
+      `${C}: \`onFrameStats\` will never fire without \`frameStatsInterval\`. ` +
+        'The interval is a permission, not just a cadence — at 0 nothing is ' +
+        'timed or dispatched at all. Try `frameStatsInterval={250}`.'
+    );
+  }
+
+  if (props.frameStatsInterval !== undefined && props.frameStatsInterval > 0) {
+    warnOnce(
+      'frameStats.enabled',
+      `${C}: frame stats are on (\`frameStatsInterval=${props.frameStatsInterval}\`). ` +
+        'This is a development HUD — timing every frame is not free, so turn it ' +
+        'off before shipping.'
+    );
+  }
+
   if (props.borderRadius !== undefined && props.borderRadius < 0) {
     warnOnce(
       'borderRadius.negative',
@@ -263,6 +283,7 @@ function checkPlatformNoops(props: LiquidGlassViewProps): void {
       ['specularSharpness', props.specularSharpness, 1],
       ['saturation', props.saturation, 1],
       ['brightness', props.brightness, 1],
+      ['frameStatsInterval', props.frameStatsInterval, 0],
     ];
     for (const [name, value, dflt] of artistic) {
       if (value !== undefined && value !== dflt) {

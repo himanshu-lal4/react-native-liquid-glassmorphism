@@ -190,3 +190,32 @@ describe('warnOnce', () => {
     expect(warnings()).toContain('[react-native-liquid-glassmorphism]');
   });
 });
+
+describe('frame stats (#47)', () => {
+  it('warns that a handler without an interval never fires', () => {
+    const { validateGlassProps } = loadFor('android', 34);
+    validateGlassProps({ onFrameStats: () => {} } as LiquidGlassViewProps);
+    expect(warnings()).toMatch(/never fire without/i);
+  });
+
+  it('does not warn when an interval is supplied', () => {
+    const { validateGlassProps } = loadFor('android', 34);
+    validateGlassProps({
+      onFrameStats: () => {},
+      frameStatsInterval: 250,
+    } as LiquidGlassViewProps);
+    expect(warnings()).not.toMatch(/never fire without/i);
+  });
+
+  it('reminds you to turn the HUD off before shipping', () => {
+    const { validateGlassProps } = loadFor('android', 34);
+    validateGlassProps({ frameStatsInterval: 250 } as LiquidGlassViewProps);
+    expect(warnings()).toMatch(/development HUD/i);
+  });
+
+  it('flags frameStatsInterval as inert on iOS', () => {
+    const { validateGlassProps } = loadFor('ios', 26);
+    validateGlassProps({ frameStatsInterval: 250 } as LiquidGlassViewProps);
+    expect(warnings()).toMatch(/frameStatsInterval/);
+  });
+});

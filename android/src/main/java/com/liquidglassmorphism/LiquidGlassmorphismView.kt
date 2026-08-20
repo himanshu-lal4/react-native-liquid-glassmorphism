@@ -96,6 +96,19 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private var specularSharpness = 1f
   private var saturation = 1f
   private var brightness = 1f
+
+  // Frame-timing HUD (#47). `frameStatsInterval` is a PERMISSION, not a switch:
+  // at 0 (the default) nothing is timed, accumulated or dispatched at all, so a
+  // shipped app pays literally nothing for this existing.
+  private var frameStatsInterval = 0
+  private var statsFrames = 0
+  private var statsWindowStartNs = 0L
+  private var statsCaptureNs = 0L
+  private var statsShaderNs = 0L
+  private var statsTotalNs = 0L
+  private var statsMaxTotalNs = 0L
+  // Carries the capture cost from onPreDraw into the draw pass that consumes it.
+  private var statsPendingCaptureNs = 0L
   // Legibility floor (#2), 0 → 1: an adaptive surface drawn UNDER the foreground
   // children so chrome (icons/labels) stays readable over clear glass.
   private var legibilityFloor = 0f
@@ -303,6 +316,71 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   fun setBrightnessValue(value: Float) {
     val v = value.coerceIn(0.5f, 1.5f)
     if (brightness != v) { brightness = v; invalidate() }
+  }
+
+  /**
+   * Frame-stats reporting window in ms (#47). 0 (default) disables it entirely.
+   *
+   * Changing it resets the window rather than folding old samples into a new
+   * cadence, which would make the first report after a change meaningless.
+   */
+  fun setFrameStatsIntervalValue(value: Int) {
+    val v = if (value > 0) value else 0
+    if (frameStatsInterval == v) return
+    frameStatsInterval = v
+    resetFrameStats()
+  }
+
+  private fun resetFrameStats() {
+    statsFrames = 0
+    statsWindowStartNs = 0L
+    statsCaptureNs = 0L
+    statsShaderNs = 0L
+    statsTotalNs = 0L
+    statsMaxTotalNs = 0L
+    statsPendingCaptureNs = 0L
+  }
+
+  /**
+   * Fold one frame into the window, and emit if the window has elapsed.
+   *
+   * Averages within the window rather than sampling one frame in N, so a spike
+   * between reports still shows up — in [statsMaxTotalNs], which is why the
+   * payload carries a max alongside the mean.
+   */
+  private fun recordFrameStats(shaderNs: Long) {
+    val now = System.nanoTime()
+    if (statsWindowStartNs == 0L) statsWindowStartNs = now
+
+    val total = statsPendingCaptureNs + shaderNs
+    statsFrames++
+    statsCaptureNs += statsPendingCaptureNs
+    statsShaderNs += shaderNs
+    statsTotalNs += total
+    if (total > statsMaxTotalNs) statsMaxTotalNs = total
+    statsPendingCaptureNs = 0L
+
+    val elapsedNs = now - statsWindowStartNs
+    if (elapsedNs < frameStatsInterval * 1_000_000L) return
+
+    val frames = statsFrames
+    val bmp = captured
+    dispatch(
+      GlassFrameStatsEvent(
+        UIManagerHelper.getSurfaceId(this),
+        id,
+        frames * 1_000_000_000.0 / elapsedNs,
+        statsTotalNs / frames / 1_000_000.0,
+        statsMaxTotalNs / 1_000_000.0,
+        statsCaptureNs / frames / 1_000_000.0,
+        statsShaderNs / frames / 1_000_000.0,
+        currentTier(),
+        bmp?.width ?: 0,
+        bmp?.height ?: 0
+      )
+    )
+    resetFrameStats()
+    statsWindowStartNs = now
   }
 
   /** Legibility floor (#2), 0 (off) → 1 (max), clamped. */
@@ -557,15 +635,18 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
    * the RenderNode path — a report that only arrives on capable devices is the
    * opposite of what this is for.
    */
+  /** The tier this view is actually rendering right now. */
+  private fun currentTier(): String = when {
+    shaderActive -> "refraction"
+    supportsBlur() -> "blur"
+    else -> "tint"
+  }
+
   private fun emitPipelineReady() {
     if (reportedTier) return
     reportedTier = true
 
-    val tier = when {
-      shaderActive -> "refraction"
-      supportsBlur() -> "blur"
-      else -> "tint"
-    }
+    val tier = currentTier()
     val compiled = glassShader != null
 
     // Kept alongside the event: QA can confirm the tier from a device build
@@ -627,7 +708,15 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     // expensive thing here: a full software `root.draw()` into our bitmap, every
     // frame, for as long as the view exists.
     if (captureSuspended) return true
-    captureBackdrop()
+    // Timed only when someone asked for stats — System.nanoTime() twice a frame
+    // is cheap, but "cheap" is not "free" and this runs on every glass view.
+    if (frameStatsInterval > 0) {
+      val t0 = System.nanoTime()
+      captureBackdrop()
+      statsPendingCaptureNs = System.nanoTime() - t0
+    } else {
+      captureBackdrop()
+    }
     // Only repaint when the backdrop actually changed (fix #1). Comparing a
     // cheap sampled hash breaks the old self-sustaining 60fps capture→invalidate
     // loop: on a static screen the hash settles and we stop; when content
@@ -772,6 +861,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
     val bmp = captured
     val node = effectNode
+    val statsT0 = if (frameStatsInterval > 0) System.nanoTime() else 0L
     if (bmp != null && !bmp.isRecycled && node != null && canvas.isHardwareAccelerated) {
       node.setPosition(0, 0, width, height)
       val rec = node.beginRecording()
@@ -798,6 +888,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       } else {
         canvas.drawRenderNode(node)
       }
+      // Folded here rather than at the end of onDraw: this block is the work
+      // the stats are about — recording the node and re-uploading uniforms.
+      // Note this is CPU time; the GPU's shader execution is not visible to us.
+      if (frameStatsInterval > 0) recordFrameStats(System.nanoTime() - statsT0)
     }
 
     if (!shaderActive) {

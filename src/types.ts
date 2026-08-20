@@ -63,6 +63,36 @@ export type GlassErrorInfo = Readonly<{
  */
 export type GlassVariant = 'regular' | 'clear';
 
+/**
+ * What `onFrameStats` reports, aggregated over one `frameStatsInterval` window.
+ *
+ * The timings are **CPU-side** — the backdrop capture and the render-node /
+ * uniform work. GPU shader execution is not visible from the view, so this
+ * measures the cost the library controls, not total frame cost.
+ */
+export type GlassFrameStats = Readonly<{
+  /** Frames drawn per second across the window. */
+  drawFps: number;
+  /** Mean CPU cost per frame, in ms. */
+  totalMs: number;
+  /**
+   * Worst single frame in the window, in ms.
+   *
+   * Read this rather than {@link totalMs} when hunting jank: one 40ms spike
+   * vanishes into a 250ms average, which is exactly the frame you care about.
+   */
+  maxTotalMs: number;
+  /** Mean time in the backdrop capture, in ms. Usually the dominant cost. */
+  captureMs: number;
+  /** Mean time recording the render node and uploading uniforms, in ms. */
+  shaderMs: number;
+  /** The tier that rendered these frames. */
+  tier: GlassTier;
+  /** Backdrop bitmap dimensions — capture cost scales with these. */
+  capturedWidth: number;
+  capturedHeight: number;
+}>;
+
 export interface LiquidGlassViewProps extends ViewProps {
   /**
    * Start from a tuned material instead of dialling the individual knobs.
@@ -276,6 +306,19 @@ export interface LiquidGlassViewProps extends ViewProps {
   legibilityFloor?: number;
 
   /**
+   * Android only: how often, in ms, to report frame timings via
+   * {@link onFrameStats}. `0` (the default) disables it completely — nothing is
+   * timed, accumulated or dispatched.
+   *
+   * This is a **development HUD**. Ship it off: the reporting itself is cheap,
+   * but timing every frame is not free, and nothing in a released app should be
+   * reading it.
+   *
+   * @default 0
+   */
+  frameStatsInterval?: number;
+
+  /**
    * Android only: rainbow shimmer at the rim, `0`–`1`.
    *
    * The hue is driven by the angle to the centre and rides the same edge ramp
@@ -375,4 +418,13 @@ export interface LiquidGlassViewProps extends ViewProps {
    * logged natively, so a handler is optional.
    */
   onError?: (event: NativeSyntheticEvent<GlassErrorInfo>) => void;
+
+  /**
+   * Android only: frame timings, aggregated over each {@link frameStatsInterval}
+   * window. Never fires while that is `0`.
+   *
+   * Frames inside a window are averaged rather than sampled, and the worst one
+   * is carried separately as `maxTotalMs` — read that when hunting jank.
+   */
+  onFrameStats?: (event: NativeSyntheticEvent<GlassFrameStats>) => void;
 }

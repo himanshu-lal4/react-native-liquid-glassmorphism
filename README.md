@@ -244,6 +244,7 @@ Extends `ViewProps`. All props are optional.
 | `edgeReflectionStrength` | `number` (0–1) | `1` | **Android only** — strength of the edge-reflection band (the upside-down rim echo), **independent of `thickness`**. Lower it over text-heavy backdrops where the mirrored copy reads as noise. No-op on iOS. |
 | `legibilityFloor` | `number` (0–1) | `0` | **Android only** — an adaptive veil drawn **under the foreground children** so chrome (icons/labels) stays readable over `clear` glass, without darkening the whole pane. Scales with the value and the backdrop brightness; hued by `tintColor`. `0` = off. No-op on iOS. |
 | `paused` | `boolean` | `false` | **Android only** — suspend the per-frame backdrop capture without unmounting; the glass holds its last frame. Off-screen views pause automatically, so this is for the cases Android can't detect. See [Performance](#performance). No-op on iOS. |
+| `frameStatsInterval` | `number` (ms) | `0` | **Android only** — how often to report frame timings via `onFrameStats`. `0` disables it completely: nothing is timed, accumulated or dispatched. A **development HUD** — ship it off. No-op on iOS. |
 | `iridescence` | `number` (0–1) | `0` | **Android only** — rainbow shimmer at the rim, hue driven by the angle to the centre. Rides the same edge ramp as the lens, so it reads as light splitting at the edge rather than a colour overlay. `0.3` is already visible. No-op on iOS. |
 | `grain` | `number` (0–~0.15) | `0` | **Android only** — film grain over the surface. A heavy blur flattens the backdrop into a gradient; a little noise is what makes it read as etched glass. Above ~0.15 it reads as noise. No-op on iOS. |
 | `lightAngle` | `number` (radians) | `0` | **Android only** — rotates the built-in light direction. An **offset**, not an absolute bearing, so `0` keeps the tuned top-left key light. Drives the sheen, specular and inner shadow together. No-op on iOS. |
@@ -252,6 +253,7 @@ Extends `ViewProps`. All props are optional.
 | `brightness` | `number` | `1` | **Android only** — multiplier on backdrop luminance, before the tint. Unlike `dim` (a flat scrim on top) this grades what the glass transmits, so the edge and sheen keep their own brightness. Useful range ~`0.5`–`1.5`. No-op on iOS. |
 | `onPipelineReady` | `(e) => void` | — | Fires once per view with the tier that actually rendered. See [Events](#events). |
 | `onError` | `(e) => void` | — | Fires when the view can't do what the props asked for. See [Events](#events). |
+| `onFrameStats` | `(e) => void` | — | **Android only** — frame timings aggregated over each `frameStatsInterval` window. Never fires while that is `0`. See [Frame stats](#frame-stats). |
 
 ## Presets
 
@@ -411,6 +413,42 @@ It overrides a preference the user deliberately set, often for a reason that
 matters to them. Only reach for it where the glass is decorative and something
 else already carries the meaning — never for primary chrome or anything behind
 text. The dev build warns once when you use it.
+
+## Frame stats
+
+Tuning the glass used to mean a gradle → adb → screenshot loop and judging cost
+by eye. `onFrameStats` gives you a number.
+
+```tsx
+const [hud, setHud] = useState(null);
+
+<LiquidGlassView
+  frameStatsInterval={250}
+  onFrameStats={({ nativeEvent }) => setHud(nativeEvent)}
+/>
+```
+
+```ts
+{ drawFps, totalMs, maxTotalMs, captureMs, shaderMs, tier, capturedWidth, capturedHeight }
+```
+
+**`frameStatsInterval` is a permission, not a cadence.** At `0` — the default —
+nothing is timed, accumulated or dispatched, and no listener is attached. That
+is why the interval is required rather than the handler being enough on its own.
+
+**Read `maxTotalMs`, not `totalMs`, when hunting jank.** Frames inside a window
+are averaged rather than sampled, so nothing is missed — but a single 40 ms
+spike disappears into a 250 ms average, and that spike is the frame you care
+about. `maxTotalMs` carries it.
+
+**These are CPU-side timings** — the backdrop capture and the render-node and
+uniform work. GPU shader execution is not visible from the view, so this
+measures the cost the library controls, not total frame cost. `captureMs` is
+normally the dominant term, and it scales with `capturedWidth × capturedHeight`.
+
+**This is a development HUD. Ship it off.** The reporting is throttled and
+cheap, but timing every frame is not free. The dev build warns once while it is
+enabled.
 
 ## Events
 

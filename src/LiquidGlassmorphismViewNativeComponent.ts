@@ -1,6 +1,7 @@
 import { codegenNativeComponent, type ColorValue, type ViewProps } from 'react-native';
 import type {
   DirectEventHandler,
+  Double,
   Float,
   Int32,
   WithDefault,
@@ -20,6 +21,17 @@ export type PipelineReadyEvent = Readonly<{
 }>;
 
 /** Payload of `onError` — see `GlassErrorCode` in `types.ts` for the codes. */
+export type GlassFrameStatsEvent = Readonly<{
+  drawFps: Double;
+  totalMs: Double;
+  maxTotalMs: Double;
+  captureMs: Double;
+  shaderMs: Double;
+  tier: string;
+  capturedWidth: Int32;
+  capturedHeight: Int32;
+}>;
+
 export type GlassErrorEvent = Readonly<{
   code: string;
   message: string;
@@ -173,6 +185,12 @@ export interface NativeProps extends ViewProps {
    * rendered. Not a device capability check — an explicit prop or an OS-level
    * fallback can hold a capable device to a lower tier.
    */
+  /**
+   * Android only: frame-stats reporting window in ms. 0 (default) attaches no
+   * listener and does no timing at all.
+   */
+  frameStatsInterval?: WithDefault<Int32, 0>;
+
   onPipelineReady?: DirectEventHandler<PipelineReadyEvent>;
 
   /**
@@ -182,6 +200,12 @@ export interface NativeProps extends ViewProps {
    * the bridge.
    */
   onError?: DirectEventHandler<GlassErrorEvent>;
+
+  /**
+   * Android only: natively throttled frame-timing report. Only fires when
+   * `frameStatsInterval` is greater than 0.
+   */
+  onFrameStats?: DirectEventHandler<GlassFrameStatsEvent>;
 }
 
 export default codegenNativeComponent<NativeProps>('LiquidGlassmorphismView');

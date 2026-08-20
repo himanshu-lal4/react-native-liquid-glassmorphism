@@ -31,6 +31,8 @@ const NATIVE_ONLY_PROPS = [
   'specularSharpness',
   'saturation',
   'brightness',
+  'frameStatsInterval',
+  'onFrameStats',
   // A custom silhouette needs a real GPU pipeline; the fallback renders a
   // rounded translucent surface, so the shape is intentionally ignored.
   'shape',

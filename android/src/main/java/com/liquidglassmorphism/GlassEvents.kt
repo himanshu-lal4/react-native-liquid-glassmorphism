@@ -77,3 +77,50 @@ class GlassErrorEvent(
     const val BACKDROP_CAPTURE_FAILED = "BACKDROP_CAPTURE_FAILED"
   }
 }
+
+/**
+ * `onFrameStats` — a natively throttled frame-timing report (#47).
+ *
+ * The glass does measurable per-frame CPU work, and the only way to tune it was
+ * previously a gradle → adb → screenshot loop and judging by eye. This gives a
+ * number.
+ *
+ * Throttled and **aggregated** natively rather than forwarded per frame: at
+ * 60fps a per-frame bridge crossing would cost more than the effect it is
+ * measuring. Frames inside the window are averaged, not dropped, and
+ * [maxTotalMs] carries the worst one — read that rather than [totalMs] when
+ * hunting jank, because a single 40ms spike disappears into a 250ms average.
+ *
+ * The timings are **CPU-side**: the backdrop capture and the render-node /
+ * uniform work we control. GPU shader execution is not visible from here.
+ */
+class GlassFrameStatsEvent(
+  surfaceId: Int,
+  viewId: Int,
+  private val drawFps: Double,
+  private val totalMs: Double,
+  private val maxTotalMs: Double,
+  private val captureMs: Double,
+  private val shaderMs: Double,
+  private val tier: String,
+  private val capturedWidth: Int,
+  private val capturedHeight: Int,
+) : Event<GlassFrameStatsEvent>(surfaceId, viewId) {
+
+  override fun getEventName(): String = EVENT_NAME
+
+  override fun getEventData(): WritableMap = Arguments.createMap().apply {
+    putDouble("drawFps", drawFps)
+    putDouble("totalMs", totalMs)
+    putDouble("maxTotalMs", maxTotalMs)
+    putDouble("captureMs", captureMs)
+    putDouble("shaderMs", shaderMs)
+    putString("tier", tier)
+    putInt("capturedWidth", capturedWidth)
+    putInt("capturedHeight", capturedHeight)
+  }
+
+  companion object {
+    const val EVENT_NAME = "topFrameStats"
+  }
+}

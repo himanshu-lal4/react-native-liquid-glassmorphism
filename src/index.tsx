@@ -11,6 +11,7 @@ export type {
   GlassErrorCode,
   GlassErrorInfo,
   GlassPipelineInfo,
+  GlassFrameStats,
 } from './types';
 export type { GlassCapabilities, GlassTier } from './capabilities';
 export type { GlassPresetName, GlassPresetProps } from './presets';
