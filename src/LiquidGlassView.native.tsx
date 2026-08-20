@@ -9,6 +9,7 @@ import NativeLiquidGlass, {
   type PipelineReadyEvent,
 } from './LiquidGlassmorphismViewNativeComponent';
 import { resolvePreset } from './presets';
+import { mergePathOutline } from './mergePaths';
 import { normalizeShape } from './shapes';
 import type {
   GlassErrorInfo,
@@ -184,6 +185,9 @@ export function renderNativeGlass(
   // Normalise any custom shape to a single SVG path + view-box for native. The
   // output string is deterministic, so native prop-diffing skips the work (and
   // the Android SDF rebuild) whenever the shape is unchanged.
+  const isAndroid = Platform.OS === 'android';
+  const shapeSmoothingValue = resolved.shapeSmoothing ?? 0;
+
   const normalized = shape ? normalizeShape(shape) : null;
   const shapeProps = normalized
     ? {
@@ -197,6 +201,28 @@ export function renderNativeGlass(
   // onto the bounds and applies it to both, which is what keeps the two bodies
   // in a shared coordinate space instead of each filling the view separately.
   const normalizedSecondary = normalized && secondaryShape ? normalizeShape(secondaryShape) : null;
+
+  // iOS has no distance field to blend — the silhouette is a CAShapeLayer mask
+  // — so the merged OUTLINE is computed in JS and handed over as one ordinary
+  // path. Android keeps the native field merge, which is cheaper and higher
+  // quality; this is the same effect expressed in the representation each
+  // platform can actually use.
+  //
+  // Falls back to the primary shape alone if the outline cannot be produced
+  // (an unflattenable path, e.g. an elliptic arc) rather than drawing something
+  // wrong.
+  const iosMerged =
+    !isAndroid && normalized && normalizedSecondary
+      ? mergePathOutline(
+          normalized.path,
+          normalizedSecondary.path,
+          normalized.viewBoxWidth,
+          normalized.viewBoxHeight,
+          shapeSmoothingValue
+        )
+      : null;
+
+  const effectiveShapeProps = iosMerged ? { ...shapeProps, shapePath: iosMerged } : shapeProps;
 
   // The composition primitives go to BOTH platforms. iOS cannot dial the glass
   // optics — those belong to the system material — but it can answer the one
@@ -220,7 +246,6 @@ export function renderNativeGlass(
   // material manages its own contrast, and UIGlassEffect exposes none of the
   // look-shaping uniforms. On iOS they are dropped entirely rather than passed
   // and ignored.
-  const isAndroid = Platform.OS === 'android';
   const platformProps = isAndroid
     ? androidGlassProps(resolved, normalizedSecondary?.path ?? '', handleFrameStats)
     : null;
@@ -237,7 +262,7 @@ export function renderNativeGlass(
       refraction={refraction}
       glassCornerRadius={borderRadius}
       dim={dim}
-      {...shapeProps}
+      {...effectiveShapeProps}
       {...sharedProps}
       tintColor={tintColor}
       onPipelineReady={handlePipelineReady}
