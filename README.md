@@ -227,6 +227,7 @@ Extends `ViewProps`. All props are optional.
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
 | `preset` | `GlassPresetName` | — | Start from a tuned material instead of dialling every knob. See [Presets](#presets). Any prop you pass explicitly wins over the preset. |
+| `accessibilityMode` | `'auto' \| 'forceGlass' \| 'forceOpaque'` | `'auto'` | How the view responds to Reduce Transparency / Reduce Motion. `auto` renders an **opaque** surface when the platform asks for reduced transparency and drops `tilt` under Reduce Motion. Works on **both** platforms and updates live. See [Accessibility](#accessibility). |
 | `variant` | `'regular' \| 'clear'` | `'regular'` | `regular` = adaptive frosted glass. `clear` = lighter, transparent glass for media. |
 | `tintColor` | `ColorValue` | — | Tint over the backdrop. Use `rgba()` / 8-digit hex to control strength. |
 | `intensity` | `number` (0–100) | `60` | Blur / material strength. On iOS 26 the OS manages the material (used only for the pre-26 fallback); on Android it scales the blur radius. `clear` deliberately blurs less than `regular` across the same scale — use `blurRadius` if you want an exact value. |
@@ -363,8 +364,47 @@ than three days into an integration.
   OS applying a radius.
 - **Web is a non-glass fallback.** The tier reports `none`. This library is
   mobile-focused.
-- **No accessibility handling yet.** Reduce Transparency and high-contrast
-  settings are not honoured — [tracked in #44](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues/44).
+- **Android has no Reduce Transparency setting.** The accessibility degradation
+  below uses high-contrast text as the closest available signal there, which is
+  a proxy rather than the real preference.
+
+## Accessibility
+
+The glass is translucent, refracting and — with `tilt` — moving. That is exactly
+what a user who has enabled **Reduce Transparency** or **Reduce Motion** has
+asked not to see, so by default the library honours both.
+
+```tsx
+<LiquidGlassView accessibilityMode="auto" />   // the default
+```
+
+| Mode | Behaviour |
+| --- | --- |
+| `auto` *(default)* | Renders an **opaque** surface when the platform asks for reduced transparency; drops `tilt` under Reduce Motion. |
+| `forceGlass` | Always renders glass, overriding the transparency preference. Still honours Reduce Motion. |
+| `forceOpaque` | Always renders the opaque surface. |
+
+**What each platform reports.** iOS uses Reduce Transparency directly. Android
+has no equivalent setting, so the closest honest signal is **high-contrast
+text** — someone who has asked for maximum text contrast is not well served by
+text over a refracting backdrop. Reduce Motion is read on both.
+
+**It is live.** The preference is re-read on change events *and* whenever the app
+returns to the foreground — which is the case that actually matters, since users
+toggle these in Settings, which backgrounds your app. There is no imperative
+refresh call to remember.
+
+**`interactive` is deliberately not suppressed** by Reduce Motion. It responds to
+a touch the user just made, which is not the unbidden movement that setting is
+about. `tilt` is suppressed, and because that is the prop the native side gates
+sensor registration on, no motion sensor is registered at all.
+
+### A note on `forceGlass`
+
+It overrides a preference the user deliberately set, often for a reason that
+matters to them. Only reach for it where the glass is decorative and something
+else already carries the meaning — never for primary chrome or anything behind
+text. The dev build warns once when you use it.
 
 ## Events
 

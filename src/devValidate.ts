@@ -85,6 +85,8 @@ function warnPlatformNoop(name: string, reason: string): void {
   );
 }
 
+const ACCESSIBILITY_MODES = ['auto', 'forceGlass', 'forceOpaque'] as const;
+
 /**
  * Validate the public props of `<LiquidGlassView>`.
  *
@@ -94,6 +96,28 @@ function warnPlatformNoop(name: string, reason: string): void {
 export function validateGlassProps(props: LiquidGlassViewProps): void {
   // --- units and ranges -----------------------------------------------------
   checkFinite('borderRadius', props.borderRadius);
+
+  // A typo here fails open — an unrecognised mode falls through to `auto` —
+  // which is the safe direction but silently ignores what was asked for.
+  if (
+    props.accessibilityMode !== undefined &&
+    !ACCESSIBILITY_MODES.includes(props.accessibilityMode)
+  ) {
+    warnOnce(
+      'accessibilityMode.unknown',
+      `${C}: \`accessibilityMode\` expects ${ACCESSIBILITY_MODES.map((m) => `'${m}'`).join(
+        ' | '
+      )} (received ${JSON.stringify(props.accessibilityMode)}); treating it as 'auto'.`
+    );
+  }
+
+  if (props.accessibilityMode === 'forceGlass') {
+    warnOnce(
+      'accessibilityMode.forceGlass',
+      `${C}: \`accessibilityMode="forceGlass"\` overrides the user's Reduce Transparency preference. ` +
+        `Only do this where the glass is decorative and something else already carries the meaning.`
+    );
+  }
 
   checkScale('intensity', props.intensity, '0-100');
   checkRange(
@@ -173,11 +197,7 @@ function checkPlatformNoops(props: LiquidGlassViewProps): void {
     // `thickness={0}` IS honoured on iOS: with `rim` and `specular` off it is
     // the signal to drop Liquid Glass for a plain UIBlurEffect material. Only
     // the intermediate values are inert there.
-    if (
-      props.thickness !== undefined &&
-      props.thickness !== 1 &&
-      props.thickness !== 0
-    ) {
+    if (props.thickness !== undefined && props.thickness !== 1 && props.thickness !== 0) {
       warnPlatformNoop(
         'thickness',
         'UIGlassEffect fixes the glass optics — only 0 is meaningful here, as ' +

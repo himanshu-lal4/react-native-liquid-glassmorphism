@@ -1,6 +1,8 @@
 import { Platform, type NativeSyntheticEvent } from 'react-native';
 
+import { DEFAULT_RESOLVED_ACCESSIBILITY, type ResolvedAccessibility } from './accessibility';
 import { validateGlassProps } from './devValidate';
+import { GlassAccessibilityGate } from './GlassAccessibilityGate';
 import NativeLiquidGlass, {
   type GlassErrorEvent,
   type PipelineReadyEvent,
@@ -28,10 +30,31 @@ function narrowHandler<From, To>(
 /**
  * Native (iOS / Android) implementation of `<LiquidGlassView>`.
  *
- * Maps the friendly public props onto the codegen native component. The web
- * fallback lives in `LiquidGlassView.tsx`.
+ * Wraps the prop mapping in the accessibility gate, which subscribes to the
+ * platform's Reduce Transparency / Reduce Motion preferences and swaps in an
+ * opaque surface when asked. The mapping itself stays a pure function —
+ * see {@link renderNativeGlass}.
+ *
+ * The web fallback lives in `LiquidGlassView.tsx`.
  */
 export function LiquidGlassView(props: LiquidGlassViewProps) {
+  return <GlassAccessibilityGate props={props} renderGlass={renderNativeGlass} />;
+}
+
+/**
+ * Maps the friendly public props onto the codegen native component.
+ *
+ * Kept separate from {@link LiquidGlassView} and free of hooks so the unit
+ * tests can invoke it directly and inspect the returned element, with no
+ * renderer involved.
+ *
+ * @param a11y resolved accessibility decisions; defaults to "no preferences
+ *   set", which is what a direct call in a test wants.
+ */
+export function renderNativeGlass(
+  props: LiquidGlassViewProps,
+  a11y: ResolvedAccessibility = DEFAULT_RESOLVED_ACCESSIBILITY
+) {
   // Validate what the caller actually passed, before presets and defaults have
   // had a chance to fill anything in. Stripped from production bundles.
   if (__DEV__) {
@@ -59,13 +82,23 @@ export function LiquidGlassView(props: LiquidGlassViewProps) {
     children,
     onPipelineReady,
     onError,
+    // Consumed by the gate above; native has no such prop, so it must not ride
+    // along in `...rest` onto the host component. Destructured purely to drop
+    // it, hence the lint exemption.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    accessibilityMode: _accessibilityMode,
     ...rest
   } = resolvePreset(props);
 
-  const handlePipelineReady = narrowHandler<
-    PipelineReadyEvent,
-    GlassPipelineInfo
-  >(onPipelineReady);
+  // Ambient, sensor-driven motion is the thing Reduce Motion is about, so the
+  // tilt specular is dropped and — because this is the prop native gates the
+  // sensor registration on — no motion sensor is registered at all.
+  //
+  // `interactive` is deliberately left alone: it responds to a touch the user
+  // just made, which is not the unbidden movement the setting asks to remove.
+  const tiltEnabled = tilt && a11y.allowMotion;
+
+  const handlePipelineReady = narrowHandler<PipelineReadyEvent, GlassPipelineInfo>(onPipelineReady);
   const handleError = narrowHandler<GlassErrorEvent, GlassErrorInfo>(onError);
 
   // Normalise any custom shape to a single SVG path + view-box for native. The
@@ -95,24 +128,20 @@ export function LiquidGlassView(props: LiquidGlassViewProps) {
     // `typeof` rather than a null check: it also catches a non-number arriving
     // from untyped JS, which would otherwise reach the shader.
     blurRadius:
-      typeof blurRadius === 'number' && Number.isFinite(blurRadius)
-        ? Math.max(0, blurRadius)
-        : -1,
+      typeof blurRadius === 'number' && Number.isFinite(blurRadius) ? Math.max(0, blurRadius) : -1,
   };
 
   // Genuinely Android-only optics: iOS glass fixes its own rim echo, and the
   // system material manages its own contrast.
   const platformProps =
-    Platform.OS === 'android'
-      ? { edgeReflectionStrength, legibilityFloor, paused }
-      : null;
+    Platform.OS === 'android' ? { edgeReflectionStrength, legibilityFloor, paused } : null;
 
   return (
     <NativeLiquidGlass
       variant={variant}
       intensity={intensity}
       interactive={interactive}
-      tilt={tilt}
+      tilt={tiltEnabled}
       refraction={refraction}
       glassCornerRadius={borderRadius}
       dim={dim}

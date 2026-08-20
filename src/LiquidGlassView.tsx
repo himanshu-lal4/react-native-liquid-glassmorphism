@@ -1,6 +1,7 @@
 import { StyleSheet, View, type NativeSyntheticEvent, type ViewProps } from 'react-native';
 
 import { validateGlassProps } from './devValidate';
+import { GlassAccessibilityGate } from './GlassAccessibilityGate';
 import { resolvePreset } from './presets';
 import type { GlassPipelineInfo, LiquidGlassViewProps } from './types';
 
@@ -25,6 +26,8 @@ const NATIVE_ONLY_PROPS = [
   // A custom silhouette needs a real GPU pipeline; the fallback renders a
   // rounded translucent surface, so the shape is intentionally ignored.
   'shape',
+  // Consumed by the accessibility gate before this renderer is reached.
+  'accessibilityMode',
   // Accepted so a cross-platform tree type-checks, but never fired: nothing
   // here can fail the way the native implementations can, so there would be no
   // honest error to report.
@@ -48,6 +51,16 @@ const NATIVE_ONLY_PROPS = [
  * does natively.
  */
 export function LiquidGlassView(props: LiquidGlassViewProps) {
+  return <GlassAccessibilityGate props={props} renderGlass={renderWebGlass} />;
+}
+
+/**
+ * The fallback's prop mapping, without the accessibility subscription.
+ *
+ * Kept hook-free and separate from {@link LiquidGlassView} so the unit tests
+ * can invoke it directly and inspect the returned element.
+ */
+export function renderWebGlass(props: LiquidGlassViewProps) {
   if (__DEV__) {
     validateGlassProps(props);
   }
@@ -92,10 +105,7 @@ export function LiquidGlassView(props: LiquidGlassViewProps) {
   // is what keeps white-on-glass text readable. A uniformly transparent
   // fallback would put white text on a white background with no warning, so the
   // wash tracks the variant rather than being a fixed value.
-  const wash =
-    variant === 'clear'
-      ? 'rgba(255, 255, 255, 0.10)'
-      : 'rgba(255, 255, 255, 0.18)';
+  const wash = variant === 'clear' ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.18)';
 
   const scrim = Math.max(0, Math.min(1, dim));
 

@@ -1,10 +1,12 @@
 import type { ColorValue, NativeSyntheticEvent, ViewProps } from 'react-native';
 
+import type { GlassAccessibilityMode } from './accessibility';
 import type { GlassTier } from './capabilities';
 import type { GlassPresetName } from './presets';
 import type { LiquidGlassShape } from './shapes';
 
 export type { LiquidGlassShape } from './shapes';
+export type { GlassAccessibilityMode } from './accessibility';
 
 /**
  * What `onPipelineReady` reports: the tier that **actually rendered**, not what
@@ -73,6 +75,26 @@ export interface LiquidGlassViewProps extends ViewProps {
    * <LiquidGlassView preset="floatingTabBar" borderRadius={32} />
    */
   preset?: GlassPresetName;
+
+  /**
+   * How this view responds to the user's accessibility preferences.
+   *
+   * - `auto` (default) — honour them. Renders an **opaque** surface instead of
+   *   glass when the platform asks for reduced transparency (iOS Reduce
+   *   Transparency; on Android, high-contrast text, which is the closest
+   *   equivalent), and drops motion-driven effects under Reduce Motion.
+   * - `forceGlass` — always render glass, overriding a stated user preference.
+   *   Only correct where the glass is decorative and something else already
+   *   carries the meaning. It does **not** override Reduce Motion.
+   * - `forceOpaque` — always render the opaque surface.
+   *
+   * The preference is read live: change events plus a re-read whenever the app
+   * returns to the foreground, so toggling the setting in Settings takes effect
+   * on return without any imperative refresh call.
+   *
+   * @default 'auto'
+   */
+  accessibilityMode?: GlassAccessibilityMode;
 
   /**
    * Glass material style.
