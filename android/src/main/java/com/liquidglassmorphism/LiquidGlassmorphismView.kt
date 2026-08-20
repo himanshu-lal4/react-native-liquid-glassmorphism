@@ -96,6 +96,10 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private var specularSharpness = 1f
   private var saturation = 1f
   private var brightness = 1f
+  private var magnification = 1f
+  // Window glass. Chosen as the default because it reproduces the tuned lens
+  // exactly, so adding the prop changed nothing for existing views.
+  private var ior = 1.5f
 
   // Frame-timing HUD (#47). `frameStatsInterval` is a PERMISSION, not a switch:
   // at 0 (the default) nothing is timed, accumulated or dispatched at all, so a
@@ -320,6 +324,18 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   fun setBrightnessValue(value: Float) {
     val v = value.coerceIn(0.5f, 1.5f)
     if (brightness != v) { brightness = v; invalidate() }
+  }
+
+  /** Centre lens magnification (#45); 1 samples the backdrop 1:1. */
+  fun setMagnificationValue(value: Float) {
+    val v = value.coerceIn(0.5f, 2f)
+    if (magnification != v) { magnification = v; invalidate() }
+  }
+
+  /** Index of refraction (#45); 1.5 is window glass and the default look. */
+  fun setIorValue(value: Float) {
+    val v = value.coerceIn(1f, 2.5f)
+    if (ior != v) { ior = v; invalidate() }
   }
 
   /**
@@ -1068,7 +1084,14 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       shader.setFloatUniform("iCorner", if (useSdf) min(w, h) * 0.4f else cornerFor(w, h))
       // Lensing is intrinsic to glass (always on); the `refraction` prop only
       // dials it up. This is what makes the backdrop bend around the edges.
-      shader.setFloatUniform("iLens", GlassParams.lensStrengthPx(variantClear, refractionEnabled, density) * thickness)
+      // `ior` scales the lens on the CPU rather than as another per-pixel
+      // uniform. Normalised so 1.5 (window glass) is exactly 1.0x — the tuned
+      // look — and 1.0 (vacuum) is 0.0x, i.e. no bending at all.
+      shader.setFloatUniform(
+        "iLens",
+        GlassParams.lensStrengthPx(variantClear, refractionEnabled, density) *
+          thickness * ((ior - 1f) / 0.5f)
+      )
       // Measured against iOS 26 over the same wallpaper: with the blur
       // matched, clear glass was holding sat 0.721x its backdrop where iOS
       // holds 0.656x. The old 1.55 only looked right while the heavier blur
@@ -1091,6 +1114,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       shader.setFloatUniform("iLightAngle", lightAngle)
       shader.setFloatUniform("iSpecSharp", specularSharpness)
       shader.setFloatUniform("iBright", brightness)
+      shader.setFloatUniform("iMag", magnification)
       setTintUniform(shader)
       val material = RenderEffect.createRuntimeShaderEffect(shader, "content")
       shaderActive = true
@@ -1235,6 +1259,7 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       uniform float iLightAngle;
       uniform float iSpecSharp;
       uniform float iBright;
+      uniform float iMag;
 
       float sdRoundRect(float2 p, float2 b, float r) {
         float2 q = abs(p) - b + r;
@@ -1391,7 +1416,15 @@ class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         float2 reflDisp = n2 * reflMask * (iLens * 3.0 * iRefl) * edgeGuard;
 
         float2 disp = n2 * bend * iLens * edgeGuard;
-        float2 uv = magCoord - disp - reflDisp;
+        // Constant centre magnification: sample a smaller region of the backdrop
+        // and let it fill the surface. Applied about the view centre and BEFORE
+        // the edge displacement, so the lens still bends whatever the
+        // magnified surface is showing rather than fighting it.
+        //
+        // Distinct from the touch magnifier in `magCoord` above, which is
+        // transient and follows the finger; this is a property of the glass.
+        float2 magBase = iMag == 1.0 ? magCoord : b + (magCoord - b) / iMag;
+        float2 uv = magBase - disp - reflDisp;
 
         // Chromatic dispersion at the rim: split R/G/B along the normal. Kept
         // VERY subtle — iOS UI glass shows almost no prismatic rainbow; a large

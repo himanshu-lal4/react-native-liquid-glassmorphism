@@ -98,6 +98,8 @@ All optional. `LiquidGlassViewProps` extends `ViewProps`.
 - `specularSharpness`: number (default `1`). **Android only.** Multiplier on the specular exponent; higher is a tighter, harder hotspot. Useful range `0.25`–`4`.
 - `saturation`: number (default `1`). **Android only.** Multiplier on backdrop vibrancy, applied before the tint. `0` is greyscale. Useful range `0`–`2`.
 - `brightness`: number (default `1`). **Android only.** Multiplier on backdrop luminance, before the tint. Unlike `dim` (a flat scrim on top) this grades what the glass transmits, so the edge and sheen keep their own brightness. Useful range `0.5`–`1.5`.
+- `magnification`: number (default `1`). **Android only.** Constant magnification of the backdrop through the lens centre; above 1 the glass reads as convex. Distinct from the transient touch magnifier `interactive` adds. Useful range `0.5`–`2`.
+- `ior`: number (default `1.5`). **Android only.** Index of refraction. `1.5` is window glass and reproduces the default look, `1` is no bending at all, `2.4` is roughly diamond. Related to `thickness` but distinct — `thickness` is how deep the glass is, `ior` is what it is made of. Useful range `1`–`2.5`.
 - `frameStatsInterval`: number, ms (default `0`). **Android only.** How often `onFrameStats` reports. `0` disables timing entirely — it is a permission, not just a cadence. A development HUD; ship it off.
 - `paused`: boolean (default `false`). **Android only.** Suspend the effect without unmounting; the glass holds its last frame and re-captures on resume. Views Android already reports as off-screen pause automatically — use this for cases that signal cannot see, such as a screen kept alive in a navigator stack or an off-screen carousel page. No-op on iOS.
 

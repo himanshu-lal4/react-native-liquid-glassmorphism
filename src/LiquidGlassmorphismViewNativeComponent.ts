@@ -175,6 +175,18 @@ export interface NativeProps extends ViewProps {
   brightness?: WithDefault<Float, 1.0>;
 
   /**
+   * Android only: centre magnification of the backdrop, 1 = none.
+   * No-op on iOS.
+   */
+  magnification?: WithDefault<Float, 1.0>;
+
+  /**
+   * Android only: index of refraction. 1.5 is window glass and the default
+   * look; 1.0 is no bending. No-op on iOS.
+   */
+  ior?: WithDefault<Float, 1.5>;
+
+  /**
    * Android only: suspend the per-frame backdrop capture without unmounting.
    * The glass holds its last frame. Resuming re-captures immediately.
    */
