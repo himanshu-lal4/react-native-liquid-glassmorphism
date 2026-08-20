@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
 
 const W = 320;
@@ -47,9 +47,7 @@ export default function MercuryDemo({ onBack }: { onBack: () => void }) {
     <View style={styles.root}>
       <Text style={styles.title}>Smooth-min merge</Text>
       <Text style={styles.sub}>
-        {Platform.OS === 'android'
-          ? `secondaryShape · shapeSmoothing={28} · gap ${gap}`
-          : 'Android only — iOS masks the glass with a CAShapeLayer'}
+        {`secondaryShape · shapeSmoothing={64} · gap ${gap}`}
       </Text>
 
       <LiquidGlassView
@@ -68,7 +66,7 @@ export default function MercuryDemo({ onBack }: { onBack: () => void }) {
           width: W,
           height: H,
         }}
-        shapeSmoothing={28}
+        shapeSmoothing={64}
         style={{ width: W, height: H }}
       />
 

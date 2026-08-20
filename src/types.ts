@@ -274,8 +274,10 @@ export interface LiquidGlassViewProps extends ViewProps {
    * neck between the bodies is real glass with correct lensing rather than two
    * overlapping silhouettes.
    *
-   * No-op on iOS, where the silhouette is a `CAShapeLayer` mask and there is no
-   * field to blend — see the README.
+   * Works on **both platforms**, by different means: Android merges the signed
+   * distance fields natively, which is cheaper and higher quality; iOS has no
+   * field to blend (its silhouette is a `CAShapeLayer` mask), so the merged
+   * outline is computed in JS and handed over as one ordinary path.
    */
   secondaryShape?: LiquidGlassShape;
 
@@ -284,9 +286,12 @@ export interface LiquidGlassViewProps extends ViewProps {
    * {@link secondaryShape}, in dp.
    *
    * `0` is a hard union with a visible crease. Larger values pull a wider,
-   * softer neck, and start bridging the two bodies from further apart. Roughly
-   * the distance over which the merge is felt, so scale it to the bodies —
-   * `16`–`48` reads well for shapes ~100dp across.
+   * softer neck and bridge from further apart.
+   *
+   * The bridge forms when the two surfaces are each within roughly `k / 4` of
+   * the midpoint between them — `smin(d, d, k) = d - k/4` — so to fuse bodies
+   * that sit `g` apart you need `shapeSmoothing` above about `2 * g`. For
+   * shapes ~100dp across, `16`–`48` covers the usual range.
    *
    * @default 0
    */
