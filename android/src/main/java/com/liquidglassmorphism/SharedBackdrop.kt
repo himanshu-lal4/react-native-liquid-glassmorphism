@@ -131,7 +131,15 @@ internal class SharedBackdrop(private val scale: Int) {
     fun release(root: View?, cap: SharedBackdrop?) {
       if (cap == null) return
       cap.refCount--
+      // Never let an unbalanced release dispose a bitmap other views still
+      // hold. The caller-side guard should make this unreachable; this is the
+      // belt to that braces, because the failure mode is a recycled bitmap
+      // being drawn from.
       if (cap.refCount > 0) return
+      if (cap.refCount < 0) {
+        cap.refCount = 0
+        return
+      }
       // Last glass view under this root went away — free the bitmap rather than
       // leaving a full-screen ARGB_8888 alive for a screen nobody is on.
       if (root != null) byRoot.remove(root)
