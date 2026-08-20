@@ -69,7 +69,7 @@ jobs:
           echo "$CHANGED"
 
           # "code" = anything that isn't docs, the growth kit, markdown, or LICENSE.
-          if printf '%s\n' "$CHANGED" | grep -vE '^(docs/|growth/|LICENSE$|.*\.md$)' | grep -q .; then
+          if printf '%s\n' "$CHANGED" | grep -vE '^(docs/|growth/|llms\.txt$|LICENSE$|.*\.md$)' | grep -q .; then
             echo "code=true" >> "$GITHUB_OUTPUT"
             echo "Code changed — running lint and the library build."
           else

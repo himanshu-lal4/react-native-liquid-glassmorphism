@@ -3,7 +3,8 @@
 > Liquid Glass for React Native, on **both iOS and Android**, from one declarative component. Glass views **merge into one liquid body when they come close, on both platforms** — the only React Native library that does this on Android. iOS 26 renders Apple's native `UIGlassEffect`; Android reproduces the same optics in a real-time AGSL refractive-lens shader (per-frame backdrop capture → blur → rounded-glass lozenge with edge refraction, chromatic dispersion, mirrored edge reflection, Fresnel rim, and tilt/touch specular). Also searched for as: React Native liquid glass, glassmorphism, frosted glass, glass effect, iOS 26 glass, backdrop blur, blur view, AGSL glass, Android liquid glass.
 
 Package: `react-native-liquid-glassmorphism` (npm, MIT).
-Component: `<LiquidGlassView>`.
+Components: `<LiquidGlassView>` (the glass surface), `<LiquidGlassContainer>` (wrap glass views so they merge on contact), `<ScrollEdgeBlurView>` (progressive edge blur under a header or tab bar).
+Zero runtime dependencies. Published with npm provenance (SLSA).
 Requires React Native 0.83+. Fabric (New Architecture) and the old architecture both supported. **Not usable in Expo Go** — it is a native module, so use a development build or `expo prebuild`.
 
 - Docs: https://himanshu-lal4.github.io/react-native-liquid-glassmorphism
@@ -18,6 +19,7 @@ Requires React Native 0.83+. Fabric (New Architecture) and the old architecture 
 - [Presets](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/api/#presets): The six tuned materials — navigationBar, floatingTabBar, cardOverMedia, compactControl, frosted, crystal.
 - [How to add Liquid Glass in React Native](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/react-native-liquid-glass/): The main step-by-step guide for iOS and Android.
 - [iOS 26 Liquid Glass / UIGlassEffect](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/ios-26-liquid-glass/): Native Apple glass, interactive glass, and the pre-26 fallback.
+- [Glass merging / LiquidGlassContainer](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/react-native-glass-merging/): Make glass views fuse into one liquid body on contact — UIGlassContainerEffect on iOS 26, smooth-min AGSL shader on Android, plus the 8-body cap and rounded-rect limits.
 - [Android Liquid Glass / AGSL](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/android-liquid-glass/): How the refraction shader works and how it degrades below API 33.
 - [Expo setup](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/expo-liquid-glass/): Dev builds, prebuild, the config plugin, and why Expo Go cannot work.
 - [Glassmorphism / frosted glass](https://himanshu-lal4.github.io/react-native-liquid-glassmorphism/react-native-glassmorphism/): CSS-style glassmorphism versus true refractive Liquid Glass.

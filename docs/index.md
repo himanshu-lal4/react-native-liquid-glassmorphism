@@ -35,6 +35,7 @@ import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
 
 ## Why choose it
 
+- **Glass that merges** — bring two glass views close and they fuse into one liquid body, [on Android as well as iOS]({{ '/react-native-glass-merging/' | relative_url }}). iOS uses Apple's `UIGlassContainerEffect`; Android has no OS equivalent, so the shapes are smooth-minned per pixel in the shader.
 - **Real Liquid Glass on both platforms** — native `UIGlassEffect` on iOS 26, a matching AGSL refraction shader on Android. Most alternatives are iOS-only or plain blur.
 - **Actual refraction, not just blur** — Android bends and magnifies the backdrop through a glass lozenge (edge refraction + chromatic dispersion + mirrored edge reflection + Fresnel rim), instead of a flat frosted pane.
 - **Interactive glass** — reacts to touch (a specular bloom + optical magnification under the finger) and to device tilt (a moving specular highlight).
@@ -47,6 +48,7 @@ import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
 - [Getting started]({{ '/getting-started/' | relative_url }})
 - [Recipes — copy-paste snippets]({{ '/recipes/' | relative_url }})
 - [How to add Liquid Glass in React Native]({{ '/react-native-liquid-glass/' | relative_url }})
+- [**Glass that merges** — fusing glass views on iOS and Android]({{ '/react-native-glass-merging/' | relative_url }})
 - [**Liquid Glass on Android** — how the AGSL shader works]({{ '/android-liquid-glass/' | relative_url }})
 - [iOS 26 Liquid Glass & UIGlassEffect]({{ '/ios-26-liquid-glass/' | relative_url }})
 - [Expo setup (config plugin, dev build)]({{ '/expo-liquid-glass/' | relative_url }})
