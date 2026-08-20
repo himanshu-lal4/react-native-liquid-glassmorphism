@@ -379,6 +379,35 @@ export interface LiquidGlassViewProps extends ViewProps {
   brightness?: number;
 
   /**
+   * Android only: magnification of the backdrop through the centre of the lens.
+   *
+   * `1` (the default) samples the backdrop 1:1 — what a flat pane does. Above 1
+   * the glass reads as a convex lens and enlarges what is behind it; below 1 it
+   * reads as concave and shrinks it.
+   *
+   * Distinct from the touch magnifier that {@link interactive} adds, which is
+   * transient and follows the finger. This one is a constant property of the
+   * surface. Useful range roughly `0.5`–`2`.
+   * @default 1
+   */
+  magnification?: number;
+
+  /**
+   * Android only: index of refraction — how sharply light bends entering the
+   * glass.
+   *
+   * `1.5` is window glass, and is the default because it reproduces the tuned
+   * look exactly. `1.0` is vacuum: no bending at all, so the lens flattens.
+   * Above 1.5 the edges bend harder — `2.4` is roughly diamond.
+   *
+   * Related to {@link thickness} but not the same: `thickness` is how deep the
+   * body of glass is, `ior` is what the material is made of. Useful range
+   * roughly `1`–`2.5`.
+   * @default 1.5
+   */
+  ior?: number;
+
+  /**
    * Android only: suspend the effect without unmounting. The glass holds its
    * last frame, and resuming re-captures immediately.
    *

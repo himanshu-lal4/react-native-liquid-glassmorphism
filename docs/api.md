@@ -77,6 +77,8 @@ It is honoured on both platforms including real Liquid Glass: UIKit exposes no b
 | `specularSharpness` | `number` | `1` | **Android** | Multiplier on the specular exponent. Higher = tighter hotspot. ~`0.25`–`4`. |
 | `saturation` | `number` | `1` | **Android** | Multiplier on backdrop vibrancy, before the tint. ~`0`–`2`. |
 | `brightness` | `number` | `1` | **Android** | Multiplier on backdrop luminance, before the tint. ~`0.5`–`1.5`. |
+| `magnification` | `number` | `1` | **Android** | Constant backdrop magnification through the lens centre. Separate from the touch magnifier. ~`0.5`–`2`. |
+| `ior` | `number` | `1.5` | **Android** | Index of refraction. `1.5` = window glass = the default look; `1` = no bending. ~`1`–`2.5`. |
 
 ## Events
 

@@ -251,6 +251,8 @@ Extends `ViewProps`. All props are optional.
 | `specularSharpness` | `number` | `1` | **Android only** — multiplier on the specular exponent. Higher is a tighter, harder hotspot; lower is satin. Useful range ~`0.25`–`4`. No-op on iOS. |
 | `saturation` | `number` | `1` | **Android only** — multiplier on the backdrop vibrancy, applied **before** the tint. `0` gives a greyscale backdrop. Useful range ~`0`–`2`. No-op on iOS. |
 | `brightness` | `number` | `1` | **Android only** — multiplier on backdrop luminance, before the tint. Unlike `dim` (a flat scrim on top) this grades what the glass transmits, so the edge and sheen keep their own brightness. Useful range ~`0.5`–`1.5`. No-op on iOS. |
+| `magnification` | `number` | `1` | **Android only** — constant magnification of the backdrop through the lens centre. `1` samples 1:1; above 1 the glass reads as convex and enlarges what is behind it. Distinct from the transient touch magnifier `interactive` adds. Useful range ~`0.5`–`2`. No-op on iOS. |
+| `ior` | `number` | `1.5` | **Android only** — index of refraction. `1.5` is window glass and reproduces the default look; `1` is vacuum (no bending, flat lens); `2.4` is roughly diamond. Related to `thickness` but not the same — `thickness` is how deep the glass is, `ior` is what it is made of. Useful range ~`1`–`2.5`. No-op on iOS. |
 | `onPipelineReady` | `(e) => void` | — | Fires once per view with the tier that actually rendered. See [Events](#events). |
 | `onError` | `(e) => void` | — | Fires when the view can't do what the props asked for. See [Events](#events). |
 | `onFrameStats` | `(e) => void` | — | **Android only** — frame timings aggregated over each `frameStatsInterval` window. Never fires while that is `0`. See [Frame stats](#frame-stats). |

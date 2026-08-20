@@ -90,6 +90,14 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
     view.setBrightnessValue(value)
   }
 
+  override fun setMagnification(view: LiquidGlassmorphismView, value: Float) {
+    view.setMagnificationValue(value)
+  }
+
+  override fun setIor(view: LiquidGlassmorphismView, value: Float) {
+    view.setIorValue(value)
+  }
+
   override fun setFrameStatsInterval(view: LiquidGlassmorphismView, value: Int) {
     view.setFrameStatsIntervalValue(value)
   }

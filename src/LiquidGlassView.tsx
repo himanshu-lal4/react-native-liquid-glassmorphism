@@ -31,6 +31,8 @@ const NATIVE_ONLY_PROPS = [
   'specularSharpness',
   'saturation',
   'brightness',
+  'magnification',
+  'ior',
   'frameStatsInterval',
   'onFrameStats',
   // A custom silhouette needs a real GPU pipeline; the fallback renders a

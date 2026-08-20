@@ -186,6 +186,20 @@ export function validateGlassProps(props: LiquidGlassViewProps): void {
     'It multiplies backdrop luminance; 1 is unchanged.'
   );
 
+  checkRange(
+    'magnification',
+    props.magnification,
+    [0.5, 2],
+    'It magnifies the backdrop through the lens centre; 1 samples 1:1.'
+  );
+
+  checkRange(
+    'ior',
+    props.ior,
+    [1, 2.5],
+    'It is an index of refraction; 1.5 is window glass and the default look, 1 is no bending.'
+  );
+
   checkFinite('lightAngle', props.lightAngle);
 
   // A handler with no interval is silent forever, which reads as a broken
@@ -283,6 +297,8 @@ function checkPlatformNoops(props: LiquidGlassViewProps): void {
       ['specularSharpness', props.specularSharpness, 1],
       ['saturation', props.saturation, 1],
       ['brightness', props.brightness, 1],
+      ['magnification', props.magnification, 1],
+      ['ior', props.ior, 1.5],
       ['frameStatsInterval', props.frameStatsInterval, 0],
     ];
     for (const [name, value, dflt] of artistic) {

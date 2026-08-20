@@ -51,6 +51,8 @@ const ANDROID_ONLY_KEYS = [
   'specularSharpness',
   'saturation',
   'brightness',
+  'magnification',
+  'ior',
   'frameStatsInterval',
   'onFrameStats',
 ] as const;
@@ -69,6 +71,8 @@ function androidGlassProps(
     specularSharpness = 1,
     saturation = 1,
     brightness = 1,
+    magnification = 1,
+    ior = 1.5,
     frameStatsInterval = 0,
   } = resolved;
 
@@ -82,6 +86,8 @@ function androidGlassProps(
     specularSharpness,
     saturation,
     brightness,
+    magnification,
+    ior,
     // Only attach the handler when an interval was actually asked for. Passing
     // it unconditionally would have native dispatching to a listener nobody
     // reads — the exact cost this design exists to avoid.
