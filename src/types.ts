@@ -278,6 +278,12 @@ export interface LiquidGlassViewProps extends ViewProps {
    * distance fields natively, which is cheaper and higher quality; iOS has no
    * field to blend (its silhouette is a `CAShapeLayer` mask), so the merged
    * outline is computed in JS and handed over as one ordinary path.
+   *
+   * **Set this once — do not animate it.** Changing either shape rebuilds the
+   * distance field on the CPU, measured at ~361ms for a 340x190dp body on a
+   * mid-range device. Animating the merge drove a test screen to 1.6fps. The
+   * field bake is what buys the correct lensing through the neck; it is simply
+   * not a per-frame operation.
    */
   secondaryShape?: LiquidGlassShape;
 

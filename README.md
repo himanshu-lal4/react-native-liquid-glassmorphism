@@ -259,6 +259,13 @@ Extends `ViewProps`. All props are optional.
 | `onError` | `(e) => void` | — | Fires when the view can't do what the props asked for. See [Events](#events). |
 | `onFrameStats` | `(e) => void` | — | **Android only** — frame timings aggregated over each `frameStatsInterval` window. Never fires while that is `0`. See [Frame stats](#frame-stats). |
 
+> **`secondaryShape` is for a fixed silhouette, not an animated one.** The merge
+> happens on a signed-distance field baked on the CPU whenever the shape
+> changes — measured at **~361ms** for a 340×190dp body on a Realme RMX3868.
+> That is the right trade once, and completely the wrong one per frame:
+> animating the gap drove a test screen to **1.6fps**. Set it and leave it. An
+> analytic merge that can animate is a separate piece of work.
+
 ## Presets
 
 Six tuned starting points, so the common cases don't need the whole prop table:

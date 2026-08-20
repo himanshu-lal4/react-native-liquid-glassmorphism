@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   LiquidGlassView,
@@ -31,20 +31,26 @@ function circle(cx: number, cy: number, r: number) {
   );
 }
 
+/**
+ * Discrete steps rather than an animation loop, on purpose.
+ *
+ * `secondaryShape` merges on the signed-distance FIELD, which is baked on the
+ * CPU whenever the silhouette changes — measured at ~361ms on a Realme
+ * RMX3868. That is the right trade for a fixed shape and completely the wrong
+ * one per frame: animating the gap drove this screen to 1.6fps.
+ *
+ * Stepping between presets costs one rebuild per tap, which reads as a beat
+ * rather than as jank. An analytic merge that can animate is tracked
+ * separately.
+ */
+const STEPS: Array<{ label: string; gap: number }> = [
+  { label: 'Apart', gap: MAX_GAP },
+  { label: 'Touching', gap: 74 },
+  { label: 'Merged', gap: MIN_GAP },
+];
+
 export default function MercuryDemo({ onBack }: { onBack: () => void }) {
   const [gap, setGap] = useState(MAX_GAP);
-  const dir = useRef(-1);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setGap((g) => {
-        if (g <= MIN_GAP) dir.current = 1;
-        if (g >= MAX_GAP) dir.current = -1;
-        return g + dir.current * 4;
-      });
-    }, 90);
-    return () => clearInterval(id);
-  }, []);
 
   return (
     <View style={styles.root}>
@@ -95,6 +101,22 @@ export default function MercuryDemo({ onBack }: { onBack: () => void }) {
         <Text style={[styles.badge, { left: W / 2 + gap / 2 - 8, top: H / 2 - 14 }]}>2</Text>
       </View>
 
+      <View style={styles.steps}>
+        {STEPS.map((s2) => (
+          <Pressable key={s2.label} onPress={() => setGap(s2.gap)}>
+            <LiquidGlassView
+              tintColor={
+                gap === s2.gap ? 'rgba(10,132,255,0.45)' : 'rgba(255,255,255,0.18)'
+              }
+              borderRadius={14}
+              style={styles.stepChip}
+            >
+              <Text style={styles.chipText}>{s2.label}</Text>
+            </LiquidGlassView>
+          </Pressable>
+        ))}
+      </View>
+
       <Pressable onPress={onBack} style={styles.back}>
         <LiquidGlassView tintColor="rgba(255,255,255,0.18)" borderRadius={16} style={styles.chip}>
           <Text style={styles.chipText}>← Back</Text>
@@ -108,7 +130,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
   title: { color: '#fff', fontSize: 26, fontWeight: '800' },
   sub: { color: 'rgba(255,255,255,0.75)', fontSize: 13, marginBottom: 6 },
-  back: { marginTop: 18 },
+  steps: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  stepChip: { paddingHorizontal: 16, paddingVertical: 9, overflow: 'hidden' },
+  back: { marginTop: 14 },
   chip: { paddingHorizontal: 18, paddingVertical: 10, overflow: 'hidden' },
   chipText: { color: '#fff', fontWeight: '700' },
   edgeBlur: { position: 'absolute', top: 0, left: 0, right: 0, height: 220 },
