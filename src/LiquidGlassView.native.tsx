@@ -74,6 +74,12 @@ export function renderNativeGlass(
     thickness = 1,
     edgeReflectionStrength = 1,
     legibilityFloor = 0,
+    iridescence = 0,
+    grain = 0,
+    lightAngle = 0,
+    specularSharpness = 1,
+    saturation = 1,
+    brightness = 1,
     paused = false,
     borderRadius = 0,
     shape,
@@ -134,7 +140,21 @@ export function renderNativeGlass(
   // Genuinely Android-only optics: iOS glass fixes its own rim echo, and the
   // system material manages its own contrast.
   const platformProps =
-    Platform.OS === 'android' ? { edgeReflectionStrength, legibilityFloor, paused } : null;
+    Platform.OS === 'android'
+      ? {
+          edgeReflectionStrength,
+          legibilityFloor,
+          paused,
+          // Look-shaping uniforms. All Android-only: iOS 26 hands the optics to
+          // UIGlassEffect, which exposes none of these.
+          iridescence,
+          grain,
+          lightAngle,
+          specularSharpness,
+          saturation,
+          brightness,
+        }
+      : null;
 
   return (
     <NativeLiquidGlass

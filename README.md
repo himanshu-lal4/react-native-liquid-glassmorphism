@@ -244,6 +244,12 @@ Extends `ViewProps`. All props are optional.
 | `edgeReflectionStrength` | `number` (0–1) | `1` | **Android only** — strength of the edge-reflection band (the upside-down rim echo), **independent of `thickness`**. Lower it over text-heavy backdrops where the mirrored copy reads as noise. No-op on iOS. |
 | `legibilityFloor` | `number` (0–1) | `0` | **Android only** — an adaptive veil drawn **under the foreground children** so chrome (icons/labels) stays readable over `clear` glass, without darkening the whole pane. Scales with the value and the backdrop brightness; hued by `tintColor`. `0` = off. No-op on iOS. |
 | `paused` | `boolean` | `false` | **Android only** — suspend the per-frame backdrop capture without unmounting; the glass holds its last frame. Off-screen views pause automatically, so this is for the cases Android can't detect. See [Performance](#performance). No-op on iOS. |
+| `iridescence` | `number` (0–1) | `0` | **Android only** — rainbow shimmer at the rim, hue driven by the angle to the centre. Rides the same edge ramp as the lens, so it reads as light splitting at the edge rather than a colour overlay. `0.3` is already visible. No-op on iOS. |
+| `grain` | `number` (0–~0.15) | `0` | **Android only** — film grain over the surface. A heavy blur flattens the backdrop into a gradient; a little noise is what makes it read as etched glass. Above ~0.15 it reads as noise. No-op on iOS. |
+| `lightAngle` | `number` (radians) | `0` | **Android only** — rotates the built-in light direction. An **offset**, not an absolute bearing, so `0` keeps the tuned top-left key light. Drives the sheen, specular and inner shadow together. No-op on iOS. |
+| `specularSharpness` | `number` | `1` | **Android only** — multiplier on the specular exponent. Higher is a tighter, harder hotspot; lower is satin. Useful range ~`0.25`–`4`. No-op on iOS. |
+| `saturation` | `number` | `1` | **Android only** — multiplier on the backdrop vibrancy, applied **before** the tint. `0` gives a greyscale backdrop. Useful range ~`0`–`2`. No-op on iOS. |
+| `brightness` | `number` | `1` | **Android only** — multiplier on backdrop luminance, before the tint. Unlike `dim` (a flat scrim on top) this grades what the glass transmits, so the edge and sheen keep their own brightness. Useful range ~`0.5`–`1.5`. No-op on iOS. |
 | `onPipelineReady` | `(e) => void` | — | Fires once per view with the tier that actually rendered. See [Events](#events). |
 | `onError` | `(e) => void` | — | Fires when the view can't do what the props asked for. See [Events](#events). |
 
@@ -266,7 +272,7 @@ import { LiquidGlassView, GlassPresets } from 'react-native-liquid-glassmorphism
 | `floatingTabBar` | A detached, fully-rounded bar floating above content. Full thickness and a live rim. |
 | `cardOverMedia` | A readable card over photography or video. `clear` glass plus a legibility veil. |
 | `compactControl` | A chip, badge or small floating control. Small surfaces need small numbers. |
-| `frosted` | Heavy and matte — a settings sheet or modal backdrop, where legibility beats transparency. |
+| `frosted` | Heavy and matte — a settings sheet or modal backdrop, where legibility beats transparency. Carries a little `grain`. |
 | `crystal` | Thin, hard and deeply refracting. Decorative; not somewhere to put a paragraph. |
 
 A preset is resolved in JS as `{ ...GlassPresets[preset], ...yourProps }`. The raw

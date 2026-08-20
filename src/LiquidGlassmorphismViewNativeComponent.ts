@@ -127,6 +127,42 @@ export interface NativeProps extends ViewProps {
   legibilityFloor?: WithDefault<Float, 0>;
 
   /**
+   * Android only: 0–1 rainbow shimmer at the rim, phase driven by the angle to
+   * the centre. 0 = off. No-op on iOS.
+   */
+  iridescence?: WithDefault<Float, 0>;
+
+  /**
+   * Android only: 0–~0.15 film grain over the whole surface. 0 = off.
+   * No-op on iOS.
+   */
+  grain?: WithDefault<Float, 0>;
+
+  /**
+   * Android only: rotates the built-in light direction, in radians. 0 keeps the
+   * default top-left key light. No-op on iOS.
+   */
+  lightAngle?: WithDefault<Float, 0>;
+
+  /**
+   * Android only: multiplier on the specular exponent. 1 = default; higher is a
+   * tighter, harder hotspot. No-op on iOS.
+   */
+  specularSharpness?: WithDefault<Float, 1.0>;
+
+  /**
+   * Android only: multiplier on the backdrop vibrancy, applied before the tint.
+   * 1 = default. No-op on iOS.
+   */
+  saturation?: WithDefault<Float, 1.0>;
+
+  /**
+   * Android only: multiplier on backdrop luminance, applied before the tint.
+   * 1 = default. No-op on iOS.
+   */
+  brightness?: WithDefault<Float, 1.0>;
+
+  /**
    * Android only: suspend the per-frame backdrop capture without unmounting.
    * The glass holds its last frame. Resuming re-captures immediately.
    */

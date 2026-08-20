@@ -276,6 +276,66 @@ export interface LiquidGlassViewProps extends ViewProps {
   legibilityFloor?: number;
 
   /**
+   * Android only: rainbow shimmer at the rim, `0`–`1`.
+   *
+   * The hue is driven by the angle to the centre and rides the same edge ramp
+   * as the lens, so it reads as light splitting through the rim rather than a
+   * colour overlay. Subtle values do the most work — `0.3` is already visible.
+   * @default 0
+   */
+  iridescence?: number;
+
+  /**
+   * Android only: film grain over the surface, `0`–`~0.15`.
+   *
+   * Breaks up the flatness of a heavily blurred backdrop, which is what makes a
+   * frosted material read as etched glass rather than a gradient. Above ~0.15
+   * it stops looking like glass and starts looking like noise.
+   * @default 0
+   */
+  grain?: number;
+
+  /**
+   * Android only: rotates the built-in light direction, in **radians**.
+   *
+   * An offset rather than an absolute bearing, so `0` keeps the default
+   * top-left key light and existing layouts are unchanged. Drives the sheen
+   * band, the specular hotspot and the inner shadow together, so the surface
+   * stays internally consistent.
+   * @default 0
+   */
+  lightAngle?: number;
+
+  /**
+   * Android only: multiplier on the specular exponent.
+   *
+   * `1` is the default hotspot. Higher is tighter and harder — polished glass;
+   * lower is broader and softer — satin. Useful range roughly `0.25`–`4`.
+   * @default 1
+   */
+  specularSharpness?: number;
+
+  /**
+   * Android only: multiplier on the backdrop vibrancy, applied **before** the
+   * tint so it grades what the glass transmits rather than the tint itself.
+   *
+   * `1` is the default over-saturation glass already applies. `0` gives a
+   * greyscale backdrop. Useful range roughly `0`–`2`.
+   * @default 1
+   */
+  saturation?: number;
+
+  /**
+   * Android only: multiplier on backdrop luminance, applied **before** the tint.
+   *
+   * `1` is unchanged. Distinct from {@link dim}, which is a flat scrim over the
+   * top: this grades the transmitted content, so the glass edge and sheen keep
+   * their own brightness. Useful range roughly `0.5`–`1.5`.
+   * @default 1
+   */
+  brightness?: number;
+
+  /**
    * Android only: suspend the effect without unmounting. The glass holds its
    * last frame, and resuming re-captures immediately.
    *

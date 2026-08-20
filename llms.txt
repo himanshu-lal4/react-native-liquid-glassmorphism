@@ -92,6 +92,12 @@ All optional. `LiquidGlassViewProps` extends `ViewProps`.
 **Legibility and performance**
 
 - `legibilityFloor`: number `0`–`1` (default `0`). **Android only.** An adaptive veil drawn *under the foreground children only*, so icons and labels stay readable over `clear` glass without darkening the whole pane. Adapts to backdrop brightness and is hued by `tintColor`. No-op on iOS.
+- `iridescence`: number `0`–`1` (default `0`). **Android only.** Rainbow shimmer at the rim, hue driven by the angle to the centre, riding the same edge ramp as the lens so it reads as light splitting at the edge rather than a colour overlay.
+- `grain`: number `0`–`~0.15` (default `0`). **Android only.** Film grain. A heavy blur flattens the backdrop into a gradient; a little noise makes it read as etched glass. Above ~0.15 it reads as noise.
+- `lightAngle`: number, radians (default `0`). **Android only.** Rotates the built-in light direction. An offset rather than an absolute bearing, so `0` keeps the tuned top-left key light. Drives the sheen band, specular hotspot and inner shadow together.
+- `specularSharpness`: number (default `1`). **Android only.** Multiplier on the specular exponent; higher is a tighter, harder hotspot. Useful range `0.25`–`4`.
+- `saturation`: number (default `1`). **Android only.** Multiplier on backdrop vibrancy, applied before the tint. `0` is greyscale. Useful range `0`–`2`.
+- `brightness`: number (default `1`). **Android only.** Multiplier on backdrop luminance, before the tint. Unlike `dim` (a flat scrim on top) this grades what the glass transmits, so the edge and sheen keep their own brightness. Useful range `0.5`–`1.5`.
 - `paused`: boolean (default `false`). **Android only.** Suspend the effect without unmounting; the glass holds its last frame and re-captures on resume. Views Android already reports as off-screen pause automatically — use this for cases that signal cannot see, such as a screen kept alive in a navigator stack or an off-screen carousel page. No-op on iOS.
 
 **Events**
@@ -126,14 +132,14 @@ On iOS that combination tells the library you do not want Liquid Glass at all, a
 
 `GlassPresets` is a frozen map of partial prop bags; `GLASS_PRESET_NAMES` lists the keys.
 
-| Preset | variant | intensity | thickness | edgeReflectionStrength | legibilityFloor | borderRadius |
-| --- | --- | --- | --- | --- | --- | --- |
+| Preset | variant | intensity | thickness | edgeReflectionStrength | legibilityFloor | borderRadius | extra |
+| --- | --- | --- | --- | --- | --- | --- | --- |
 | `navigationBar` | regular | 70 | 0.6 | 0.4 | 0.15 | 0 |
 | `floatingTabBar` | regular | 65 | 1 | 1 | 0.2 | 28 |
 | `cardOverMedia` | clear | 45 | 1.2 | 0.7 | 0.35 | 24 |
 | `compactControl` | clear | 50 | 0.7 | 1 | 0.25 | 20 |
-| `frosted` | regular | 85 | 0.4 | 0.3 | 0 | 20 |
-| `crystal` | clear | 30 | 1.8 | 1 | 0.1 | 24 |
+| `frosted` | regular | 85 | 0.4 | 0.3 | 0 | 20 | (+ `grain` 0.05) |
+| `crystal` | clear | 30 | 1.8 | 1 | 0.1 | 24 | (+ `iridescence` 0.45) |
 
 ```tsx
 <LiquidGlassView preset="floatingTabBar" borderRadius={32} />

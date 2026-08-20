@@ -70,6 +70,12 @@ It is honoured on both platforms including real Liquid Glass: UIKit exposes no b
 | --- | --- | --- | --- | --- |
 | `legibilityFloor` | `number` 0–1 | `0` | **Android** | Adaptive veil drawn *under the children only*, so icons and labels stay readable over `clear` glass without darkening the whole pane. Adapts to backdrop brightness, hued by `tintColor`. |
 | `paused` | `boolean` | `false` | **Android** | Suspend the effect without unmounting; the glass holds its last frame. Views Android already reports as off-screen pause automatically — use this for cases that signal cannot see. |
+| `iridescence` | `number` 0–1 | `0` | **Android** | Rainbow shimmer at the rim, hue driven by the angle to the centre, riding the lens edge ramp. |
+| `grain` | `number` 0–~0.15 | `0` | **Android** | Film grain. Makes a heavily blurred backdrop read as etched glass rather than a gradient. |
+| `lightAngle` | `number` (radians) | `0` | **Android** | Rotates the built-in light direction. An offset, so `0` is the tuned default. Drives sheen, specular and inner shadow together. |
+| `specularSharpness` | `number` | `1` | **Android** | Multiplier on the specular exponent. Higher = tighter hotspot. ~`0.25`–`4`. |
+| `saturation` | `number` | `1` | **Android** | Multiplier on backdrop vibrancy, before the tint. ~`0`–`2`. |
+| `brightness` | `number` | `1` | **Android** | Multiplier on backdrop luminance, before the tint. ~`0.5`–`1.5`. |
 
 ## Events
 
