@@ -1,3 +1,9 @@
+> **Claim discipline.** Do not write "the only library with real glass on Android" —
+> `@uginy/react-native-liquid-glass` and `react-native-android-liquid-glass` both ship
+> AGSL on Android, and a reviewer who knows that will discount everything else you say.
+> The claim that survives scrutiny is **merging**: Callstack's container is twenty lines
+> around Apple's `UIGlassContainerEffect` and their package has no Android at all.
+
 # Awesome-list & directory submissions (ready to paste)
 
 The highest-ROI backlinks you can get. These lists are scraped and cited by both search and LLMs.
@@ -12,15 +18,15 @@ The highest-ROI backlinks you can get. These lists are scraped and cited by both
 **Entry (single markdown line — match the list's existing format):**
 
 ```markdown
-- [react-native-liquid-glassmorphism](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism) - Authentic Liquid Glass on iOS *and* Android — native UIGlassEffect on iOS 26, real-time AGSL refraction shader on Android. Custom shapes, interactive touch/tilt, Expo config plugin, TypeScript, New Architecture ready.
+- [react-native-liquid-glassmorphism](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism) - Liquid Glass on iOS *and* Android, with glass views that merge into one liquid body on contact — native UIGlassEffect + UIGlassContainerEffect on iOS 26, AGSL refraction and smooth-min merging on Android. Custom shapes, Expo config plugin, TypeScript.
 ```
 
 > Check `CONTRIBUTING.md` in that repo first — some awesome lists require the entry to be trailing-period-consistent, alphabetized, and to pass `awesome-lint`. Keep the description under ~15 words if they enforce it. Short form if needed:
-> `- [react-native-liquid-glassmorphism](...) - Authentic Liquid Glass for iOS 26 and Android (native UIGlassEffect + AGSL refraction), custom shapes, interactive, Expo.`
+> `- [react-native-liquid-glassmorphism](...) - Liquid Glass for iOS 26 and Android with merging glass views (UIGlassEffect + AGSL refraction), custom shapes, Expo.`
 
 **PR title:**
 ```
-Add react-native-liquid-glassmorphism (Liquid Glass for iOS 26 + Android)
+Add react-native-liquid-glassmorphism (Liquid Glass for iOS 26 + Android, with merging)
 ```
 
 **PR body:**
@@ -28,7 +34,11 @@ Add react-native-liquid-glassmorphism (Liquid Glass for iOS 26 + Android)
 Adds react-native-liquid-glassmorphism — authentic Liquid Glass for React Native on both iOS and Android.
 
 - iOS 26: Apple's native UIGlassEffect (UIBlurEffect fallback below 26)
-- Android: a real-time AGSL refractive-lens shader (edge refraction, chromatic dispersion, mirrored edge reflection, Fresnel rim, tilt/touch specular) — the only RN lib bringing real glass optics to Android, not just blur
+- **Glass that merges** — two or more glass views fuse into one liquid body as they approach, on BOTH platforms. iOS uses Apple's UIGlassContainerEffect; Android has no OS equivalent, so the bodies are smooth-min merged per pixel in an AGSL shader. No other RN library does merging on Android
+- Android: a real-time AGSL refractive-lens shader (edge refraction, chromatic dispersion, mirrored edge reflection, Fresnel rim, tilt/touch specular)
+- `<ScrollEdgeBlurView>` — progressive edge blur for content under a header, both platforms
+- `accessibilityMode` — honours Reduce Transparency / Reduce Motion on both platforms
+- Zero runtime dependencies; published with npm provenance
 - Custom shapes (circle/squircle/polygon/points/arbitrary concave SVG path)
 - Interactive touch + device-tilt specular
 - Expo config plugin, New Architecture (Fabric) + old architecture, TypeScript

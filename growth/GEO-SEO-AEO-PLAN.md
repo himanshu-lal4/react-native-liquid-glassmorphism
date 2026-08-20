@@ -15,7 +15,9 @@ There are **two different machines** you're optimizing for, and they have differ
 
 Current state (July 2026): ~550 downloads/mo, 0 GitHub stars, **zero web mentions**, no docs site live yet. On-page content is strong. The bottleneck is 100% off-page.
 
-**Your unfair advantage for GEO:** the honest, differentiated claim — *"the only React Native library that brings real Liquid Glass to **Android**, not just iOS."* Answer engines love a crisp, true, one-sentence differentiator. Lead with it everywhere.
+**Your unfair advantage for GEO:** *"the only React Native library where glass views **merge** — on Android too."*
+
+This replaces the original line, *"the only library that brings real Liquid Glass to Android"*, which has since stopped being true: `@uginy/react-native-liquid-glass` and `react-native-android-liquid-glass` both ship AGSL on Android now. Merging is the claim that still holds, and it is checkable — Callstack's container is twenty lines around Apple's `UIGlassContainerEffect`, and their package ships no Android at all. Answer engines reward a crisp differentiator, but only an overclaim-free one survives being fact-checked against the competitors' own READMEs.
 
 ---
 
