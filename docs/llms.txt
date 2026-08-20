@@ -111,6 +111,27 @@ All optional. `LiquidGlassViewProps` extends `ViewProps`.
 - `onError`: `(e: NativeSyntheticEvent<GlassErrorInfo>) => void`. Fires when the view cannot do what the props asked: `{ code, message, fatal }`. Each code fires at most once per view and most are non-fatal — the view recovered but is not rendering exactly what you asked for.
 - `onFrameStats`: `(e: NativeSyntheticEvent<GlassFrameStats>) => void`. **Android only.** Frame timings aggregated over each `frameStatsInterval` window: `{ drawFps, totalMs, maxTotalMs, captureMs, shaderMs, tier, capturedWidth, capturedHeight }`. Frames in a window are averaged, not sampled, and the worst is carried as `maxTotalMs` — read that when hunting jank. CPU-side only; GPU shader execution is not visible.
 
+## ScrollEdgeBlurView
+
+A second component for progressive edge blur — content scrolling under a header or tab bar. Takes no children, no silhouette, no tint, no interaction, and never intercepts touches.
+
+Import: `import { ScrollEdgeBlurView } from 'react-native-liquid-glassmorphism'`
+
+- `edge`: `'top' | 'bottom' | 'left' | 'right'` (default `'top'`). The edge the blur is anchored to; it dissolves toward the opposite side.
+- `maxBlurRadius`: number, dp (default `24`). Blur radius at the anchored edge. Deliberately dp rather than raw pixels. On iOS this picks the nearest discrete `UIBlurEffect` material, since UIKit exposes no continuous radius.
+- `falloff`: number `0`–`1` (default `1`). How far across the view the blur has fully dissolved.
+
+Android: reads the same shared per-root backdrop capture the glass views use, so it costs no extra capture on a screen that already has glass; needs API 31+, renders nothing below. The ramp is an opacity ramp over one blurred layer, not a per-pixel radius ramp. iOS: a `UIVisualEffectView` masked by a `CAGradientLayer`. Web: an inert transparent view that holds its layout.
+
+```tsx
+<ScrollEdgeBlurView
+  edge="top"
+  maxBlurRadius={32}
+  falloff={0.8}
+  style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120 }}
+/>
+```
+
 ## Plain blur mode
 
 To use this as a conventional backdrop blur — a drop-in for `BlurView` — turn off every glass signal:
