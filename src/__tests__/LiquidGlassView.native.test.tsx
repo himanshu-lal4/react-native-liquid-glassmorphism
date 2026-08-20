@@ -59,9 +59,14 @@ describe('LiquidGlassView (native) prop mapping', () => {
     }
   );
 
-  it('also reflects borderRadius into the style so children clip to the curve', () => {
+  it('does NOT reflect borderRadius into the style — native rounds itself', () => {
+    // The radius travels as `glassCornerRadius`; Android clips children with
+    // clipToOutline + its own ViewOutlineProvider and iOS uses
+    // cornerConfiguration. Passing it as a style too made Fabric warn
+    // "doesn't support property 'borderRadius'" for every rounded glass view.
     const { props } = render({ borderRadius: 16, style: { padding: 8 } });
-    expect(props.style).toStrictEqual([{ borderRadius: 16 }, { padding: 8 }]);
+    expect(props.glassCornerRadius).toBe(16);
+    expect(props.style).toStrictEqual({ padding: 8 });
   });
 
   it('passes explicit values through, overriding defaults', () => {
@@ -240,9 +245,10 @@ describe('LiquidGlassView (native) prop mapping', () => {
     expect(props.onError).toBeUndefined();
   });
 
-  it('omits the container borderRadius when a shape is set', () => {
+  it('carries no container rounding in the style when a shape is set', () => {
     const { props } = render({ shape: { type: 'circle' }, style: { padding: 8 } });
-    // First slot is null (no rounding) rather than a { borderRadius } object.
-    expect(props.style).toStrictEqual([null, { padding: 8 }]);
+    // The style carries no rounding at all now; the shape mask defines the
+    // silhouette and native squares off its own corner radius for it.
+    expect(props.style).toStrictEqual({ padding: 8 });
   });
 });

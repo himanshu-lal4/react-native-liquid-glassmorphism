@@ -268,9 +268,14 @@ export function renderNativeGlass(
       onPipelineReady={handlePipelineReady}
       onError={handleError}
       {...platformProps}
-      // A custom shape defines its own silhouette, so don't also round the
-      // outer container — that would clip the shape's corners.
-      style={[normalized ? null : { borderRadius }, style]}
+      // Deliberately NOT `{ borderRadius }` here. The corner radius already
+      // travels as `glassCornerRadius`, and both platforms round themselves
+      // from it — Android via clipToOutline + its own ViewOutlineProvider, iOS
+      // via cornerConfiguration (or the shape mask). Passing it as a style as
+      // well made Fabric log "LiquidGlassmorphismView doesn't support property
+      // 'borderRadius'" for every rounded glass view on screen, which is a lot
+      // of noise in any real app for something the native side had covered.
+      style={style}
       {...(hostRest as object)}
     >
       {children}
