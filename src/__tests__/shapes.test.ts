@@ -149,6 +149,55 @@ describe('normalizeShape', () => {
     ).toBeNull();
   });
 
+  it('hexagon is a six-sided polygon, point-up by default', () => {
+    const hex = nn(normalizeShape({ type: 'hexagon' }));
+    expect(hex.viewBoxWidth).toBe(100);
+    // Six vertices: one M plus five Ls.
+    expect(hex.path.match(/L/g) ?? []).toHaveLength(5);
+    expect(hex.path.trim().endsWith('Z')).toBe(true);
+    // Identical to the explicit polygon form.
+    const poly = nn(normalizeShape({ type: 'polygon', sides: 6 }));
+    expect(hex.path).toBe(poly.path);
+  });
+
+  it('hexagon honours rotation', () => {
+    const flat = nn(normalizeShape({ type: 'hexagon', rotation: 30 }));
+    const up = nn(normalizeShape({ type: 'hexagon' }));
+    expect(flat.path).not.toBe(up.path);
+  });
+
+  it('polygon cornerRadius rounds vertices with quadratic curves', () => {
+    // cornerRadius was documented on the type but silently ignored — it must
+    // now emit one Q per vertex and no sharp vertex points.
+    const rounded = nn(normalizeShape({ type: 'polygon', sides: 6, cornerRadius: 0.3 }));
+    expect(rounded.path.match(/Q/g) ?? []).toHaveLength(6);
+    const sharp = nn(normalizeShape({ type: 'polygon', sides: 6 }));
+    expect(rounded.path).not.toBe(sharp.path);
+    expect(sharp.path.includes('Q')).toBe(false);
+  });
+
+  it('cornerRadius 0 and out-of-range values stay safe', () => {
+    const zero = nn(normalizeShape({ type: 'polygon', sides: 5, cornerRadius: 0 }));
+    expect(zero.path.includes('Q')).toBe(false);
+    // > 1 clamps rather than folding the shape inside out.
+    const over = nn(normalizeShape({ type: 'polygon', sides: 5, cornerRadius: 5 }));
+    expect(over.path.match(/Q/g) ?? []).toHaveLength(5);
+    expect(over.path).not.toContain('NaN');
+  });
+
+  it('heart is a closed all-cubic silhouette in the 100×100 box', () => {
+    const heart = nn(normalizeShape({ type: 'heart' }));
+    expect(heart.viewBoxWidth).toBe(100);
+    expect(heart.viewBoxHeight).toBe(100);
+    expect(heart.path.startsWith('M')).toBe(true);
+    expect(heart.path.trim().endsWith('Z')).toBe(true);
+    // Two lobes of three cubics each.
+    expect(heart.path.match(/C/g) ?? []).toHaveLength(6);
+    // Symmetric: cleft and bottom point sit on the vertical centre line.
+    expect(heart.path).toContain('M 50 26');
+    expect(heart.path).toContain('50 92');
+  });
+
   it('passes an arbitrary SVG path straight through with its view-box', () => {
     const d = 'M 0 0 L 100 0 C 100 40 60 40 50 20 Z';
     const s = nn(normalizeShape({ type: 'path', d, width: 100, height: 60 }));
