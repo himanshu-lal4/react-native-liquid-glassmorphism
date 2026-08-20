@@ -172,9 +172,14 @@ function polygonShape(sides: number, rotationDeg: number, cornerRadius = 0): Nor
   const round = Math.min(1, Math.max(0, cornerRadius));
   if (round <= 0) return { path: polylinePath(verts), ...UNIT_BOX };
 
+  // Wrap-around vertex access without non-null assertions (count >= 3, so the
+  // fallback is unreachable — it exists to satisfy noUncheckedIndexedAccess).
+  const at = (i: number): readonly [number, number] =>
+    verts[((i % count) + count) % count] ?? [50, 50];
+
   // Rounding distance along each edge, capped at half the edge length so
   // adjacent roundings can never overlap.
-  const edge = Math.hypot(verts[1]![0] - verts[0]![0], verts[1]![1] - verts[0]![1]);
+  const edge = Math.hypot(at(1)[0] - at(0)[0], at(1)[1] - at(0)[1]);
   const d = Math.min(round * 50, edge / 2);
 
   const lerpToward = (
@@ -188,9 +193,9 @@ function polygonShape(sides: number, rotationDeg: number, cornerRadius = 0): Nor
 
   const cmds: string[] = [];
   for (let i = 0; i < count; i++) {
-    const prev = verts[(i - 1 + count) % count]!;
-    const v = verts[i]!;
-    const next = verts[(i + 1) % count]!;
+    const prev = at(i - 1);
+    const v = at(i);
+    const next = at(i + 1);
     const inPt = lerpToward(v, prev); // rounding start, on the incoming edge
     const outPt = lerpToward(v, next); // rounding end, on the outgoing edge
     cmds.push(i === 0 ? `M ${fmt(inPt[0])} ${fmt(inPt[1])}` : `L ${fmt(inPt[0])} ${fmt(inPt[1])}`);
