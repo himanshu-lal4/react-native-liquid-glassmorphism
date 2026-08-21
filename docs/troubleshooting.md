@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "Troubleshooting React Native Liquid Glass — Glass Not Showing on Android or iOS"
-description: "Fixes for common React Native Liquid Glass problems: glass not appearing, no refraction on Android, the effect not working in Expo Go, a blurry or black view, unreadable text over clear glass, custom shapes not rendering, and performance issues."
+title: "Troubleshooting"
+description: "Fixes for glass not appearing, no refraction on Android, Expo Go issues, blurry or black views, unreadable text over glass, and performance."
 permalink: /troubleshooting/
 ---
 

@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "Android Liquid Glass in React Native — AGSL Refraction Shader (API 33+)"
-description: "How to get Apple-style Liquid Glass on Android in React Native. A real-time AGSL RuntimeShader reproduces the iOS 26 optics — edge refraction, chromatic dispersion, mirrored edge reflection, Fresnel rim, touch and tilt specular — with documented fallbacks below Android 13."
+title: "Android Liquid Glass — AGSL Shader"
+description: "Apple-style Liquid Glass on Android in React Native: a real-time AGSL RuntimeShader with refraction, dispersion and Fresnel, plus fallbacks below Android 13."
 permalink: /android-liquid-glass/
 ---
 

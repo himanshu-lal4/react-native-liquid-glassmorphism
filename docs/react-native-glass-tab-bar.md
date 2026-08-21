@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "React Native Liquid Glass Tab Bar — iOS 26 and Android (React Navigation, Expo Router)"
-description: "Build an iOS 26-style Liquid Glass bottom tab bar in React Native that also works on Android. Floating glass tab bars, translucent nav bars and concave notched shapes, wired up with React Navigation and Expo Router."
+title: "Liquid Glass Tab Bar"
+description: "Build an iOS 26-style Liquid Glass bottom tab bar in React Native that also works on Android, wired up with React Navigation or Expo Router."
 permalink: /react-native-glass-tab-bar/
 ---
 

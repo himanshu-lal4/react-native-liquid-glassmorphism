@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "An expo-blur Alternative — Honest Comparison with react-native-liquid-glassmorphism"
-description: "A balanced comparison of expo-blur, @react-native-community/blur and react-native-liquid-glassmorphism: what each does better, OS support, Expo Go compatibility, refraction versus blur, and how to migrate a BlurView."
+title: "expo-blur Alternative"
+description: "expo-blur, @react-native-community/blur and react-native-liquid-glassmorphism compared: OS support, Expo Go compatibility, refraction vs blur, migration."
 permalink: /expo-blur-alternative/
 ---
 

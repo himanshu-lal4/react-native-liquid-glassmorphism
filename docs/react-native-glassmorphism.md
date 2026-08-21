@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "React Native Glassmorphism — Frosted Glass vs Real Liquid Glass"
-description: "How to build glassmorphism and frosted-glass UI in React Native, and how CSS-style glassmorphism (blur + translucency) differs from true Liquid Glass, which refracts the backdrop through a modelled lens on both iOS and Android."
+title: "Glassmorphism vs Liquid Glass"
+description: "How CSS-style glassmorphism (blur plus translucency) differs from true Liquid Glass, which refracts the backdrop through a lens on iOS and Android."
 permalink: /react-native-glassmorphism/
 ---
 

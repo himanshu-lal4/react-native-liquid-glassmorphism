@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "Best React Native Liquid Glass Library (2026) — iOS and Android Compared"
-description: "An honest comparison of every React Native Liquid Glass and glassmorphism library in 2026: react-native-liquid-glassmorphism, @callstack/liquid-glass, expo-glass-effect, @uginy/react-native-liquid-glass, react-native-android-liquid-glass, expo-blur and react-native-skia. Which support Android, which are iOS-only, and which to pick for your app."
+title: "Best Liquid Glass Libraries 2026"
+description: "An honest 2026 comparison of React Native Liquid Glass and glassmorphism libraries: which support Android, which are iOS-only, and which to pick."
 permalink: /best-react-native-liquid-glass-library/
 ---
 

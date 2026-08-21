@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "API Reference — LiquidGlassView Props, Presets and Types (iOS + Android)"
-description: "Complete API reference for react-native-liquid-glassmorphism: every LiquidGlassView prop with defaults and per-platform behaviour on iOS and Android, the six material presets, custom shape types, capability detection helpers, events and error codes."
+title: "API Reference"
+description: "Every LiquidGlassView prop with defaults and per-platform behaviour, the six material presets, custom shape types, capability helpers, events and error codes."
 permalink: /api/
 ---
 

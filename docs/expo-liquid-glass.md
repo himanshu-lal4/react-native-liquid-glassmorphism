@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "Expo Liquid Glass — Setup with a Dev Build (not Expo Go)"
-description: "How to add Liquid Glass to an Expo app: install react-native-liquid-glassmorphism, run expo prebuild or build a development build, and add the optional config plugin. Explains clearly why this cannot work in Expo Go and what each platform needs."
+title: "Expo Liquid Glass Setup"
+description: "Add Liquid Glass to an Expo app with a development build and the optional config plugin — and why it cannot work in Expo Go."
 permalink: /expo-liquid-glass/
 ---
 
