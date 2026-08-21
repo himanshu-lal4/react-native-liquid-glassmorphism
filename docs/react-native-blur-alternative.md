@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "React Native Liquid Glass vs expo-blur, react-native-blur & expo-glass-effect"
-description: "Comparing React Native glass/blur libraries: expo-blur, @react-native-community/blur, expo-glass-effect, @callstack/liquid-glass, and react-native-liquid-glassmorphism. Which give real Liquid Glass, refraction, and cross-platform (iOS + Android) support."
+title: "Glass vs Blur — Library Comparison"
+description: "Comparing React Native glass and blur libraries: which give real Liquid Glass, refraction, and cross-platform iOS + Android support."
 permalink: /react-native-blur-alternative/
 ---
 

@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "Getting Started — React Native Liquid Glass"
-description: "Install and set up authentic Liquid Glass in a React Native or Expo app: add react-native-liquid-glassmorphism, rebuild the native app, and drop in a LiquidGlassView."
+title: "Getting Started"
+description: "Install react-native-liquid-glassmorphism, rebuild the native app, and drop in a LiquidGlassView — setup for React Native and Expo."
 permalink: /getting-started/
 ---
 

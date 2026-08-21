@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "Recipes — React Native Liquid Glass Snippets (nav bar, card, tab bar)"
-description: "Copy-paste React Native Liquid Glass recipes: a frosted glass navigation bar, a glass card over a photo, clear-glass media controls over video, and a concave notched glass tab bar. Each snippet compiles as written."
+title: "Recipes — Glass UI Snippets"
+description: "Copy-paste React Native Liquid Glass recipes: a frosted glass nav bar, a glass card, clear-glass media controls, and a concave notched tab bar."
 permalink: /recipes/
 ---
 

@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "React Native Liquid Glass for iOS and Android — One Component, Both Platforms"
-description: "The React Native Liquid Glass library that works on Android as well as iOS. Native UIGlassEffect on iOS 26, a real-time AGSL refraction shader on Android 13+, from one <LiquidGlassView> component. Custom shapes, interactive touch/tilt, Expo config plugin, TypeScript, New Architecture ready."
+title: "Liquid Glass for iOS & Android"
+description: "Liquid Glass for React Native on Android and iOS: native UIGlassEffect on iOS 26 and a real-time AGSL refraction shader on Android 13+, from one component."
 permalink: /
 ---
 

@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "How to Add Liquid Glass (Glassmorphism) in React Native — iOS & Android"
-description: "Step-by-step guide to adding iOS 26 Liquid Glass and matching Android glass refraction in React Native: variants, tint, interactive touch/tilt, custom shapes, and how the effect degrades on older OS versions."
+title: "How to Add Liquid Glass"
+description: "Step-by-step guide to iOS 26 Liquid Glass and matching Android refraction in React Native: variants, tint, touch and tilt, custom shapes, fallbacks."
 permalink: /react-native-liquid-glass/
 ---
 

@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "React Native Liquid Glass Merging — glass views that fuse on contact (iOS 26 and Android)"
-description: "Make React Native glass views merge into one liquid body when they come close, like Apple's Liquid Glass. UIGlassContainerEffect on iOS 26, and a smooth-minimum AGSL shader on Android — the only React Native library that merges glass on Android."
+title: "Glass Merging on iOS & Android"
+description: "Make React Native glass views merge into one liquid body as they approach: UIGlassContainerEffect on iOS 26 and a smooth-min AGSL shader on Android."
 permalink: /react-native-glass-merging/
 ---
 

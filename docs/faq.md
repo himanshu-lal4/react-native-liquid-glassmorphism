@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "React Native Liquid Glass — FAQ"
-description: "Answers to common questions about Liquid Glass in React Native: Expo support, iOS 26 requirement, how Android glass works, custom shapes, interactivity, fallbacks, and how it compares to blur libraries."
+title: "FAQ"
+description: "Expo support, the iOS 26 requirement, how Android glass works, custom shapes, interactivity, fallbacks, and how it compares to blur libraries."
 permalink: /faq/
 ---
 

@@ -1,7 +1,7 @@
 ---
 layout: page
-title: "iOS 26 Liquid Glass in React Native — Native UIGlassEffect"
-description: "How to render Apple's iOS 26 Liquid Glass in React Native with the native UIGlassEffect: regular and clear styles, interactive glass, tint, custom shapes, plus how the effect gates by iOS version and falls back to UIBlurEffect below iOS 26."
+title: "iOS 26 Liquid Glass — UIGlassEffect"
+description: "Render Apple's iOS 26 Liquid Glass in React Native with the native UIGlassEffect: regular and clear styles, interactive glass, tint, shapes and fallbacks."
 permalink: /ios-26-liquid-glass/
 ---
 
