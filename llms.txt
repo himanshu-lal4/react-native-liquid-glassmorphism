@@ -3,7 +3,7 @@
 > Liquid Glass for React Native, on **both iOS and Android**, from one declarative component. Glass views **merge into one liquid body when they come close, on both platforms** — the only React Native library that does this on Android. iOS 26 renders Apple's native `UIGlassEffect`; Android reproduces the same optics in a real-time AGSL refractive-lens shader (per-frame backdrop capture → blur → rounded-glass lozenge with edge refraction, chromatic dispersion, mirrored edge reflection, Fresnel rim, and tilt/touch specular). Also searched for as: React Native liquid glass, glassmorphism, frosted glass, glass effect, iOS 26 glass, backdrop blur, blur view, AGSL glass, Android liquid glass.
 
 Package: `react-native-liquid-glassmorphism` (npm, MIT).
-Components: `<LiquidGlassView>` (the glass surface), `<LiquidGlassContainer>` (wrap glass views so they merge on contact), `<ScrollEdgeBlurView>` (progressive edge blur under a header or tab bar).
+Components: `<LiquidGlassView>` (the glass surface), `<LiquidGlassContainer>` (wrap glass views so they merge on contact), `<LiquidGlassBackdrop>` (Android: wrap the content behind the glass to swap the software capture for a GPU display list — glass on glass, still backdrops under transforms), `<ScrollEdgeBlurView>` (progressive edge blur under a header or tab bar).
 Zero runtime dependencies. Published with npm provenance (SLSA).
 Requires React Native 0.83+. Fabric (New Architecture) and the old architecture both supported. **Not usable in Expo Go** — it is a native module, so use a development build or `expo prebuild`.
 
@@ -104,6 +104,8 @@ All optional. `LiquidGlassViewProps` extends `ViewProps`.
 - `brightness`: number (default `1`). **Android only.** Multiplier on backdrop luminance, before the tint. Unlike `dim` (a flat scrim on top) this grades what the glass transmits, so the edge and sheen keep their own brightness. Useful range `0.5`–`1.5`.
 - `magnification`: number (default `1`). **Android only.** Constant magnification of the backdrop through the lens centre; above 1 the glass reads as convex. Distinct from the transient touch magnifier `interactive` adds. Useful range `0.5`–`2`.
 - `ior`: number (default `1.5`). **Android only.** Index of refraction. `1.5` is window glass and reproduces the default look, `1` is no bending at all, `2.4` is roughly diamond. Related to `thickness` but distinct — `thickness` is how deep the glass is, `ior` is what it is made of. Useful range `1`–`2.5`.
+- `rimFalloff`: number (default `0`). **Android only.** How strongly the bright rim follows the light. `0` is the even outline iOS draws; above `0` the rim is weighted by how squarely each edge faces or opposes the light, raised to this power, so a pill glints top-left and bottom-right and goes quiet along its sides. Moves with `lightAngle` and `tilt`. Useful range `0`–`4`.
+- `dispersion`: number 0–1 (default `0`). **Android only.** Chromatic dispersion at the rim, sampled at seven wavelengths. `0` is the material's hairline split; `0.3` is a subtle prism edge. Four extra backdrop taps per pixel while above `0`.
 - `frameStatsInterval`: number, ms (default `0`). **Android only.** How often `onFrameStats` reports. `0` disables timing entirely — it is a permission, not just a cadence. A development HUD; ship it off.
 - `paused`: boolean (default `false`). **Android only.** Suspend the effect without unmounting; the glass holds its last frame and re-captures on resume. Views Android already reports as off-screen pause automatically — use this for cases that signal cannot see, such as a screen kept alive in a navigator stack or an off-screen carousel page. No-op on iOS.
 
@@ -112,6 +114,21 @@ All optional. `LiquidGlassViewProps` extends `ViewProps`.
 - `onPipelineReady`: `(e: NativeSyntheticEvent<GlassPipelineInfo>) => void`. Fires once per view after the first frame, reporting the tier that *actually* rendered: `{ tier, osVersion, shaderCompiled, supportsNativeGlass }`. Fires on every platform, including the web fallback with `tier: 'none'`.
 - `onError`: `(e: NativeSyntheticEvent<GlassErrorInfo>) => void`. Fires when the view cannot do what the props asked: `{ code, message, fatal }`. Each code fires at most once per view and most are non-fatal — the view recovered but is not rendering exactly what you asked for.
 - `onFrameStats`: `(e: NativeSyntheticEvent<GlassFrameStats>) => void`. **Android only.** Frame timings aggregated over each `frameStatsInterval` window: `{ drawFps, totalMs, maxTotalMs, captureMs, shaderMs, tier, capturedWidth, capturedHeight }`. Frames in a window are averaged, not sampled, and the worst is carried as `maxTotalMs` — read that when hunting jank. CPU-side only; GPU shader execution is not visible.
+
+## LiquidGlassBackdrop
+
+Android-only rendering strategy, a plain `View` on iOS. Wrap the content that sits behind your glass; the wrapped content is recorded into a GPU display list once per frame and every glass view inside samples that instead of the default per-frame software capture of the window. Scrolling under the glass costs nothing extra, glass on glass works (each glass sees the backdrop plus every glass drawn before it), and a scaled or rotated glass keeps the world behind it still. Glass inside it composites above everything else in it, in tree order — put covering overlays outside. API 29+; older devices fall back to the capture.
+
+Import: `import { LiquidGlassBackdrop } from 'react-native-liquid-glassmorphism'`
+
+```tsx
+<LiquidGlassBackdrop style={{ flex: 1 }}>
+  <ScrollView>{feed}</ScrollView>
+  <LiquidGlassView style={styles.tabBar}>{tabs}</LiquidGlassView>
+</LiquidGlassBackdrop>
+```
+
+Drop shadows: use the `boxShadow` style on a glass view. It follows the corner radius and is punched out under the pane, so it never shows through the glass (both platforms; Android API 29+).
 
 ## LiquidGlassContainer
 

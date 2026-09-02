@@ -98,6 +98,14 @@ class LiquidGlassmorphismViewManager : ViewGroupManager<LiquidGlassmorphismView>
     view.setIorValue(value)
   }
 
+  override fun setRimFalloff(view: LiquidGlassmorphismView, value: Float) {
+    view.setRimFalloffValue(value)
+  }
+
+  override fun setDispersion(view: LiquidGlassmorphismView, value: Float) {
+    view.setDispersionValue(value)
+  }
+
   override fun setFrameStatsInterval(view: LiquidGlassmorphismView, value: Int) {
     view.setFrameStatsIntervalValue(value)
   }

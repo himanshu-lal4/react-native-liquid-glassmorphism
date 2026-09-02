@@ -11,6 +11,7 @@ import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.RenderEffect
 import android.graphics.RenderNode
 import android.graphics.RuntimeShader
@@ -23,12 +24,18 @@ import android.hardware.SensorManager
 import android.os.Build
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.view.ViewTreeObserver
 import com.facebook.react.bridge.ReactContext
+import com.facebook.react.uimanager.BackgroundStyleApplicator
+import com.facebook.react.uimanager.LengthPercentage
+import com.facebook.react.uimanager.LengthPercentageType
 import com.facebook.react.uimanager.UIManagerHelper
+import com.facebook.react.uimanager.style.BorderRadiusProp
 import com.facebook.react.uimanager.events.Event
 import com.facebook.react.views.view.ReactViewGroup
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
@@ -103,6 +110,17 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   // Window glass. Chosen as the default because it reproduces the tuned lens
   // exactly, so adding the prop changed nothing for existing views.
   private var ior = 1.5f
+  // Directional rim: 0 keeps the even outline iOS draws around every element;
+  // above 0 the rim concentrates on the edges facing and opposing the light,
+  // `pow(|n·L|, falloff)`, so a pill glints top-left and bottom-right and goes
+  // quiet along its sides. Off by default — the even outline is the measured
+  // iOS look; this is the knob for a more sculpted highlight.
+  private var rimFalloff = 0f
+  // Extra chromatic dispersion at the rim, 0–1. The material always splits RGB
+  // by a hair (0.018·lens); this scales that up to a visible spectral fringe
+  // and switches the sampling to seven spectral taps so it reads as a rainbow
+  // rather than a red/blue ghost.
+  private var dispersion = 0f
 
   // Frame-timing HUD (#47). `frameStatsInterval` is a PERMISSION, not a switch:
   // at 0 (the default) nothing is timed, accumulated or dispatched at all, so a
@@ -183,6 +201,33 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     BitmapShader(b, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
   }
 
+  // --- Layer backdrop (GPU display list; see LiquidGlassBackdropView) ---
+  // The nearest enclosing backdrop host, if any. While it is compositing, it
+  // draws us itself, hands us the node to sample in [backdropBelow], and the
+  // software capture below is skipped entirely.
+  internal var backdropHost: LiquidGlassBackdropView? = null
+  internal var backdropBelow: RenderNode? = null
+  /**
+   * Set by the host around its explicit draw of us. While the host is
+   * compositing, that is the ONLY draw that renders anything: a draw reached
+   * through the view tree (our own display list, or a parent glass's children)
+   * would put a second copy of the glass on screen, sampling a stale backdrop.
+   */
+  internal var drawingFromHost = false
+  private val hostMatrix = Matrix()
+  private val hostInverse = Matrix()
+  private val hostRect = RectF()
+  // Our placement inside the host as of the last frame, to notice a move.
+  private val placementNow = FloatArray(9)
+  private val placementLast = FloatArray(9) { Float.NaN }
+
+  /** True when this frame's glass should come from the host's display list. */
+  private val layerMode: Boolean
+    get() {
+      val host = backdropHost ?: return false
+      return host.layerActive && backdropBelow != null && effectNode != null
+    }
+
   // --- Backdrop capture (software bitmap → GPU effect) ---
   // The backdrop is now owned per-ROOT and shared by every glass view under it
   // (#38). This view holds a reference and a sub-rectangle into it; it no
@@ -210,9 +255,26 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   private val locThis = IntArray(2)
   private val locRoot = IntArray(2)
   private val effectNode = if (supportsBlur()) RenderNode("liquidGlass") else null
+  // The layer path gets its OWN node. A display list recorded through the view
+  // tree (ours, or a parent glass's children) may still hold a reference to
+  // `effectNode` from a bitmap-path frame; if the host's explicit draw then
+  // re-recorded that same node to reference the backdrop, the backdrop would
+  // contain a node that draws the backdrop — a cycle HWUI walks until the
+  // render thread overflows its stack. Two nodes make that impossible by
+  // construction: nothing recorded through the tree ever references this one.
+  private val layerNode = if (supportsBlur()) RenderNode("liquidGlassLayer") else null
+  // The React children, recorded into their own node so they can be rounded
+  // with an anti-aliased outline clip now that the view itself no longer clips.
+  private val childrenNode =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) RenderNode("liquidGlassContent") else null
+  private val effectOutline = Outline()
+  private val contentOutline = Outline()
   private val srcRect = Rect()
   private val hashRect = Rect()
   private val dstRect = Rect()
+  // Blur margin actually taken per side, in bitmap pixels (see paddedSrcRect).
+  private val padRect = Rect()
+  private val scratchPad = Rect()
 
   // Downscale for the captured backdrop: cheaper to draw and pre-softens the
   // blur. 2 keeps enough detail for vibrancy to read (larger factors looked muddy).
@@ -222,7 +284,10 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   // < API 33 or if the AGSL fails to compile (→ Canvas fallback).
   private val glassShader: RuntimeShader? = try {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) RuntimeShader(GLASS_AGSL) else null
-  } catch (_: Throwable) {
+  } catch (t: Throwable) {
+    // The compiler's message names the line; without it a broken shader is
+    // just "tier=blur" with nothing to go on.
+    android.util.Log.w("LiquidGlass", "AGSL glass shader failed to compile: ${t.message}")
     null
   }
 
@@ -248,7 +313,13 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
   init {
     setWillNotDraw(false)
-    clipToOutline = true
+    // Rounding is done by RenderNode outlines (the effect node and the
+    // children node, see onDraw/dispatchDraw) rather than by clipping the whole
+    // view. A view-level clip also clips the background drawable, which is
+    // where React Native paints a `boxShadow` — so an outset shadow was cut
+    // off at the bounds and never showed. Below API 29 there is no public
+    // RenderNode, so the view clip stays and the shadow stays clipped.
+    clipToOutline = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
     outlineProvider = object : ViewOutlineProvider() {
       override fun getOutline(view: View, outline: Outline) {
         outline.setRoundRect(0, 0, view.width, view.height, cornerFor(view.width, view.height))
@@ -359,6 +430,18 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   fun setIorValue(value: Float) {
     val v = value.coerceIn(1f, 2.5f)
     if (ior != v) { ior = v; invalidate() }
+  }
+
+  /** Directional rim exponent; 0 (default) is the even outline. */
+  fun setRimFalloffValue(value: Float) {
+    val v = value.coerceIn(0f, 8f)
+    if (rimFalloff != v) { rimFalloff = v; invalidate() }
+  }
+
+  /** Extra rim dispersion, 0 (default, a hair) → 1 (a visible spectral fringe). */
+  fun setDispersionValue(value: Float) {
+    val v = value.coerceIn(0f, 1f)
+    if (dispersion != v) { dispersion = v; invalidate() }
   }
 
   /**
@@ -512,6 +595,8 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     take(brightness, src.brightness) { brightness = it }
     take(magnification, src.magnification) { magnification = it }
     take(ior, src.ior) { ior = it }
+    take(rimFalloff, src.rimFalloff) { rimFalloff = it }
+    take(dispersion, src.dispersion) { dispersion = it }
     if (changed) {
       refreshPaints()
       invalidate()
@@ -543,6 +628,15 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
 
   fun setCornerRadiusDp(dp: Int) {
     val px = dp * density
+    // Hand the radius to React Native's background style too. The glass does
+    // its own rounding, but RN's background drawable is where a `boxShadow`
+    // style is painted, and without the radius that shadow is a sharp
+    // rectangle under a rounded pane.
+    BackgroundStyleApplicator.setBorderRadius(
+      this,
+      BorderRadiusProp.BORDER_RADIUS,
+      LengthPercentage(dp.toFloat().coerceAtLeast(0f), LengthPercentageType.POINT)
+    )
     if (cornerRadiusPx != px) {
       cornerRadiusPx = px
       invalidateOutline()
@@ -713,9 +807,60 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       sharedRoot = root
       shared = SharedBackdrop.acquire(root, captureScale)
     }
+    backdropHost = findBackdropHost()
     viewTreeObserver.addOnPreDrawListener(this)
     if (tilt) registerSensor()
     maybeWarnNoChildren()
+  }
+
+  /** True (and remembers the new placement) if we moved inside the host. */
+  private fun placementChanged(host: LiquidGlassBackdropView): Boolean {
+    if (!computeHostTransform(host)) return false
+    hostMatrix.getValues(placementNow)
+    var changed = false
+    for (i in 0 until 9) {
+      if (placementNow[i] != placementLast[i]) { changed = true; break }
+    }
+    if (changed) System.arraycopy(placementNow, 0, placementLast, 0, 9)
+    return changed
+  }
+
+  private fun findBackdropHost(): LiquidGlassBackdropView? {
+    var p = parent
+    while (p != null) {
+      if (p is LiquidGlassBackdropView) return p
+      p = p.parent
+    }
+    return null
+  }
+
+  /**
+   * Repaints of the glass have to reach the host: in layer mode our pixels
+   * live in the host's display list, not our own, so a plain invalidate would
+   * re-record an empty node and change nothing on screen.
+   */
+  override fun invalidate() {
+    super.invalidate()
+    val host = backdropHost ?: return
+    if (host.layerActive) host.invalidate()
+  }
+
+  /**
+   * Our placement inside the backdrop host — every level's position, scroll
+   * and transform — and its inverse. False if we are not inside one.
+   */
+  private fun computeHostTransform(host: LiquidGlassBackdropView): Boolean {
+    hostMatrix.reset()
+    var v: View = this
+    val local = Matrix()
+    while (v !== host) {
+      val p = v.parent as? ViewGroup ?: return false
+      local.set(v.matrix)
+      local.postTranslate((v.left - p.scrollX).toFloat(), (v.top - p.scrollY).toFloat())
+      hostMatrix.postConcat(local)
+      v = p
+    }
+    return hostMatrix.invert(hostInverse)
   }
 
   /**
@@ -891,6 +1036,8 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     SharedBackdrop.release(sharedRoot, shared)
     shared = null
     sharedRoot = null
+    backdropHost = null
+    backdropBelow = null
     // Force a fresh capture + repaint on the next attach (fix #1).
     haveGoodCapture = false
     lastBackdropHash = 0
@@ -914,6 +1061,21 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     // expensive thing here: a full software `root.draw()` into our bitmap, every
     // frame, for as long as the view exists.
     if (captureSuspended) return true
+    // Inside a compositing backdrop host the glass reads a display list; there
+    // is no bitmap to capture and no hash to watch — the host repaints us.
+    // What we DO have to watch is our own placement: the host draws us at a
+    // position it computed when it last recorded, and a scroll or transform
+    // between us and it does not re-record the host on its own.
+    val host = backdropHost
+    if (host != null && host.layerActive) {
+      if (placementChanged(host)) {
+        host.invalidate()
+        // Cancel this pass so the host re-records in the same frame; the
+        // re-run sees no further change and proceeds.
+        return false
+      }
+      return true
+    }
     // Timed only when someone asked for stats — System.nanoTime() twice a frame
     // is cheap, but "cheap" is not "free" and this runs on every glass view.
     if (frameStatsInterval > 0) {
@@ -995,7 +1157,23 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
    * every view drawing the root at its own offset, everyone reads one bitmap
    * and differs only in where they read from.
    */
-  private fun sharedSrcRect(bmp: Bitmap, out: Rect): Boolean {
+  private fun sharedSrcRect(bmp: Bitmap, out: Rect): Boolean =
+    paddedSrcRect(bmp, 0, out, scratchPad)
+
+  /**
+   * [sharedSrcRect] grown by up to [pad] bitmap pixels on every side, as far as
+   * the bitmap actually extends there.
+   *
+   * The blur needs real neighbours. Cropping the capture to exactly the view
+   * and blurring with CLAMP means the outer ring of the blur is averaging
+   * clamped edge pixels — a streak along every border that follows whatever
+   * colour happened to sit on the edge. The shared bitmap already holds the
+   * pixels around the view, so the fix is to feed the blur a margin and let the
+   * shader crop it back. At the screen edge there is no margin to give, and
+   * CLAMP is then the right answer, so the padding is asymmetric: [padOut]
+   * reports what was actually taken per side (left, top, right, bottom).
+   */
+  private fun paddedSrcRect(bmp: Bitmap, pad: Int, out: Rect, padOut: Rect): Boolean {
     val root = rootView ?: return false
     getLocationInWindow(locThis)
     root.getLocationInWindow(locRoot)
@@ -1004,19 +1182,29 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     val right = left + width / captureScale
     val bottom = top + height / captureScale
     if (right <= 0 || bottom <= 0 || left >= bmp.width || top >= bmp.height) return false
-    out.set(
-      left.coerceIn(0, bmp.width),
-      top.coerceIn(0, bmp.height),
-      right.coerceIn(0, bmp.width),
-      bottom.coerceIn(0, bmp.height)
-    )
-    return out.width() > 0 && out.height() > 0
+    val l = left.coerceIn(0, bmp.width)
+    val t = top.coerceIn(0, bmp.height)
+    val r = right.coerceIn(0, bmp.width)
+    val b = bottom.coerceIn(0, bmp.height)
+    if (r <= l || b <= t) return false
+    val pl = min(pad, l)
+    val pt = min(pad, t)
+    val pr = min(pad, bmp.width - r)
+    val pb = min(pad, bmp.height - b)
+    out.set(l - pl, t - pt, r + pr, b + pb)
+    padOut.set(pl, pt, pr, pb)
+    return true
   }
 
   override fun draw(canvas: Canvas) {
     // Skipped for ANY shared capture, not just one this view triggered. The
     // bitmap is shared, so it must contain no glass at all — see SharedBackdrop.
     if (SharedBackdrop.capturing) return
+    // Likewise while a backdrop host records its content: we must not be in
+    // our own backdrop. The host draws us afterwards, on top of it — and once
+    // it is compositing, that explicit draw is the only one that counts.
+    val host = backdropHost
+    if (host != null && (host.recording || (host.layerActive && !drawingFromHost))) return
     super.draw(canvas)
   }
 
@@ -1080,18 +1268,71 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     val shapePath = scaledShapePath
 
     val bmp = captured
-    val node = effectNode
     val statsT0 = if (frameStatsInterval > 0) System.nanoTime() else 0L
-    if (bmp != null && !bmp.isRecycled && node != null && canvas.isHardwareAccelerated) {
-      node.setPosition(0, 0, width, height)
-      val rec = node.beginRecording()
-      if (!sharedSrcRect(bmp, srcRect)) srcRect.set(0, 0, bmp.width, bmp.height)
-      dstRect.set(0, 0, width, height)
-      rec.drawBitmap(bmp, srcRect, dstRect, null)
-      node.endRecording()
-      node.setRenderEffect(buildEffect(width, height))
-      // Analytic path: clipToOutline rounds it. Custom shape: the shader's own
-      // mask alpha shapes the glass.
+    val host = backdropHost
+    val below = backdropBelow
+    val useLayer = layerMode && host != null && below != null && computeHostTransform(host)
+    val node = if (useLayer) layerNode else effectNode
+    val haveBitmap = bmp != null && !bmp.isRecycled
+    if (node != null && canvas.isHardwareAccelerated && (useLayer || haveBitmap)) {
+      val blurPx = GlassParams.blurRadiusPx(intensity, variantClear, density, blurRadiusDp)
+      // Grow the node by the blur radius so the blur has real neighbours at
+      // the rim (see paddedSrcRect). The view region lands at (padL, padT)
+      // inside the node; the shader is told the offset and crops back to it.
+      val padL: Int
+      val padT: Int
+      val nodeW: Int
+      val nodeH: Int
+      if (useLayer) {
+        // Layer path: the backdrop is the host's display list, drawn through
+        // the inverse of our placement so that, once the host applies our
+        // transform, the world behind us lands exactly where it is on screen.
+        // Padding is clamped to the host's bounds — beyond them there is
+        // nothing to blur, and CLAMP at the node edge is the right answer.
+        hostRect.set(0f, 0f, width.toFloat(), height.toFloat())
+        hostMatrix.mapRect(hostRect)
+        val pad = ceil(blurPx).toInt()
+        padL = min(pad, hostRect.left.toInt()).coerceAtLeast(0)
+        padT = min(pad, hostRect.top.toInt()).coerceAtLeast(0)
+        val padR = min(pad, (host!!.width - hostRect.right).toInt()).coerceAtLeast(0)
+        val padB = min(pad, (host.height - hostRect.bottom).toInt()).coerceAtLeast(0)
+        nodeW = width + padL + padR
+        nodeH = height + padT + padB
+        node.setPosition(-padL, -padT, -padL + nodeW, -padT + nodeH)
+        val rec = node.beginRecording()
+        rec.translate(padL.toFloat(), padT.toFloat())
+        rec.concat(hostInverse)
+        rec.drawRenderNode(below!!)
+        node.endRecording()
+      } else {
+        val padWanted = ceil(blurPx / captureScale).toInt()
+        if (!paddedSrcRect(bmp!!, padWanted, srcRect, padRect)) {
+          srcRect.set(0, 0, bmp.width, bmp.height)
+          padRect.set(0, 0, 0, 0)
+        }
+        padL = padRect.left * captureScale
+        padT = padRect.top * captureScale
+        nodeW = width + padL + padRect.right * captureScale
+        nodeH = height + padT + padRect.bottom * captureScale
+        node.setPosition(-padL, -padT, -padL + nodeW, -padT + nodeH)
+        val rec = node.beginRecording()
+        dstRect.set(0, 0, nodeW, nodeH)
+        rec.drawBitmap(bmp, srcRect, dstRect, null)
+        node.endRecording()
+      }
+      node.setRenderEffect(buildEffect(width, height, blurPx, padL, padT, nodeW, nodeH))
+      // Analytic path: the node's own outline rounds it, anti-aliased, the way
+      // the view's clipToOutline used to. In node coordinates the view sits at
+      // (padL, padT). Custom shape: the shader's mask alpha is the silhouette.
+      if (shapePath == null) {
+        effectOutline.setRoundRect(
+          padL, padT, padL + width, padT + height, cornerFor(width, height)
+        )
+        node.setOutline(effectOutline)
+        node.setClipToOutline(true)
+      } else {
+        node.setClipToOutline(false)
+      }
       //
       // `Canvas.clipPath` is NOT anti-aliased on a hardware canvas — it is a
       // hard per-pixel stencil. Applying it on top of the shader's smooth,
@@ -1216,19 +1457,48 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
   // outside the shape. No-op for the analytic path (clipToOutline handles it).
   override fun dispatchDraw(canvas: Canvas) {
     val shapePath = scaledShapePath
+    val content = childrenNode
     if (shapePath != null) {
       canvas.save()
       canvas.clipPath(shapePath)
       super.dispatchDraw(canvas)
       canvas.restore()
+    } else if (content != null && canvas.isHardwareAccelerated && width > 0 && height > 0) {
+      // Rounded-rect children go through a node with an outline clip: that is
+      // the anti-aliased rounding the view's clipToOutline used to give, minus
+      // the side effect of clipping the background (and its box shadow) too.
+      contentOutline.setRoundRect(0, 0, width, height, cornerFor(width, height))
+      content.setPosition(0, 0, width, height)
+      content.setOutline(contentOutline)
+      content.setClipToOutline(true)
+      val rc = content.beginRecording()
+      try {
+        super.dispatchDraw(rc)
+      } finally {
+        content.endRecording()
+      }
+      canvas.drawRenderNode(content)
     } else {
       super.dispatchDraw(canvas)
     }
   }
 
-  /** Blur → (optional) AGSL material chain. Mirrors the iOS compositing order. */
-  private fun buildEffect(w: Int, h: Int): RenderEffect {
-    val radius = GlassParams.blurRadiusPx(intensity, variantClear, density, blurRadiusDp)
+  /**
+   * Blur → (optional) AGSL material chain. Mirrors the iOS compositing order.
+   *
+   * @param w,h the VIEW size — the shader's coordinate space.
+   * @param padL,padT where the view sits inside the padded node.
+   * @param nodeW,nodeH the padded node size, i.e. the extent of `content`.
+   */
+  private fun buildEffect(
+    w: Int,
+    h: Int,
+    radius: Float,
+    padL: Int,
+    padT: Int,
+    nodeW: Int,
+    nodeH: Int,
+  ): RenderEffect {
     val blur = RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP)
 
     val shader = glassShader
@@ -1241,12 +1511,21 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
     val useSdf =
       scaledShapePath != null && sdfInput != null && maskInput != null && gradInput != null
     return try {
-      shader.setInputShader("sdf", if (useSdf) sdfInput!! else dummyShader)
-      shader.setInputShader("mask", if (useSdf) maskInput!! else dummyShader)
-      shader.setInputShader("grad", if (useSdf) gradInput!! else dummyShader)
+      // `setInputBuffer`, not `setInputShader`: these three are DATA, not
+      // colour. `setInputShader` runs the bitmap through the working colour
+      // space, which on a wide-gamut surface quietly reshapes the packed
+      // distance codes and normals; the buffer binding samples the bytes as
+      // stored, which is what a distance field wants.
+      shader.setInputBuffer("sdf", if (useSdf) sdfInput!! else dummyShader)
+      shader.setInputBuffer("mask", if (useSdf) maskInput!! else dummyShader)
+      shader.setInputBuffer("grad", if (useSdf) gradInput!! else dummyShader)
       shader.setFloatUniform("iUseSdf", if (useSdf) 1f else 0f)
       shader.setFloatUniform("iSdfRange", sdfRange)
       shader.setFloatUniform("iResolution", w.toFloat(), h.toFloat())
+      shader.setFloatUniform("iOffset", padL.toFloat(), padT.toFloat())
+      shader.setFloatUniform("iContentSize", nodeW.toFloat(), nodeH.toFloat())
+      shader.setFloatUniform("iRimFalloff", rimFalloff)
+      shader.setFloatUniform("iDispersion", dispersion)
       // No corner radius for a custom shape — feed a nominal feature size so the
       // rim/lens band widths (derived from iCorner) stay sensible. The tuned
       // reference is the example's pill dock: 28dp radius on a 64dp height =
@@ -1445,6 +1724,11 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
       uniform float iMergeK;
       uniform float4 iBodies[8];
       uniform float iBodyR[8];
+      // Where the view sits inside the blur-padded node, and the node's size.
+      uniform float2 iOffset;
+      uniform float2 iContentSize;
+      uniform float iRimFalloff;
+      uniform float iDispersion;
 
       float sdRoundRect(float2 p, float2 b, float r) {
         float2 q = abs(p) - b + r;
@@ -1527,7 +1811,17 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         return float3(float(v.r) * 2.0 - 1.0, float(v.g) * 2.0 - 1.0, float(v.b));
       }
 
-      half4 main(float2 coord) {
+      half4 main(float2 nodeCoord) {
+        // The node is padded by the blur radius on each side (see onDraw) so
+        // the blur has real neighbours at the rim instead of clamped edge
+        // pixels. Everything below thinks in VIEW space; only the `content`
+        // taps translate back into node space. The margin itself is cropped
+        // here, so nothing draws outside the view.
+        float2 coord = nodeCoord - iOffset;
+        if (coord.x < 0.0 || coord.y < 0.0 ||
+            coord.x >= iResolution.x || coord.y >= iResolution.y) {
+          return half4(0.0);
+        }
         float2 b = iResolution * 0.5;
         float2 p = coord - b;
 
@@ -1686,11 +1980,32 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         // Chromatic dispersion at the rim: split R/G/B along the normal. Kept
         // VERY subtle — iOS UI glass shows almost no prismatic rainbow; a large
         // split reads as an artefact, not glass.
-        float2 ca = n2 * bend * iLens * 0.018;
+        // `dispersion` scales the split up to a deliberate spectral fringe.
+        float2 ca = n2 * bend * iLens * (0.018 + 0.25 * iDispersion);
+        // Content taps are in NODE space and may reach into the blur margin.
+        float2 cuv = uv + iOffset;
+        float2 tapLo = float2(0.0);
+        float2 tapHi = iContentSize - 1.0;
         half3 src;
-        src.r = content.eval(clamp(uv + ca, float2(0.0), iResolution - 1.0)).r;
-        src.g = content.eval(clamp(uv,      float2(0.0), iResolution - 1.0)).g;
-        src.b = content.eval(clamp(uv - ca, float2(0.0), iResolution - 1.0)).b;
+        if (iDispersion <= 0.0) {
+          src.r = content.eval(clamp(cuv + ca, tapLo, tapHi)).r;
+          src.g = content.eval(clamp(cuv,      tapLo, tapHi)).g;
+          src.b = content.eval(clamp(cuv - ca, tapLo, tapHi)).b;
+        } else {
+          // Seven spectral taps from red (+ca) to violet (-ca), each channel's
+          // weights summing to one, so the fringe grades through orange, yellow
+          // and cyan instead of the red/blue ghost a three-tap split gives.
+          half4 t1 = content.eval(clamp(cuv + ca,               tapLo, tapHi));
+          half4 t2 = content.eval(clamp(cuv + ca * (2.0 / 3.0), tapLo, tapHi));
+          half4 t3 = content.eval(clamp(cuv + ca * (1.0 / 3.0), tapLo, tapHi));
+          half4 t4 = content.eval(clamp(cuv,                    tapLo, tapHi));
+          half4 t5 = content.eval(clamp(cuv - ca * (1.0 / 3.0), tapLo, tapHi));
+          half4 t6 = content.eval(clamp(cuv - ca * (2.0 / 3.0), tapLo, tapHi));
+          half4 t7 = content.eval(clamp(cuv - ca,               tapLo, tapHi));
+          src.r = (t1.r + t2.r + t3.r) / 3.5 + t7.r / 7.0;
+          src.g = t2.g / 7.0 + (t3.g + t4.g + t5.g) / 3.5;
+          src.b = (t5.b + t6.b + t7.b) / 3.0;
+        }
 
         // Vibrancy — glass over-saturates what it transmits.
         float luma = dot(src, half3(0.2126, 0.7152, 0.0722));
@@ -1737,6 +2052,17 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         // glass edge iOS draws around every element.
         float rimLine = 1.0 - smoothstep(0.0, 3.0, -d);
 
+        // Directional rim (rimFalloff > 0): weight the outline by how squarely
+        // the edge faces the light — or faces directly away from it, hence the
+        // abs — so a pill glints top-left and bottom-right and goes quiet along
+        // its sides, which is how a real bevel catches a key light. The
+        // exponent sharpens the glint. Shares `lightDir` with the inner shadow
+        // and the tilt, so the glint moves with the device.
+        float2 lightDir = normalize(rotate2(float2(-0.6, -0.8), iLightAngle) + iTilt);
+        if (iRimFalloff > 0.0) {
+          rimLine *= pow(max(abs(dot(n2, lightDir)), 1e-3), iRimFalloff);
+        }
+
         // Gentle Fresnel + a small moving specular hotspot — kept subtle so the
         // rim reads as a clean outline, not a glossy bubble.
         float fres = pow(1.0 - N.z, 3.0);
@@ -1745,7 +2071,6 @@ open class LiquidGlassmorphismView(context: Context) : ReactViewGroup(context),
         float spec = pow(clamp(dot(N, L), 0.0, 1.0), 10.0 * iSpecSharp);
 
         // Soft inner shadow on the edge opposite the light → real depth.
-        float2 lightDir = normalize(rotate2(float2(-0.6, -0.8), iLightAngle) + iTilt);
         float facing = clamp(dot(n2, lightDir), 0.0, 1.0);
         float edgeShade = rim * rim * (1.0 - facing) * 0.12;
 

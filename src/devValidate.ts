@@ -200,6 +200,20 @@ export function validateGlassProps(props: LiquidGlassViewProps): void {
     'It is an index of refraction; 1.5 is window glass and the default look, 1 is no bending.'
   );
 
+  checkRange(
+    'rimFalloff',
+    props.rimFalloff,
+    [0, 8],
+    'It is the exponent of the directional rim; 0 is the even outline, 1–3 is a glint.'
+  );
+
+  checkRange(
+    'dispersion',
+    props.dispersion,
+    [0, 1],
+    'It scales the spectral fringe at the rim; 0 is the default hairline split.'
+  );
+
   checkFinite('lightAngle', props.lightAngle);
 
   // A handler with no interval is silent forever, which reads as a broken
@@ -299,6 +313,8 @@ function checkPlatformNoops(props: LiquidGlassViewProps): void {
       ['brightness', props.brightness, 1],
       ['magnification', props.magnification, 1],
       ['ior', props.ior, 1.5],
+      ['rimFalloff', props.rimFalloff, 0],
+      ['dispersion', props.dispersion, 0],
       ['frameStatsInterval', props.frameStatsInterval, 0],
     ];
     for (const [name, value, dflt] of artistic) {

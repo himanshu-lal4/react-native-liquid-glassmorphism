@@ -56,6 +56,8 @@ const ANDROID_ONLY_KEYS = [
   'brightness',
   'magnification',
   'ior',
+  'rimFalloff',
+  'dispersion',
   'frameStatsInterval',
   'onFrameStats',
 ] as const;
@@ -78,6 +80,8 @@ function androidGlassProps(
     brightness = 1,
     magnification = 1,
     ior = 1.5,
+    rimFalloff = 0,
+    dispersion = 0,
     shapeSmoothing = 0,
     frameStatsInterval = 0,
   } = resolved;
@@ -94,6 +98,8 @@ function androidGlassProps(
     brightness,
     magnification,
     ior,
+    rimFalloff,
+    dispersion,
     secondaryShapePath,
     shapeSmoothing,
     // Only attach the handler when an interval was actually asked for. Passing

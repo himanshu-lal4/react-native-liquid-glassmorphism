@@ -33,6 +33,8 @@ const NATIVE_ONLY_PROPS = [
   'brightness',
   'magnification',
   'ior',
+  'rimFalloff',
+  'dispersion',
   'frameStatsInterval',
   'onFrameStats',
   // A custom silhouette needs a real GPU pipeline; the fallback renders a
