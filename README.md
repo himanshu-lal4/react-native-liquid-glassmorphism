@@ -274,6 +274,8 @@ Extends `ViewProps`. All props are optional.
 | `brightness` | `number` | `1` | **Android only** — multiplier on backdrop luminance, before the tint. Unlike `dim` (a flat scrim on top) this grades what the glass transmits, so the edge and sheen keep their own brightness. Useful range ~`0.5`–`1.5`. No-op on iOS. |
 | `magnification` | `number` | `1` | **Android only** — constant magnification of the backdrop through the lens centre. `1` samples 1:1; above 1 the glass reads as convex and enlarges what is behind it. Distinct from the transient touch magnifier `interactive` adds. Useful range ~`0.5`–`2`. No-op on iOS. |
 | `ior` | `number` | `1.5` | **Android only** — index of refraction. `1.5` is window glass and reproduces the default look; `1` is vacuum (no bending, flat lens); `2.4` is roughly diamond. Related to `thickness` but not the same — `thickness` is how deep the glass is, `ior` is what it is made of. Useful range ~`1`–`2.5`. No-op on iOS. |
+| `rimFalloff` | `number` | `0` | **Android only** — how strongly the bright rim follows the light. `0` is the even outline iOS draws; above `0` the rim is weighted by how squarely each edge faces (or faces away from) the light, raised to this power, so a pill glints top-left and bottom-right and goes quiet along its sides. `1` soft, `2`–`3` sharp. Moves with `lightAngle` and `tilt`. No-op on iOS. |
+| `dispersion` | `number` (0–1) | `0` | **Android only** — chromatic dispersion at the rim. The glass always splits red from blue by a hair where the lens bends hardest; this scales it up to a visible spectral fringe, sampled at seven wavelengths so it grades through orange, yellow and cyan. `0.3` is a subtle prism edge. Costs four extra backdrop taps per pixel while above `0`. No-op on iOS. |
 | `onPipelineReady` | `(e) => void` | — | Fires once per view with the tier that actually rendered. See [Events](#events). |
 | `onError` | `(e) => void` | — | Fires when the view can't do what the props asked for. See [Events](#events). |
 | `onFrameStats` | `(e) => void` | — | **Android only** — frame timings aggregated over each `frameStatsInterval` window. Never fires while that is `0`. See [Frame stats](#frame-stats). |
@@ -362,17 +364,67 @@ const isFocused = useIsFocused();          // e.g. @react-navigation/native
 
 In rough order of what to reach for when frames drop:
 
-1. **`paused`** on anything mounted but not being looked at. Biggest single win.
-2. **Fewer instances.** Each glass view captures its own backdrop — ten of them
-   on screen is ten full captures per frame. (Sharing one capture across views
-   is [tracked here](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism/issues/38).)
+1. **`<LiquidGlassBackdrop>`** around the content behind the glass. It replaces
+   the software capture with a GPU display list — see
+   [GPU backdrop](#gpu-backdrop--liquidglassbackdrop) below. Biggest win when the
+   glass sits over scrolling content.
+2. **`paused`** on anything mounted but not being looked at.
 3. **`tilt={false}`** unless the surface really needs a motion-driven specular;
    it registers a sensor and repaints on its events.
 4. **Simpler `shape`.** An arbitrary path rebuilds a signed-distance-field
    texture whenever the silhouette or the view's size changes.
 5. **`thickness={0}`** for a flat pane where the lens isn't doing visible work.
 
+Glass views under one window already share a single capture per frame, so the
+count of glass views matters less than what is behind them.
+
 On iOS none of this applies — `UIGlassEffect` is composited by the OS.
+
+## GPU backdrop — `<LiquidGlassBackdrop>`
+
+Wrap the content that sits behind your glass:
+
+```tsx
+import { LiquidGlassBackdrop, LiquidGlassView } from 'react-native-liquid-glassmorphism';
+
+<LiquidGlassBackdrop style={{ flex: 1 }}>
+  <ScrollView>{feed}</ScrollView>
+  <LiquidGlassView style={styles.floatingTabBar}>{tabs}</LiquidGlassView>
+</LiquidGlassBackdrop>
+```
+
+On **Android** the wrapped content is recorded into a GPU display list once per
+frame and every glass view inside samples that, instead of the default
+per-frame software capture of the whole window. Nothing is rasterised on the
+CPU, so scrolling under the glass costs nothing extra. Two things the capture
+path cannot do also start working:
+
+- **Glass on glass.** Each glass view sees a composite of the backdrop plus
+  every glass drawn before it, so a glass button on a glass sheet refracts the
+  sheet, not the wallpaper behind both.
+- **Transforms.** The backdrop is drawn through the inverse of the glass view's
+  transform, so a press-scaled or rotated pane keeps the world behind it still.
+
+The one rule: glass inside a backdrop is composited **above** everything else in
+it, in tree order. Overlays that must cover the glass belong outside the
+backdrop. Needs API 29+; older devices fall back to the capture path.
+
+On **iOS** the OS reads the real backdrop already, so this renders a plain
+`View` — the same tree works on both platforms.
+
+## Drop shadows
+
+Use React Native's `boxShadow` style on the glass view:
+
+```tsx
+<LiquidGlassView borderRadius={24} style={{ boxShadow: '0 12px 32px rgba(0,0,0,0.25)' }} />
+```
+
+The shadow follows the glass's rounded corners and is **punched out** under the
+pane, so it never darkens the backdrop seen through the glass — a translucent
+surface with its own shadow showing through is the giveaway of a fake. Works
+on both platforms; on Android it needs API 29+, and a custom `shape` still gets
+a rounded-rectangle shadow.
 
 ## Known limitations
 

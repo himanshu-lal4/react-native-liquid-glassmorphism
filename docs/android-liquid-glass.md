@@ -112,6 +112,19 @@ Put the glass over something visually interesting — a photo, gradient, or scro
 
 > **`interactive` and `tilt` need children.** Both effects are driven by the glass view's own touches, so foreground content must be a **child** of `<LiquidGlassView>`, not a sibling rendered over an `absoluteFill` glass. With no children they're a silent no-op (a dev build logs a warning explaining this).
 
+### Glass over scrolling content: wrap it in `<LiquidGlassBackdrop>`
+
+By default the Android glass captures the whole window into a bitmap once per frame with a software draw. Wrapping the content behind the glass in `<LiquidGlassBackdrop>` swaps that for a GPU display list: the wrapped content is recorded once and every glass view inside samples it directly, so scrolling under a floating tab bar costs nothing extra. It also enables glass on glass (a glass control on a glass sheet sees the sheet) and keeps the backdrop still under a scaled or rotated pane. Glass inside the backdrop composites above everything else in it, so put covering overlays outside. API 29+.
+
+{% raw %}
+```tsx
+<LiquidGlassBackdrop style={{ flex: 1 }}>
+  <ScrollView>{feed}</ScrollView>
+  <LiquidGlassView style={styles.tabBar}>{tabs}</LiquidGlassView>
+</LiquidGlassBackdrop>
+```
+{% endraw %}
+
 ## Which props are Android-only?
 
 These four have no effect on iOS, where the OS fixes the glass optics — they're safe to set unconditionally:

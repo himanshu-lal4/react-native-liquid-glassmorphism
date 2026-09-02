@@ -451,6 +451,31 @@ export interface LiquidGlassViewProps extends ViewProps {
   ior?: number;
 
   /**
+   * Android only: how strongly the bright rim follows the light.
+   *
+   * `0` (the default) is the even outline iOS draws around every element.
+   * Above `0` the rim is weighted by how squarely each edge faces the light —
+   * or faces directly away from it — raised to this power, so a pill glints
+   * top-left and bottom-right and goes quiet along its sides, the way a real
+   * bevel catches a key light. `1` is a soft glint, `2`–`3` a sharp one. Moves
+   * with {@link lightAngle} and {@link tilt}. Useful range roughly `0`–`4`.
+   * @default 0
+   */
+  rimFalloff?: number;
+
+  /**
+   * Android only: chromatic dispersion at the rim, `0`–`1`.
+   *
+   * The material always splits red from blue by a hair where the lens bends
+   * hardest; this scales that up to a deliberate spectral fringe, sampled at
+   * seven wavelengths so it grades through orange, yellow and cyan rather than
+   * reading as a red/blue ghost. `0.3` is a subtle prism edge; `1` is a
+   * showpiece. Costs four extra backdrop taps per pixel while above `0`.
+   * @default 0
+   */
+  dispersion?: number;
+
+  /**
    * Android only: suspend the effect without unmounting. The glass holds its
    * last frame, and resuming re-captures immediately.
    *

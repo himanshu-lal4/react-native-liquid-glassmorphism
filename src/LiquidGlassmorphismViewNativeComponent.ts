@@ -199,6 +199,19 @@ export interface NativeProps extends ViewProps {
   ior?: WithDefault<Float, 1.5>;
 
   /**
+   * Android only: directional rim exponent. 0 (default) keeps the even outline;
+   * higher concentrates the rim on the edges facing and opposing the light.
+   * No-op on iOS.
+   */
+  rimFalloff?: WithDefault<Float, 0>;
+
+  /**
+   * Android only: extra chromatic dispersion at the rim, 0–1. 0 (default) is
+   * the material's hairline split. No-op on iOS.
+   */
+  dispersion?: WithDefault<Float, 0>;
+
+  /**
    * Android only: suspend the per-frame backdrop capture without unmounting.
    * The glass holds its last frame. Resuming re-captures immediately.
    */

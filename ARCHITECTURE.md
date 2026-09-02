@@ -39,9 +39,10 @@ Everything below lives in
 ### The capture loop, and the HWUI trap
 
 Android has no system glass material and no way to read the framebuffer behind a
-view. So each glass view captures its own backdrop: a full software
-`rootView.draw(canvas)` into its own bitmap, driven from an
-`OnPreDrawListener`.
+view. So, by default, the glass captures its backdrop: a full software
+`rootView.draw(canvas)` into a bitmap shared by every glass view under the same
+root (`SharedBackdrop`), driven from an `OnPreDrawListener`. The GPU alternative
+is the layer backdrop, described below.
 
 The naive version of this **self-sustains at 60fps forever**. Capturing marks
 the view dirty, the invalidation schedules a draw, the draw fires `onPreDraw`,
@@ -94,6 +95,61 @@ off-screen carousel page.
 Resuming clears `haveGoodCapture` as well as the hash, which is what forces a
 repaint even when the backdrop happens to hash identically to the frame we froze
 on.
+
+### The layer backdrop (`LiquidGlassBackdropView`)
+
+The software capture is the fallback. Inside a `<LiquidGlassBackdrop>` the glass
+never sees a bitmap: the host records its children into a `RenderNode` and each
+glass view draws that node into its effect layer, through the inverse of its own
+placement. Nothing is rasterised on the CPU, so a scroll under the glass costs
+nothing on our side — the display list already points at the live content.
+
+The shape of a frame, in `LiquidGlassBackdropView.dispatchDraw`:
+
+1. Record the children into the backdrop node with `recording` set. Every glass
+   view's `draw()` returns early, so no glass is in its own backdrop.
+2. Collect every glass descendant in tree order — nested ones included.
+3. Build a composite chain: `composite[k]` = `composite[k-1]` + glass `k`, drawn
+   inline through the ancestor chain's placement, transforms and clips. Glass
+   `k` samples `composite[k-1]`. That is what gives glass on glass and keeps a
+   scaled pane's backdrop still.
+4. Draw the last composite.
+
+Three rules keep this from crashing, and all three were learned from a
+`SIGSEGV` on the render thread — HWUI walks a cyclic node graph until the stack
+overflows, and the emulator's crash dumper cannot even produce a backtrace
+without `adb root`:
+
+- **Glass draws exactly once, explicitly.** While the host is compositing, a
+  glass view reached through the tree (its own display list, or a parent
+  glass's children) draws nothing; only the host's call with `drawingFromHost`
+  set renders. Otherwise a nested glass is drawn twice, and the tree copy's
+  effect node ends up inside the composite it samples.
+- **The layer path has its own `RenderNode`.** A display list recorded through
+  the tree during a bitmap-path frame may still reference `effectNode`; if the
+  explicit draw re-recorded that same node to reference the backdrop, the
+  backdrop would contain a node that draws the backdrop. `layerNode` is never
+  referenced by anything recorded through the tree.
+- **A software pass does not change the mode.** The shared bitmap capture runs
+  `rootView.draw()` on a software canvas through the host every frame that any
+  glass *outside* it needs a capture. Flipping `layerActive` there let glass
+  views record real content between two composited frames. Only a software
+  draw that is not the capture drops the host out of layer mode.
+
+Because the glass is drawn from the host's display list, the host must
+re-record when a glass *moves* inside it (a scroll, a transform). Nothing in
+the view system re-records a parent for that, so each glass compares its
+host-relative matrix in `onPreDraw` and invalidates the host when it changed,
+returning `false` to re-run the traversal in the same frame.
+
+### Blur padding
+
+The effect node is grown by the blur radius on every side that has content to
+give (`paddedSrcRect` for the bitmap path, the host bounds for the layer path).
+Blurring a capture cropped to exactly the view with `CLAMP` averages the edge
+pixels into the outer ring — a streak along every border. The shader is told
+the offset (`iOffset`) and crops the margin back, so nothing draws outside the
+view.
 
 ### The SDF texture
 
@@ -159,6 +215,14 @@ per-pixel stencil. The shader already derives a smooth silhouette alpha from the
 full-resolution mask, so clipping on top saws that edge back off. The clip is
 therefore applied only where the shader is *not* running: the blur-only fallback
 below API 33, where nothing else bounds the render node.
+
+The rounded rectangle is not rounded by the view's `clipToOutline` either. A
+view-level clip also clips the background drawable, which is where React
+Native paints a `boxShadow`, so an outset shadow was simply cut off. Instead the
+effect node and a node the children are recorded into (`childrenNode`) each
+carry a `RenderNode` outline with `clipToOutline` — the same anti-aliased
+rounding, minus the side effect. The corner radius is also handed to
+`BackgroundStyleApplicator` so RN's shadow follows the pane's corners.
 
 ---
 

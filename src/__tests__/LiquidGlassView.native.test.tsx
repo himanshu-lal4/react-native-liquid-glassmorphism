@@ -145,6 +145,8 @@ describe('LiquidGlassView (native) prop mapping', () => {
       brightness: 1.2,
       magnification: 1.4,
       ior: 2,
+      rimFalloff: 2,
+      dispersion: 0.5,
     });
     expect(props.iridescence).toBeUndefined();
     expect(props.grain).toBeUndefined();
@@ -154,6 +156,8 @@ describe('LiquidGlassView (native) prop mapping', () => {
     expect(props.brightness).toBeUndefined();
     expect(props.magnification).toBeUndefined();
     expect(props.ior).toBeUndefined();
+    expect(props.rimFalloff).toBeUndefined();
+    expect(props.dispersion).toBeUndefined();
   });
 
   it('keeps frame stats off iOS, handler included', () => {

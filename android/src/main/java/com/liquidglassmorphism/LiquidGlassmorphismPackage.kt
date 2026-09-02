@@ -11,7 +11,8 @@ class LiquidGlassmorphismViewPackage : BaseReactPackage() {
     return listOf(
       LiquidGlassmorphismViewManager(),
       ScrollEdgeBlurViewManager(),
-      LiquidGlassContainerManager()
+      LiquidGlassContainerManager(),
+      LiquidGlassBackdropViewManager()
     )
   }
 

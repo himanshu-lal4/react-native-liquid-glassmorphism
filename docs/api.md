@@ -81,6 +81,8 @@ It is honoured on both platforms including real Liquid Glass: UIKit exposes no b
 | `brightness` | `number` | `1` | **Android** | Multiplier on backdrop luminance, before the tint. ~`0.5`–`1.5`. |
 | `magnification` | `number` | `1` | **Android** | Constant backdrop magnification through the lens centre. Separate from the touch magnifier. ~`0.5`–`2`. |
 | `ior` | `number` | `1.5` | **Android** | Index of refraction. `1.5` = window glass = the default look; `1` = no bending. ~`1`–`2.5`. |
+| `rimFalloff` | `number` | `0` | **Android** | How strongly the rim follows the light. `0` = the even iOS outline; `1`–`3` = a glint on the edges facing and opposing the light, quiet along the sides. Moves with `lightAngle` and `tilt`. |
+| `dispersion` | `number` 0–1 | `0` | **Android** | Chromatic dispersion at the rim, sampled at seven wavelengths. `0` = the default hairline split; `0.3` = a subtle prism edge. Four extra backdrop taps per pixel while on. |
 
 ## Events
 
@@ -184,13 +186,21 @@ that prop gates native sensor registration, no motion sensor is registered.
 Use `forceGlass` only where the glass is decorative and something else already
 carries the meaning. The dev build warns once when you do.
 
+## `<LiquidGlassBackdrop>`
+
+A container with no props of its own. On Android its content is recorded into a GPU display list once per frame and every glass view inside samples that instead of the default software capture of the window — so scrolling under the glass costs nothing extra, glass on glass works (each glass sees the backdrop plus every glass drawn before it), and a transformed glass keeps the world behind it still. Glass inside it composites above everything else in it, in tree order. API 29+; older devices use the capture path. On iOS it is a plain `View`.
+
+## Drop shadows
+
+Use the `boxShadow` style on the glass view. The shadow follows the glass's corner radius and is punched out under the pane, so it is never visible through the glass. Both platforms; Android needs API 29+, and a custom `shape` gets a rounded-rectangle shadow.
+
 ## Platform behaviour
 
 | Platform | Tier | What renders |
 | --- | --- | --- |
 | iOS 26+ | `glass` | Apple's native `UIGlassEffect` — regular/clear, interactive, tint, corner radius, shape mask |
 | iOS 15–25 | `blur` | `UIBlurEffect` material bucketed by `intensity` |
-| Android 13+ (API 33+) | `refraction` | Per-frame backdrop capture → Gaussian blur → AGSL refractive-lens shader, SDF shapes |
+| Android 13+ (API 33+) | `refraction` | Per-frame backdrop capture (or a GPU display list inside `<LiquidGlassBackdrop>`) → Gaussian blur → AGSL refractive-lens shader, SDF shapes |
 | Android 12 (API 31–32) | `blur` | `RenderEffect` blur + tint |
 | Android < 12 | `tint` | Translucent tint fallback |
 
